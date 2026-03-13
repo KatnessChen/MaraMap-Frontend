@@ -21,7 +21,7 @@ The MaraMap Chrome Extension is the data ingestion front-end of the MaraMap plat
 | UI Framework | React 18 | Component model for popup pages |
 | Bundler | Vite + `vite-plugin-web-extension` | MV3-compatible multi-entry build |
 | Styling | CSS Modules | Scoped styles, no external dependencies |
-| Storage | `chrome.storage.local` | Persists auth token only（session 進度存於 DB） |
+| Storage | `chrome.storage.local` | Persists auth token only (session progress stored in DB) |
 | Manifest | MV3 | Required for Chrome Web Store compliance |
 
 ---
@@ -89,7 +89,7 @@ MaraMap-Chrome-Extension/
 
 ## 5. Authentication Flow
 
-User logs in with their MaraMap account (email + password派發). The token is stored locally and reused until it expires or the user logs out.
+User logs in with their MaraMap account (email + password issued by admin). The token is stored locally and reused until it expires or the user logs out.
 
 ```
 [Popup opens]
@@ -104,19 +104,19 @@ User logs in with their MaraMap account (email + password派發). The token is s
 
 [ScrapePage loads]
   → GET /api/v1/scrape/sessions?target_url=<current_facebook_url>
-  → No session   → 顯示「擷取」按鈕
-  → IN_PROGRESS  → 顯示確認框（繼續 / 重新擷取）
-  → COMPLETED    → 顯示已完成（可選擇重新擷取）
+  → No session   → Show "Collect" button
+  → IN_PROGRESS  → Show confirmation dialog (Continue / Restart)
+  → COMPLETED    → Show completion message (option to Restart)
 
 [Logout]
   → Clear chrome.storage.local
   → Navigate to LoginPage
 ```
 
-**Storage schema（僅存 token）：**
+**Storage schema (auth token only):**
 ```typescript
 {
-  token: string;   // Bearer token，其餘 session 進度皆從 DB 取得
+  token: string;   // Bearer token — all session progress is fetched from the DB
 }
 ```
 
@@ -126,33 +126,33 @@ User logs in with their MaraMap account (email + password派發). The token is s
 
 ### 6.1 Trigger
 
-User navigates to a Facebook personal profile or fan page, opens the popup, and clicks **「擷取」**.
+User navigates to a Facebook personal profile or fan page, opens the popup, and clicks **"Collect"**.
 
 ### 6.2 How Scraping Works
 
 The popup calls `chrome.scripting.executeScript()` to inject and run `scraper.ts` in the active Facebook tab. The content script scrolls the page, collects posts, and communicates results back via `chrome.runtime.sendMessage()`.
 
 ```
-── 全新擷取 ──────────────────────────────────────────────
-[User clicks 擷取]
-  → POST /api/v1/scrape/sessions → 取得 session_id
-  → 傳訊給 content script: { action: "START_SCRAPE", session_id }
-  → Content script 由新到舊滾動，每批 10 篇：
+── Fresh Scrape ──────────────────────────────────────────
+[User clicks "Collect"]
+  → POST /api/v1/scrape/sessions → receive session_id
+  → Send message to content script: { action: "START_SCRAPE", session_id }
+  → Content script scrolls newest-to-oldest, batches of 10:
       → POST /api/v1/ingest/batch { session_id, posts[10] }
       → PATCH /api/v1/scrape/sessions/:id { scraped_count, oldest_post_id, oldest_post_date }
-  → 智慧結束偵測 → PATCH session { status: 'COMPLETED' }
+  → Smart end detection → PATCH session { status: 'COMPLETED' }
 
-── 繼續上次（Resume）────────────────────────────────────
-[User confirms 繼續]
-  → 傳訊給 content script:
+── Resume ───────────────────────────────────────────────
+[User confirms Continue]
+  → Send message to content script:
     { action: "RESUME_SCRAPE", session_id, oldest_post_id, oldest_post_date }
-  → Content script 執行定位（見 Section 8）
-  → 從錨點之後繼續，流程同上
+  → Content script performs anchor seek (see Section 8)
+  → Continue from anchor, same flow as above
 
-── 重新擷取 ─────────────────────────────────────────────
-[User confirms 重新擷取]
+── Restart ──────────────────────────────────────────────
+[User confirms Restart]
   → DELETE /api/v1/scrape/sessions/:id
-  → 重走「全新擷取」流程
+  → Restart "Fresh Scrape" flow
 ```
 
 ### 6.3 Data Collected Per Post
@@ -166,11 +166,11 @@ The popup calls `chrome.scripting.executeScript()` to inject and run `scraper.ts
 | `image_urls` | `<img src>` within post | All image URLs collected |
 | `thumbnail_base64` | First image only, resized to 300px, fetched as Blob in browser | Stored immediately for preview |
 
-> **圖片策略：**
-> - 第一張圖片由 Extension 在瀏覽器內下載（有 Facebook session），縮圖至 300px 後轉為 Base64 送出。
-> - 其餘圖片僅送 URL。後端 async worker 負責排程下載並存入 Supabase Storage。
-> - 影片：僅收集影片封面縮圖 URL，不下載影片本體。
-> - 若圖片下載失敗：標記為 `IMAGE_UNAVAILABLE`，不阻擋流程。
+> **Image Strategy:**
+> - First image: downloaded in-browser by the Extension (authenticated Facebook session), resized to 300px, sent as Base64.
+> - All other images: URLs only — the backend async worker downloads and stores them in Supabase Storage.
+> - Videos: capture thumbnail URL only, never download the video itself.
+> - If an image download fails: mark as `IMAGE_UNAVAILABLE`, do not block ingestion.
 
 ---
 
@@ -198,53 +198,53 @@ interface IngestBatchPayload {
 
 ## 8. Progress Tracking & Resume
 
-### 8.1 Session 儲存於資料庫
+### 8.1 Session Stored in the Database
 
-Session 進度完全儲存在後端 `scrape_sessions` table（每個用戶、每個目標頁面一筆）。Extension 本地**只存 auth token**，不存 session 狀態。
+Session progress is stored entirely in the backend `scrape_sessions` table (one row per user per target Facebook page). The Extension stores only the **auth token** locally — no session state.
 
 ```typescript
-// GET /api/v1/scrape/sessions?target_url=<url> 的回應
+// Response shape for GET /api/v1/scrape/sessions?target_url=<url>
 interface ScrapeSessionResponse {
   id: string;
   target_url: string;
   target_name: string;
   status: 'IN_PROGRESS' | 'COMPLETED';
   scraped_count: number;
-  oldest_post_id: string | null;    // 目前最舊那篇的 source_id
-  oldest_post_date: string | null;  // 目前最舊那篇的發文時間（ISO 8601）
+  oldest_post_id: string | null;    // source_id of the oldest post scraped so far
+  oldest_post_date: string | null;  // published_at of the oldest post scraped so far (ISO 8601)
   started_at: string;
   updated_at: string;
 }
 ```
 
-### 8.2 Resume：定位到 oldest post 的下一篇
+### 8.2 Resume: Seek to the Post After the Oldest
 
-繼續擷取時，content script 必須先滾動頁面找到上次最舊的那篇貼文，再從它的**下一篇**（更舊的）開始收集：
+When resuming, the content script must scroll to find the previously oldest scraped post, then begin collecting from the **next post** (older):
 
 ```
-[Content script 收到 { oldest_post_id, oldest_post_date }]
+[Content script receives { oldest_post_id, oldest_post_date }]
 
-Phase 1 — 定位錨點：
-  → 向下滾動，對每篇貼文判斷：
-      → source_id == oldest_post_id → 找到！停在此處
-      → published_at 比 oldest_post_date 早超過 1 天 → 已超過，視為錨點不在頁上
-  → 找到錨點：游標移到該貼文之後
-  → 未找到（可能已被 Facebook 隱藏）：以 oldest_post_date 為日期截止點
+Phase 1 — Locate anchor:
+  → Scroll downward, evaluating each post:
+      → source_id == oldest_post_id → Found! Stop here
+      → published_at is more than 1 day earlier than oldest_post_date → Overshot; anchor not on page
+  → Anchor found: move cursor to the post immediately after it
+  → Anchor not found (may have been hidden by Facebook): use oldest_post_date as date cutoff
 
-Phase 2 — 從錨點繼續：
-  → 只收集 published_at < oldest_post_date 的貼文
-  → 批次大小 10 篇，流程同全新擷取
+Phase 2 — Continue from anchor:
+  → Collect only posts where published_at < oldest_post_date
+  → Batch size: 10 posts, same flow as fresh scrape
 ```
 
-### 8.3 每批更新進度
+### 8.3 Updating Progress Per Batch
 
-每批送出後：
+After each batch:
 ```
 PATCH /api/v1/scrape/sessions/:id
-{ scraped_count: <累計總數>, oldest_post_id: <本批最舊的 source_id>, oldest_post_date: <本批最舊的 published_at> }
+{ scraped_count: <cumulative total>, oldest_post_id: <source_id of oldest post in batch>, oldest_post_date: <published_at of oldest post in batch> }
 ```
 
-滑到頁底時：
+When page bottom is reached:
 ```
 PATCH /api/v1/scrape/sessions/:id
 { status: 'COMPLETED' }
@@ -252,10 +252,10 @@ PATCH /api/v1/scrape/sessions/:id
 
 ### 8.4 Popup Progress UI
 
-- 已擷取篇數：`已擷取 172 篇`
-- 最舊日期：`最舊至 2024-03-15`
-- 停止按鈕（session 保持 IN_PROGRESS，可下次繼續）
-- API 失敗時顯示錯誤 + 重試按鈕
+- Posts collected: e.g. `172 posts collected`
+- Oldest date reached: e.g. `Oldest: 2024-03-15`
+- Stop button (session remains IN_PROGRESS, resumable next time)
+- On API failure: show error message with a retry button
 
 ---
 
@@ -289,11 +289,11 @@ The content script uses a multi-layer approach to decide when the Facebook page 
 
 | Scenario | Behaviour |
 | -------- | --------- |
-| Facebook DOM changed (selector broken) | Show error: `「頁面結構已更新，請聯絡管理員」`, stop scraping |
+| Facebook DOM changed (selector broken) | Show error: "Page structure has changed, please contact your administrator.", stop scraping |
 | API 401 Unauthorized | Clear token, redirect to LoginPage |
 | API 5xx / Network error | Retry up to 3 times with exponential backoff; if still failing, pause session and show error |
-| User closes popup during scrape | Session saved to `chrome.storage.local`; content script continues until batch complete, then idles |
-| User closes the tab/browser | Session marked INTERRUPTED on next open; resume prompt shown |
+| User closes popup during scrape | Content script continues until current batch completes, then idles; session progress is already saved in DB |
+| User closes the tab/browser | Session remains IN_PROGRESS in DB; resume prompt shown on next open |
 
 ---
 
@@ -322,11 +322,11 @@ npm run build
 
 | Endpoint | Method | Purpose |
 | -------- | ------ | ------- |
-| `/api/v1/auth/login` | POST | 登入，取得 Bearer token |
-| `/api/v1/scrape/sessions` | GET | 查詢目標頁面的 session（`?target_url=`） |
-| `/api/v1/scrape/sessions` | POST | 建立新 session |
-| `/api/v1/scrape/sessions/:id` | PATCH | 更新進度（scraped_count, oldest_post_*）或 status |
-| `/api/v1/scrape/sessions/:id` | DELETE | 清除 session（重新擷取時） |
-| `/api/v1/ingest/batch` | POST | 送出一批貼文資料 |
+| `/api/v1/auth/login` | POST | Obtain Bearer token |
+| `/api/v1/scrape/sessions` | GET | Fetch session for target page (`?target_url=`) |
+| `/api/v1/scrape/sessions` | POST | Create new session |
+| `/api/v1/scrape/sessions/:id` | PATCH | Update progress (scraped_count, oldest_post_*) or status |
+| `/api/v1/scrape/sessions/:id` | DELETE | Delete session (user restarts) |
+| `/api/v1/ingest/batch` | POST | Send a batch of scraped posts |
 
 See `MaraMap-Backend/docs/SPEC.md` for full backend specification.
