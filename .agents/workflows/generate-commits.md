@@ -4,7 +4,7 @@ description: Analyze uncommitted changes, group them into logical commits, stage
 
 ## Project Context
 
-- **Repo**: MaraMap-Chrome-Extension (Owner: KatnessChen)
+- **Repo**: MaraMap-Frontend (Owner: KatnessChen)
 - **Tech Stack**: TypeScript, React 18, Vite, Chrome Extension MV3
 - **Branch convention**: `develop` → `main`
 
