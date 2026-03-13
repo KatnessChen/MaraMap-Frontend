@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — D: Warm Wanderer</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sand:       #f5ede0;
+    --linen:      #e8ddd0;
+    --parchment:  #fdf8f1;
+    --terracotta: #c4622d;
+    --terra-light:rgba(196,98,45,0.12);
+    --sage:       #7a9e7e;
+    --sage-light: rgba(122,158,126,0.15);
+    --coffee:     #3d2b1f;
+    --coffee-mid: #7a6355;
+    --rule:       rgba(61,43,31,0.12);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--parchment);
+    color: var(--coffee);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    /* Paper texture */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 64px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 700; color: var(--coffee);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--terracotta);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #fff;
+  }
+
+  .nav-links { display: flex; gap: 40px; }
+  .nav-links a {
+    font-size: 13px; color: var(--coffee-mid); text-decoration: none;
+    font-weight: 400; letter-spacing: 0.02em;
+    transition: color 0.25s;
+    position: relative;
+  }
+  .nav-links a::after {
+    content: ''; position: absolute; bottom: -2px; left: 0;
+    width: 0; height: 1px; background: var(--terracotta);
+    transition: width 0.3s ease;
+  }
+  .nav-links a:hover { color: var(--coffee); }
+  .nav-links a:hover::after { width: 100%; }
+
+  .nav-cta {
+    padding: 10px 24px;
+    background: var(--terracotta); color: #fff;
+    font-size: 13px; font-weight: 500; text-decoration: none;
+    border-radius: 100px;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .nav-cta:hover { opacity: 0.85; transform: translateY(-1px); }
+
+  /* ---- HERO ---- */
+  .hero {
+    padding: 80px 64px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--terracotta); font-weight: 500;
+    margin-bottom: 28px;
+  }
+  .hero-tag::before {
+    content: ''; width: 24px; height: 1px; background: var(--terracotta);
+  }
+
+  .hero-title {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(48px, 6vw, 80px);
+    font-weight: 700; line-height: 1.0;
+    letter-spacing: -2px; color: var(--coffee);
+    margin-bottom: 32px;
+  }
+
+  .hero-title em { font-style: italic; color: var(--terracotta); font-weight: 300; }
+
+  .hero-desc {
+    font-size: 16px; line-height: 1.85; color: var(--coffee-mid);
+    max-width: 420px; margin-bottom: 48px;
+  }
+
+  .hero-actions { display: flex; gap: 16px; align-items: center; }
+
+  .btn-primary {
+    padding: 16px 36px; border-radius: 100px;
+    background: var(--coffee); color: var(--sand);
+    font-size: 14px; font-weight: 500; text-decoration: none;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(61,43,31,0.2); }
+
+  .btn-text {
+    font-size: 14px; color: var(--coffee-mid); text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.3s;
+  }
+  .btn-text:hover { color: var(--coffee); }
+
+  /* Hero right */
+  .hero-collage {
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px; height: 480px;
+  }
+
+  .collage-card {
+    border-radius: 12px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px;
+    transition: transform 0.4s ease;
+    position: relative;
+  }
+  .collage-card:hover { transform: scale(1.02); }
+
+  .collage-card:nth-child(1) {
+    grid-column: 1; grid-row: 1 / 3;
+    background: linear-gradient(160deg, #d4956a, #a0522d);
+    transform: rotate(-1.5deg);
+  }
+  .collage-card:nth-child(2) {
+    background: linear-gradient(140deg, #8fbc8f, #6b8f71);
+    transform: rotate(1deg);
+  }
+  .collage-card:nth-child(3) {
+    background: linear-gradient(160deg, #c4a882, #9e8060);
+    transform: rotate(-0.5deg);
+  }
+
+  .card-label {
+    position: absolute; bottom: 16px; left: 16px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.8); font-weight: 500;
+  }
+
+  /* ---- ARTICLES ---- */
+  .stories {
+    padding: 72px 64px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .stories-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 48px;
+  }
+
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 32px; font-weight: 700; color: var(--coffee);
+  }
+  .section-title em { font-style: italic; font-weight: 300; color: var(--terracotta); }
+
+  .view-all {
+    font-size: 13px; color: var(--coffee-mid); text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.3s;
+  }
+  .view-all:hover { color: var(--terracotta); }
+
+  /* Card grid with rotated cards */
+  .cards-scatter {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
+  }
+
+  .story-card {
+    border-radius: 16px;
+    background: var(--sand);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+  }
+  .story-card:nth-child(1) { transform: rotate(-0.8deg); }
+  .story-card:nth-child(2) { transform: rotate(0.5deg); margin-top: 20px; }
+  .story-card:nth-child(3) { transform: rotate(-0.3deg); }
+  .story-card:hover {
+    transform: rotate(0deg) translateY(-8px) !important;
+    box-shadow: 0 20px 48px rgba(61,43,31,0.15);
+  }
+
+  .card-img {
+    height: 180px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px; position: relative;
+  }
+  .card-img-1 { background: linear-gradient(135deg, #e8c5a5, #d4956a); }
+  .card-img-2 { background: linear-gradient(135deg, #b8d4ba, #8fbc8f); }
+  .card-img-3 { background: linear-gradient(135deg, #dfc5a5, #c4a882); }
+
+  /* Handwritten underline effect via SVG */
+  .card-body { padding: 24px; }
+
+  .card-dest {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--terracotta); font-weight: 500; margin-bottom: 10px;
+  }
+
+  .card-h {
+    font-family: 'Fraunces', serif;
+    font-size: 19px; font-weight: 700; color: var(--coffee);
+    line-height: 1.3; margin-bottom: 10px;
+  }
+
+  .card-excerpt {
+    font-size: 13px; color: var(--coffee-mid); line-height: 1.75;
+    margin-bottom: 20px;
+  }
+
+  .card-footer-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 16px; border-top: 1px dashed var(--rule);
+  }
+
+  .card-tag {
+    padding: 4px 12px; border-radius: 100px;
+    font-size: 11px; font-weight: 500;
+    background: var(--terra-light); color: var(--terracotta);
+  }
+  .card-tag.green { background: var(--sage-light); color: var(--sage); }
+
+  .card-date { font-size: 11px; color: var(--coffee-mid); }
+
+  /* ---- ABOUT STRIP ---- */
+  .about-strip {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--rule);
+  }
+
+  .about-left {
+    padding: 64px;
+    border-right: 1px solid var(--rule);
+  }
+
+  .about-quote {
+    font-family: 'Fraunces', serif;
+    font-size: 28px; font-style: italic; font-weight: 300;
+    color: var(--coffee); line-height: 1.5;
+    margin-bottom: 24px;
+    padding-left: 20px;
+    border-left: 3px solid var(--terracotta);
+  }
+
+  .about-attr { font-size: 13px; color: var(--coffee-mid); padding-left: 20px; }
+
+  .about-right {
+    padding: 64px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 32px; align-content: center;
+  }
+
+  .stat-item {}
+  .stat-n {
+    font-family: 'Fraunces', serif;
+    font-size: 52px; font-weight: 700; color: var(--terracotta);
+    line-height: 1; margin-bottom: 6px;
+  }
+  .stat-l { font-size: 13px; color: var(--coffee-mid); }
+
+  /* ---- FOOTER ---- */
+  footer {
+    padding: 32px 64px;
+    border-top: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--linen);
+  }
+
+  .footer-logo { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--coffee); }
+  .footer-copy { font-size: 12px; color: var(--coffee-mid); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation:none!important; transition:none!important; } }
+</style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">
+      <div class="logo-icon">🧭</div>
+      MaraMap
+    </div>
+    <div class="nav-links">
+      <a href="#">探索</a>
+      <a href="#">地圖</a>
+      <a href="#">文章</a>
+      <a href="#">關於</a>
+    </div>
+    <a class="nav-cta" href="#">開始旅程</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="hero-tag">旅行 × AI × 地理</div>
+      <h1 class="hero-title">
+        每段旅程<br>都值得<br><em>被記住</em>
+      </h1>
+      <p class="hero-desc">
+        MaraMap 將你在社群上分享的旅遊貼文，轉換為有溫度的旅遊文章，並自動標注所有地理位置，讓每個記憶都找得到回家的路。
+      </p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="#">探索旅遊故事</a>
+        <a class="btn-text" href="#">了解更多 →</a>
+      </div>
+    </div>
+    <div class="hero-collage">
+      <div class="collage-card collage-card:nth-child(1)" style="background:linear-gradient(160deg,#d4956a,#a0522d);transform:rotate(-1.5deg)">
+        🏔️
+        <span class="card-label">北海道 · 函館</span>
+      </div>
+      <div class="collage-card" style="background:linear-gradient(140deg,#8fbc8f,#6b8f71);transform:rotate(1deg)">
+        🌿
+        <span class="card-label">峇里島 · Ubud</span>
+      </div>
+      <div class="collage-card" style="background:linear-gradient(160deg,#c4a882,#9e8060);transform:rotate(-0.5deg)">
+        🏛️
+        <span class="card-label">義大利 · Florence</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="stories">
+    <div class="stories-header">
+      <h2 class="section-title">最近的<em>旅遊故事</em></h2>
+      <a class="view-all" href="#">查看全部 →</a>
+    </div>
+    <div class="cards-scatter">
+
+      <div class="story-card">
+        <div class="card-img card-img-1">🏔️</div>
+        <div class="card-body">
+          <div class="card-dest">📍 函館市 · 北海道</div>
+          <h3 class="card-h">函館朝市的第一道光</h3>
+          <p class="card-excerpt">清晨四點半，海鮮的鹹味混著薄霧，在港口邊形成只屬於北方城市的氣息。</p>
+          <div class="card-footer-row">
+            <span class="card-tag">自然</span>
+            <span class="card-date">2024.11</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="card-img card-img-2">🌅</div>
+        <div class="card-body">
+          <div class="card-dest">📍 Florence · Italy</div>
+          <h3 class="card-h">翡冷翠的橙色黃昏</h3>
+          <p class="card-excerpt">站在米開朗基羅廣場，整座城市燃燒在夕陽裡，時間短暫地失去了真實性。</p>
+          <div class="card-footer-row">
+            <span class="card-tag green">城市</span>
+            <span class="card-date">2024.09</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="card-img card-img-3">🏮</div>
+        <div class="card-body">
+          <div class="card-dest">📍 新北市 · 瑞芳</div>
+          <h3 class="card-h">九份雨夜的霓虹迷宮</h3>
+          <p class="card-excerpt">雨水讓石板路倒映出燈籠的橘紅光芒，陡峭的階梯在霧中若隱若現。</p>
+          <div class="card-footer-row">
+            <span class="card-tag">人文</span>
+            <span class="card-date">2024.08</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="about-strip">
+    <div class="about-left">
+      <p class="about-quote">
+        「旅行筆記不只是座標，是那杯讓你決定留下的咖啡。MaraMap 記住這兩件事。」
+      </p>
+      <p class="about-attr">— MaraMap 設計理念</p>
+    </div>
+    <div class="about-right">
+      <div class="stat-item">
+        <div class="stat-n">840</div>
+        <div class="stat-l">篇旅遊文章</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n">12k</div>
+        <div class="stat-l">個地理標記</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n">38</div>
+        <div class="stat-l">個國家</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n">AI</div>
+        <div class="stat-l">自動萃取地點</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">● MaraMap</div>
+    <div class="footer-copy">© 2024 MaraMap · 旅行的記憶值得被看見 · Made in Taiwan</div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — F: Cinematic Night</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,300;0,400;0,500;1,300&family=Libre+Baskerville:ital,wght@0,400;1,400&family=Noto+Serif+TC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,600&display=swap');
+
+  :root {
+    --black:   #080706;
+    --deep:    #111009;
+    --panel:   #1a1814;
+    --film:    #221f1a;
+    --gold:    #c9a84c;
+    --gold-glow: rgba(201,168,76,0.3);
+    --gold-dim:  rgba(201,168,76,0.12);
+    --smoke:   rgba(255,255,255,0.65);
+    --smoke-dim: rgba(255,255,255,0.35);
+    --smoke-ghost: rgba(255,255,255,0.08);
+    --red:     #8b1a1a;
+    --rule:    rgba(255,255,255,0.07);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Raleway', sans-serif;
+    background: var(--black);
+    color: var(--smoke);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Film grain */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.04; background-size: 160px;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 64px;
+    background: linear-gradient(to bottom, rgba(8,7,6,0.9), transparent);
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 600; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--gold);
+  }
+
+  .nav-links { display: flex; gap: 36px; }
+  .nav-links a {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--smoke-dim); text-decoration: none; font-weight: 500;
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--gold); }
+
+  /* ---- HERO CINEMATIC ---- */
+  .cinema-hero {
+    min-height: 100vh;
+    position: relative; overflow: hidden;
+    display: flex; align-items: flex-end;
+  }
+
+  /* Simulated cinematic image with radial gradient */
+  .cinema-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 80% at 65% 40%, rgba(100,70,40,0.4) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 20% 70%, rgba(50,30,20,0.3) 0%, transparent 50%),
+      linear-gradient(160deg, #0f0c08 0%, #2a1f12 40%, #1a1008 100%);
+    font-size: 200px; display: flex; align-items: center; justify-content: center;
+    opacity: 0.8;
+  }
+
+  /* Letter-box bars */
+  .cinema-hero::before,
+  .cinema-hero::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 80px;
+    background: var(--black); z-index: 2;
+  }
+  .cinema-hero::before { top: 0; }
+  .cinema-hero::after { bottom: 0; }
+
+  /* Vignette */
+  .cinema-vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.7) 100%);
+    z-index: 1;
+  }
+
+  /* Caption — subtitle style */
+  .cinema-caption {
+    position: relative; z-index: 3;
+    padding: 100px 80px;
+    width: 100%;
+  }
+
+  .subtitle-tag {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 12px; font-style: italic; letter-spacing: 0.15em;
+    color: var(--gold); margin-bottom: 20px; opacity: 0.8;
+  }
+
+  .cinema-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(56px, 8vw, 112px);
+    font-weight: 300; line-height: 0.95;
+    letter-spacing: -3px; color: var(--smoke);
+    margin-bottom: 28px;
+    text-shadow: 0 4px 40px rgba(0,0,0,0.8);
+  }
+
+  .cinema-title em { font-style: italic; color: var(--gold); }
+
+  .cinema-sub {
+    font-size: 16px; color: var(--smoke-dim);
+    max-width: 480px; line-height: 1.8;
+    margin-bottom: 40px; font-weight: 300;
+  }
+
+  .cinema-cta {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.25em;
+    color: var(--gold); text-decoration: none; font-weight: 500;
+    border-bottom: 1px solid var(--gold-glow);
+    padding-bottom: 4px;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .cinema-cta:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+  /* ---- FILMS (article cards as scenes) ---- */
+  .scenes {
+    background: var(--deep);
+    padding: 80px 64px;
+  }
+
+  .scenes-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 12px; font-style: italic; color: var(--gold);
+    letter-spacing: 0.2em; margin-bottom: 48px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .scenes-label::before, .scenes-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--rule);
+  }
+
+  .scenes-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+    background: var(--rule);
+  }
+
+  .scene-card {
+    background: var(--panel);
+    padding: 0; overflow: hidden;
+    cursor: pointer; position: relative;
+    transition: transform 0.4s;
+  }
+  .scene-card:hover { z-index: 2; }
+
+  .scene-img {
+    height: 220px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 64px; position: relative; overflow: hidden;
+    transition: transform 0.5s ease;
+  }
+  .scene-card:hover .scene-img { transform: scale(1.05); }
+
+  .scene-img-1 { background: linear-gradient(160deg, #2a1a0a, #4a3018); }
+  .scene-img-2 { background: linear-gradient(160deg, #0a1a2a, #1a3045); }
+  .scene-img-3 { background: linear-gradient(160deg, #1a0a0a, #3a1818); }
+
+  /* Overlay on hover */
+  .scene-img::after {
+    content: '↗ Read Story';
+    position: absolute; inset: 0;
+    background: rgba(201,168,76,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--gold); font-family: 'Raleway', sans-serif; font-weight: 500;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .scene-card:hover .scene-img::after { opacity: 1; }
+
+  .scene-body { padding: 28px; }
+
+  .scene-origin {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--gold); font-weight: 500; margin-bottom: 10px;
+    opacity: 0.7;
+  }
+
+  .scene-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 600; line-height: 1.25;
+    color: var(--smoke); margin-bottom: 10px;
+  }
+
+  .scene-quote {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 13px; font-style: italic; color: var(--smoke-dim);
+    line-height: 1.75;
+  }
+
+  .scene-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-top: 1px solid var(--rule);
+    font-size: 11px; color: var(--smoke-dim); letter-spacing: 0.05em;
+  }
+
+  /* ---- QUOTE SECTION ---- */
+  .quote-section {
+    padding: 80px 120px; text-align: center;
+    background: var(--black);
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+
+  .quote-glow {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 400px; height: 200px; border-radius: 50%;
+    background: radial-gradient(ellipse, var(--gold-dim) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .big-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 300; font-style: italic;
+    line-height: 1.4; color: var(--smoke);
+    position: relative; z-index: 2;
+    margin-bottom: 24px;
+  }
+  .big-quote strong { font-weight: 300; color: var(--gold); }
+
+  .quote-source { font-size: 12px; color: var(--smoke-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* ---- FOOTER ---- */
+  footer {
+    background: var(--black);
+    padding: 32px 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid var(--rule);
+  }
+  .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+  .footer-copy { font-size: 11px; color: var(--smoke-dim); letter-spacing: 0.08em; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">MaraMap</div>
+    <div class="nav-links">
+      <a href="#">探索</a>
+      <a href="#">地圖</a>
+      <a href="#">文章</a>
+      <a href="#">關於</a>
+    </div>
+  </nav>
+
+  <section class="cinema-hero">
+    <div class="cinema-bg">🌆</div>
+    <div class="cinema-vignette"></div>
+    <div class="cinema-caption">
+      <div class="subtitle-tag">Travel · AI · Geography</div>
+      <h1 class="cinema-title">
+        每段旅程<br>都是一幕<br><em>電影</em>
+      </h1>
+      <p class="cinema-sub">MaraMap 將社群旅遊貼文，轉換為有電影感的旅遊文章，並自動標注地理位置，讓每個瞬間找得到它的座標。</p>
+      <a class="cinema-cta" href="#">開始探索 →</a>
+    </div>
+  </section>
+
+  <section class="scenes">
+    <div class="scenes-label">— Scenes from the Road —</div>
+    <div class="scenes-grid">
+
+      <div class="scene-card">
+        <div class="scene-img scene-img-1">🏔️</div>
+        <div class="scene-body">
+          <div class="scene-origin">📍 Hokkaido · Japan</div>
+          <h3 class="scene-title">函館朝市的第一道光</h3>
+          <p class="scene-quote">「清晨四點半，海鮮的鹹味混著薄霧，在港口邊形成只屬於北方城市的氣息。」</p>
+        </div>
+        <div class="scene-footer"><span>2024.11</span><span>7 Locations</span></div>
+      </div>
+
+      <div class="scene-card">
+        <div class="scene-img scene-img-2">🏛️</div>
+        <div class="scene-body">
+          <div class="scene-origin">📍 Florence · Italy</div>
+          <h3 class="scene-title">翡冷翠的橙色黃昏</h3>
+          <p class="scene-quote">「整座城市燃燒在夕陽裡，磚紅屋頂像被金箔包裹，時間短暫地失去了真實性。」</p>
+        </div>
+        <div class="scene-footer"><span>2024.09</span><span>4 Locations</span></div>
+      </div>
+
+      <div class="scene-card">
+        <div class="scene-img scene-img-3">🏮</div>
+        <div class="scene-body">
+          <div class="scene-origin">📍 新北市 · 瑞芳</div>
+          <h3 class="scene-title">九份雨夜的霓虹迷宮</h3>
+          <p class="scene-quote">「雨水讓石板路倒映出燈籠的橘紅光芒，陡峭的階梯在霧中若隱若現。」</p>
+        </div>
+        <div class="scene-footer"><span>2024.08</span><span>5 Locations</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="quote-section">
+    <div class="quote-glow"></div>
+    <p class="big-quote">「旅行的價值，不在你去了哪裡，<br>而在你<strong>記住了什麼</strong>。」</p>
+    <div class="quote-source">MaraMap — Travel Intelligence Platform</div>
+  </div>
+
+  <footer>
+    <div class="footer-logo">MaraMap</div>
+    <div class="footer-copy">© 2024 · Travel × Cinema × Geography · Made in Taiwan</div>
+  </footer>
+
+</body>
+</html>

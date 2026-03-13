@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #E63946;
+  --color-ink: #1a1a1a;
+  --color-ink-light: #4a4a4a;
+  --color-paper: #F8F9FA;
+  --color-paper-dark: #E9ECEF;
+  --color-line: rgba(26, 26, 26, 0.1);
+  
+  --font-serif: var(--font-noto-serif-tc);
+  --font-sans: var(--font-noto-sans-tc);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+/* 強制取消任何系統預設的深色模式影響 */
+:root {
+  color-scheme: light;
+}
+
+@layer base {
+  html, body {
+    background-color: var(--color-paper) !important;
+    color: var(--color-ink) !important;
+    font-family: var(--font-sans);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+    font-size: 18px; 
+  }
+}

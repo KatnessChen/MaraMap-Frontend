@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — E: Geographic Magazine</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --midnight: #0a1628;
+    --navy:     #0f2040;
+    --ice:      #e8f4f8;
+    --fog:      #f0f6fa;
+    --gold:     #e8af30;
+    --gold-dim: rgba(232,175,48,0.15);
+    --white:    #ffffff;
+    --ink:      #0a1628;
+    --slate:    #4a6278;
+    --rule:     rgba(10,22,40,0.1);
+    --rule-gold:rgba(232,175,48,0.4);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Source Serif 4', serif; background: var(--fog); color: var(--ink); font-weight: 300; }
+
+  /* ---- NAV ---- */
+  nav {
+    background: var(--midnight);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 64px; height: 64px;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 700; color: var(--white);
+    letter-spacing: 2px; text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-sep { color: var(--gold); font-size: 12px; }
+
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.55); text-decoration: none;
+    transition: color 0.25s;
+  }
+  .nav-links a:hover { color: var(--gold); }
+
+  .nav-issue {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.1em;
+    text-align: right; line-height: 1.6;
+  }
+
+  /* ---- HERO COVER ---- */
+  .cover {
+    background: var(--midnight);
+    display: grid; grid-template-columns: 1fr 480px;
+    min-height: 70vh;
+    position: relative;
+  }
+
+  .cover-left {
+    padding: 72px 80px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .cover-label {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em;
+    color: var(--gold);
+  }
+  .cover-label-line { width: 40px; height: 1px; background: var(--gold); }
+
+  .cover-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(52px, 7vw, 96px);
+    font-weight: 900; line-height: 0.95;
+    letter-spacing: -3px; color: var(--white);
+  }
+
+  .cover-title .gold { color: var(--gold); display: block; font-style: italic; font-weight: 400; font-size: 0.7em; }
+
+  .cover-meta {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px; border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 32px;
+  }
+
+  .meta-item {}
+  .meta-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.35); margin-bottom: 6px;
+  }
+  .meta-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 700; color: var(--white); line-height: 1;
+  }
+  .meta-unit { font-size: 11px; color: rgba(255,255,255,0.4); display: block; margin-top: 2px; font-weight: 300; }
+
+  /* Cover right — map visual */
+  .cover-map {
+    position: relative; overflow: hidden;
+    background: var(--navy);
+    border-left: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .map-grid {
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(232,175,48,0.06) 0, transparent 1px, transparent 60px, rgba(232,175,48,0.06) 60px),
+      repeating-linear-gradient(90deg, rgba(232,175,48,0.06) 0, transparent 1px, transparent 60px, rgba(232,175,48,0.06) 60px);
+  }
+
+  .map-meridians {
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        -30deg,
+        transparent, transparent 80px,
+        rgba(232,175,48,0.04) 80px, rgba(232,175,48,0.04) 81px
+      );
+  }
+
+  .map-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+
+  .map-icon { font-size: 56px; opacity: 0.5; }
+
+  .map-coords {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: rgba(232,175,48,0.5);
+    letter-spacing: 0.1em; text-align: center; line-height: 1.8;
+  }
+
+  .dot-cluster { position: absolute; }
+  .dot {
+    position: absolute;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold); box-shadow: 0 0 12px rgba(232,175,48,0.6);
+  }
+  .dot::after {
+    content:''; position:absolute; inset:-5px; border-radius:50%;
+    border: 1px solid rgba(232,175,48,0.3);
+    animation: ring-out 2.5s ease infinite;
+  }
+  @keyframes ring-out { from{transform:scale(1);opacity:0.6} to{transform:scale(3);opacity:0} }
+  .dot-1 { top: 30%; left: 35%; animation-delay: 0s; }
+  .dot-2 { top: 55%; left: 60%; animation-delay: 0.8s; }
+  .dot-3 { top: 20%; left: 65%; animation-delay: 1.6s; }
+
+  /* ---- FEATURE STRIP ---- */
+  .feature-strip {
+    background: var(--gold);
+    padding: 14px 64px;
+    display: flex; align-items: center; gap: 48px;
+    overflow-x: auto;
+  }
+
+  .feature-item {
+    display: flex; align-items: center; gap: 12px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  .fi-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; font-weight: 900; color: var(--midnight);
+    line-height: 1;
+  }
+
+  .fi-text { font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--midnight); line-height: 1.4; }
+
+  .fi-sep { width: 1px; height: 32px; background: rgba(10,22,40,0.2); }
+
+  /* ---- ARTICLES GRID ---- */
+  .articles-section {
+    padding: 64px;
+    background: var(--fog);
+  }
+
+  .articles-header {
+    display: flex; align-items: baseline; gap: 24px;
+    margin-bottom: 40px;
+  }
+  .articles-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 700; color: var(--ink);
+  }
+  .articles-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--slate);
+  }
+
+  .articles-grid {
+    display: grid; grid-template-columns: 2fr 1fr 1fr;
+    gap: 1px; background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+
+  .art-cell {
+    background: var(--white); padding: 36px;
+    transition: background 0.25s;
+  }
+  .art-cell:hover { background: var(--ice); }
+
+  .art-index {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--gold); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .art-index::after { content: ''; flex: 1; height: 1px; background: var(--gold-dim); }
+
+  .art-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 700; color: var(--ink);
+    line-height: 1.2; margin-bottom: 14px;
+  }
+  .art-cell:first-child .art-title { font-size: 30px; }
+
+  .art-body {
+    font-size: 14px; line-height: 1.85; color: var(--slate);
+    margin-bottom: 20px;
+  }
+
+  .art-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 16px; border-top: 1px solid var(--rule);
+  }
+
+  .art-coord {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--slate); letter-spacing: 0.05em;
+  }
+
+  .art-read {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--midnight); text-decoration: none;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 4px;
+    transition: color 0.25s;
+  }
+  .art-read:hover { color: var(--gold); }
+
+  /* ---- FOOTER ---- */
+  footer {
+    background: var(--midnight);
+    padding: 32px 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 700; color: var(--white);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  .footer-info {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.1em;
+  }
+
+  @media (prefers-reduced-motion: reduce) { .dot::after { animation: none; } }
+</style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">MaraMap <span class="logo-sep">◆</span> Travel Atlas</div>
+    <div class="nav-links">
+      <a href="#">Atlas</a>
+      <a href="#">Articles</a>
+      <a href="#">Regions</a>
+      <a href="#">Data</a>
+    </div>
+    <div class="nav-issue">Vol. I · Issue 03<br>March 2024</div>
+  </nav>
+
+  <section class="cover">
+    <div class="cover-left">
+      <div class="cover-label"><div class="cover-label-line"></div>Feature Report · Asia Pacific</div>
+      <h1 class="cover-title">
+        Every Post<br>Hides a<br>
+        <span class="gold">Hidden Map.</span>
+      </h1>
+      <div class="cover-meta">
+        <div class="meta-item">
+          <div class="meta-label">Locations</div>
+          <div class="meta-value">12k<span class="meta-unit">Geopoints</span></div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Articles</div>
+          <div class="meta-value">840<span class="meta-unit">Stories</span></div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Countries</div>
+          <div class="meta-value">38<span class="meta-unit">Regions</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cover-map">
+      <div class="map-grid"></div>
+      <div class="map-meridians"></div>
+      <div class="dot dot-1"></div>
+      <div class="dot dot-2"></div>
+      <div class="dot dot-3"></div>
+      <div class="map-center">
+        <div class="map-icon">🗺️</div>
+        <div class="map-coords">
+          25.0330°N · 121.5654°E<br>
+          INTERACTIVE MAP · LOADING
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="feature-strip">
+    <div class="feature-item">
+      <div class="fi-num">840</div>
+      <div class="fi-text">旅遊<br>文章</div>
+    </div>
+    <div class="fi-sep"></div>
+    <div class="feature-item">
+      <div class="fi-num">12k</div>
+      <div class="fi-text">地理<br>標記</div>
+    </div>
+    <div class="fi-sep"></div>
+    <div class="feature-item">
+      <div class="fi-num">38</div>
+      <div class="fi-text">個<br>國家</div>
+    </div>
+    <div class="fi-sep"></div>
+    <div class="feature-item">
+      <div class="fi-num">AI</div>
+      <div class="fi-text">自動<br>萃取</div>
+    </div>
+  </div>
+
+  <section class="articles-section">
+    <div class="articles-header">
+      <h2 class="articles-title">精選報導</h2>
+      <span class="articles-sub">// Field Reports · March 2024</span>
+    </div>
+    <div class="articles-grid">
+
+      <div class="art-cell">
+        <div class="art-index">ART-0840 · Editor's Pick</div>
+        <h3 class="art-title">函館朝市的第一道光：一個城市在甦醒前的樣子</h3>
+        <p class="art-body">清晨四點半，整片市場還在沉睡中甦醒。海鮮的鹹味混著薄霧，在港口邊形成了一種只屬於北方城市的氣息。MaraMap 在這篇貼文裡找到了七個地標、三條步行路線，以及一個只有在地人才知道的早市角落。</p>
+        <div class="art-footer">
+          <span class="art-coord">41.7687°N / 140.7288°E</span>
+          <a class="art-read" href="#">Read →</a>
+        </div>
+      </div>
+
+      <div class="art-cell">
+        <div class="art-index">ART-0839</div>
+        <h3 class="art-title">翡冷翠的橙色黃昏</h3>
+        <p class="art-body">站在米開朗基羅廣場，整座城市燃燒在夕陽裡，磚紅屋頂像被金箔包裹。</p>
+        <div class="art-footer">
+          <span class="art-coord">43.7637°N / 11.2650°E</span>
+          <a class="art-read" href="#">Read →</a>
+        </div>
+      </div>
+
+      <div class="art-cell">
+        <div class="art-index">ART-0838</div>
+        <h3 class="art-title">九份雨夜的霓虹迷宮</h3>
+        <p class="art-body">雨水讓石板路倒映出燈籠的橘紅光芒，陡峭的階梯在霧中若隱若現。</p>
+        <div class="art-footer">
+          <span class="art-coord">25.1093°N / 121.8444°E</span>
+          <a class="art-read" href="#">Read →</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">MaraMap</div>
+    <div class="footer-info">© 2024 · TRAVEL INTELLIGENCE PLATFORM · MADE IN TAIWAN</div>
+  </footer>
+
+</body>
+</html>

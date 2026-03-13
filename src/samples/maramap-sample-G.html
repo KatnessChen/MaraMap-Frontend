@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — G: Wabi-Sabi Ink</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,300;1,300;1,400&family=Noto+Serif+TC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --washi:     #f8f5f0;
+    --washi-2:   #f2ede7;
+    --sumi:      #1a1a1a;
+    --sumi-mid:  #4a4a44;
+    --sumi-light:#9e9e8f;
+    --matcha:    #4a6741;
+    --matcha-dim:rgba(74,103,65,0.1);
+    --ash:       #b8b4aa;
+    --rule:      rgba(26,26,26,0.08);
+    --rule-thin: rgba(26,26,26,0.05);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Noto Serif TC', serif;
+    background: var(--washi);
+    color: var(--sumi);
+    font-weight: 300;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    padding: 36px 80px;
+    border-bottom: 0.5px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .logo {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px; font-weight: 500;
+    letter-spacing: 6px; color: var(--sumi);
+  }
+
+  .nav-links { display: flex; gap: 48px; }
+  .nav-links a {
+    font-size: 12px; letter-spacing: 0.15em;
+    color: var(--sumi-light); text-decoration: none;
+    font-family: 'Noto Serif TC', serif; font-weight: 300;
+    transition: color 0.4s;
+  }
+  .nav-links a:hover { color: var(--matcha); }
+
+  /* ---- HERO — single column, narrow ---- */
+  .hero {
+    max-width: 720px; margin: 0 auto;
+    padding: 120px 40px 80px;
+    border-right: 0.5px solid var(--rule);
+    border-left: 0.5px solid var(--rule);
+    min-height: 80vh;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+
+  .hero-kigo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 11px; font-style: italic;
+    letter-spacing: 0.15em; color: var(--matcha);
+    margin-bottom: 64px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .hero-kigo::before { content: ''; width: 32px; height: 0.5px; background: var(--matcha); }
+
+  .hero-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(44px, 5.5vw, 72px);
+    font-weight: 400; line-height: 1.15;
+    letter-spacing: -1px; color: var(--sumi);
+    margin-bottom: 56px;
+  }
+
+  /* Subtle ink-wash divider */
+  .ink-divider {
+    width: 100%; height: 1px;
+    background: linear-gradient(to right, transparent, var(--ash), transparent);
+    margin: 56px 0;
+  }
+
+  .hero-body {
+    font-size: 16px; line-height: 2.2; color: var(--sumi-mid);
+    font-weight: 300; margin-bottom: 64px;
+    font-family: 'Noto Serif TC', serif;
+  }
+
+  .hero-action {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 12px; letter-spacing: 0.2em;
+    color: var(--sumi); text-decoration: none;
+    font-family: 'Shippori Mincho', serif;
+    position: relative;
+    padding-bottom: 3px;
+  }
+  .hero-action::after {
+    content: ''; position: absolute; bottom: 0; left: 0;
+    width: 100%; height: 0.5px; background: var(--matcha);
+    transition: opacity 0.4s;
+  }
+  .hero-action:hover::after { opacity: 0; }
+
+  /* ---- ARTICLES — Poem list ---- */
+  .articles {
+    max-width: 720px; margin: 0 auto;
+    padding: 0 40px 120px;
+    border-right: 0.5px solid var(--rule);
+    border-left: 0.5px solid var(--rule);
+  }
+
+  .section-tag {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 11px; font-style: italic; color: var(--sumi-light);
+    letter-spacing: 0.2em; margin-bottom: 56px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .section-tag::before, .section-tag::after {
+    content: ''; flex: 1; height: 0.5px; background: var(--rule);
+  }
+
+  .article-list { display: flex; flex-direction: column; }
+
+  .article-item {
+    padding: 40px 0;
+    border-bottom: 0.5px solid var(--rule-thin);
+    display: grid; grid-template-columns: 56px 1fr;
+    gap: 32px; align-items: start;
+    transition: background 0.4s;
+  }
+
+  .article-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 44px; font-weight: 300; font-style: italic;
+    color: var(--ash); line-height: 1; margin-top: 4px;
+  }
+
+  .article-content {}
+
+  .article-location {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; letter-spacing: 0.25em;
+    color: var(--matcha); margin-bottom: 12px;
+    font-family: 'Noto Serif TC', serif;
+  }
+
+  .article-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px; font-weight: 400;
+    color: var(--sumi); line-height: 1.4; margin-bottom: 14px;
+    transition: color 0.3s;
+  }
+  .article-item:hover .article-title { color: var(--matcha); }
+
+  .article-excerpt {
+    font-size: 14px; line-height: 2.0; color: var(--sumi-mid);
+    font-weight: 300;
+  }
+
+  .article-date {
+    font-size: 10px; color: var(--ash); letter-spacing: 0.1em;
+    margin-top: 16px;
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+  }
+
+  /* ---- COLOPHON ---- */
+  .colophon {
+    max-width: 720px; margin: 0 auto;
+    padding: 80px 40px;
+    border: 0.5px solid var(--rule);
+    border-top: none;
+    text-align: center;
+    background: var(--washi-2);
+  }
+
+  .colophon-char {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 64px; font-weight: 700;
+    color: var(--matcha-dim); line-height: 1;
+    display: block; margin-bottom: 32px;
+    /* Simulated ink brush character */
+    text-shadow: 2px 2px 0 rgba(74,103,65,0.08);
+  }
+
+  .colophon-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px; font-weight: 400; color: var(--sumi);
+    letter-spacing: 4px; margin-bottom: 20px;
+  }
+
+  .colophon-body {
+    font-size: 14px; line-height: 2.2; color: var(--sumi-mid);
+    max-width: 400px; margin: 0 auto 40px;
+  }
+
+  .colophon-cta {
+    display: inline-flex; align-items: center;
+    padding: 14px 36px;
+    border: 0.5px solid var(--matcha);
+    color: var(--matcha); text-decoration: none;
+    font-size: 12px; letter-spacing: 0.2em;
+    font-family: 'Shippori Mincho', serif;
+    transition: background 0.4s, color 0.4s;
+  }
+  .colophon-cta:hover { background: var(--matcha); color: var(--washi); }
+
+  /* ---- FOOTER ---- */
+  footer {
+    max-width: 720px; margin: 0 auto;
+    padding: 32px 40px;
+    border: 0.5px solid var(--rule); border-top: 0.5px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .footer-logo { font-family: 'Shippori Mincho', serif; font-size: 16px; letter-spacing: 4px; color: var(--sumi); }
+  .footer-copy { font-size: 11px; color: var(--ash); letter-spacing: 0.08em; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">MaraMap</div>
+    <div class="nav-links">
+      <a href="#">探索</a>
+      <a href="#">地圖</a>
+      <a href="#">文章</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-kigo">旅行 · 記憶 · 地圖</div>
+    <h1 class="hero-title">
+      旅行的記憶，<br>值得一個<br>安靜的形式。
+    </h1>
+    <div class="ink-divider"></div>
+    <p class="hero-body">
+      MaraMap 將社群上的旅遊貼文，轉換為結構化的旅遊文章，並自動標注地理位置。不是為了更多的流量，而是讓每段旅程都有一個可以再次造訪的入口。
+    </p>
+    <a class="hero-action" href="#">開始探索 →</a>
+  </section>
+
+  <section class="articles">
+    <div class="section-tag">近期旅遊文章</div>
+    <div class="article-list">
+
+      <div class="article-item">
+        <div class="article-num">一</div>
+        <div class="article-content">
+          <div class="article-location">📍 函館市 · 北海道 · 日本</div>
+          <h3 class="article-title">函館朝市的第一道光：一個城市在甦醒前的樣子</h3>
+          <p class="article-excerpt">清晨四點半，整片市場還在沉睡中甦醒。海鮮的鹹味混著薄霧，在港口邊形成了一種只屬於北方城市的氣息。老闆娘用火鉗翻動著炭火上的扇貝，沒有說話，只是對我點了點頭。</p>
+          <div class="article-date">二〇二四 · 十一月</div>
+        </div>
+      </div>
+
+      <div class="article-item">
+        <div class="article-num">二</div>
+        <div class="article-content">
+          <div class="article-location">📍 Florence · Tuscany · Italy</div>
+          <h3 class="article-title">翡冷翠的橙色黃昏：時間失去真實性的那一刻</h3>
+          <p class="article-excerpt">站在米開朗基羅廣場，整座城市燃燒在夕陽裡，磚紅色屋頂像被金箔包裹，短暫地失去了時間感。</p>
+          <div class="article-date">二〇二四 · 九月</div>
+        </div>
+      </div>
+
+      <div class="article-item">
+        <div class="article-num">三</div>
+        <div class="article-content">
+          <div class="article-location">📍 瑞芳 · 新北市 · 台灣</div>
+          <h3 class="article-title">九份雨夜的霓虹迷宮：只有在雨天才完整</h3>
+          <p class="article-excerpt">雨水讓石板路倒映出燈籠的橘紅光芒，陡峭的階梯在霧中若隱若現，整個九份像是從現實中偷渡來的幻境。</p>
+          <div class="article-date">二〇二四 · 八月</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="colophon">
+    <span class="colophon-char">旅</span>
+    <div class="colophon-title">MaraMap</div>
+    <p class="colophon-body">每篇貼文的背後，都藏著一張可以走進去的地圖。</p>
+    <a class="colophon-cta" href="#">開始探索</a>
+  </div>
+
+  <footer>
+    <div class="footer-logo">MaraMap</div>
+    <div class="footer-copy">© 2024 · Made in Taiwan</div>
+  </footer>
+
+</body>
+</html>

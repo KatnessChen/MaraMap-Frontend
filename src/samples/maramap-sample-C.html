@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — Style C: Retro-Futurist Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================
+     Design Direction: RETRO-FUTURIST TERMINAL
+     Aesthetic: 1970s NASA mission control × modern cartography
+     DFII: Impact(5) + Fit(4) + Feasibility(4) + Performance(4) - Risk(2) = 15
+     Key: Amber monochrome palette, CRT scanline effect,
+          terminal-style data tables, blinking cursors
+     Differentiation Answer: "Mission control for travel —
+          data-driven, systematic, weirdly warm."
+  ============================================ */
+  :root {
+    --void: #0d0d08;
+    --dark: #12120c;
+    --panel: #1a1a10;
+    --amber: #ffb800;
+    --amber-dim: rgba(255,184,0,0.5);
+    --amber-ghost: rgba(255,184,0,0.08);
+    --amber-mid: rgba(255,184,0,0.15);
+    --green: #4aff91;
+    --green-dim: rgba(74,255,145,0.5);
+    --red: #ff4444;
+    --text: rgba(255,184,0,0.9);
+    --text-dim: rgba(255,184,0,0.4);
+    --rule: rgba(255,184,0,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Space Mono', monospace;
+    background: var(--void);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* CRT scanline effect */
+  body::before {
+    content:''; position:fixed; inset:0; z-index:200; pointer-events:none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+  }
+
+  /* CRT flicker */
+  body::after {
+    content:''; position:fixed; inset:0; z-index:201; pointer-events:none;
+    background: rgba(255,184,0,0.01);
+    animation: flicker 8s linear infinite;
+  }
+  @keyframes flicker {
+    0%,19%,21%,23%,25%,54%,56%,100% { opacity:1; }
+    20%,24%,55% { opacity:0.98; }
+  }
+
+  /* ---- NAV / STATUS BAR ---- */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 48px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--dark);
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .sys-status { display: flex; align-items: center; gap: 24px; }
+  .sys-label { color: var(--text-dim); }
+  .sys-value { color: var(--amber); }
+
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--amber);
+    text-shadow: 0 0 20px rgba(255,184,0,0.5);
+  }
+
+  .nav-right { display:flex; align-items:center; gap:24px; }
+
+  .blink-cursor {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--amber); vertical-align: middle;
+    animation: blink-cur 1s step-start infinite;
+  }
+  @keyframes blink-cur { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .status-dot {
+    width:8px; height:8px; border-radius:50%;
+    background: var(--green); display:inline-block;
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse-green 2s ease infinite;
+  }
+  @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* ---- HERO / MISSION BRIEF ---- */
+  .mission-header {
+    padding: 0 48px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .mission-row {
+    display: grid; grid-template-columns: 320px 1fr;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .mission-id-block {
+    padding: 40px;
+    border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .mission-label {
+    font-size: 10px; color: var(--text-dim); letter-spacing: 0.2em; margin-bottom: 8px;
+  }
+
+  .mission-id {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 64px; font-weight: 700; line-height: 1;
+    color: var(--amber);
+    text-shadow: 0 0 40px rgba(255,184,0,0.3);
+  }
+
+  .mission-code {
+    font-size: 11px; color: var(--green); letter-spacing: 0.1em;
+    margin-top: 12px;
+  }
+
+  .mission-main {
+    padding: 40px 56px;
+  }
+
+  .terminal-line {
+    font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em;
+    margin-bottom: 32px;
+  }
+  .terminal-line::before { content: '> '; color: var(--green); }
+
+  .mission-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(36px, 5vw, 64px); font-weight: 700;
+    line-height: 1.05; letter-spacing: -1px;
+    color: var(--amber);
+    text-shadow: 0 0 60px rgba(255,184,0,0.2);
+    margin-bottom: 28px;
+  }
+
+  .mission-title .accent { color: var(--green); }
+
+  .mission-desc {
+    font-size: 14px; line-height: 2.0; color: var(--text-dim);
+    max-width: 560px; font-family: 'Space Mono', monospace; font-style: italic;
+    margin-bottom: 40px;
+  }
+
+  .mission-actions { display:flex; gap:16px; }
+
+  .btn-launch {
+    padding: 14px 32px;
+    background: var(--amber); color: var(--void);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+    border: none; cursor: pointer; text-decoration: none;
+    transition: box-shadow 0.3s, transform 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-launch:hover {
+    box-shadow: 0 0 30px rgba(255,184,0,0.5), 0 0 60px rgba(255,184,0,0.2);
+    transform: translateY(-2px);
+  }
+
+  .btn-ghost {
+    padding: 14px 32px;
+    background: transparent; color: var(--amber);
+    border: 1px solid var(--rule);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; text-decoration: none;
+    transition: border-color 0.3s, color 0.3s;
+  }
+  .btn-ghost:hover { border-color: var(--amber-dim); }
+
+  /* ---- DATA TABLE ---- */
+  .data-section {
+    margin: 0 48px;
+    border: 1px solid var(--rule); border-top: none;
+  }
+
+  .data-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--amber-ghost);
+  }
+
+  .data-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--amber);
+  }
+  .data-time { font-size: 11px; color: var(--text-dim); }
+
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    padding: 16px 32px; text-align: left;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--text-dim); border-bottom: 1px solid var(--rule);
+    background: var(--dark);
+    font-weight: 400;
+  }
+  .data-table td {
+    padding: 20px 32px; font-size: 13px; color: var(--text);
+    border-bottom: 1px solid var(--rule);
+    vertical-align: middle;
+  }
+  .data-table tr:hover td { background: var(--amber-ghost); }
+
+  .td-id { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+  .td-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; }
+
+  .td-loc { font-size: 11px; letter-spacing: 0.05em; color: var(--amber); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 4px 10px; border: 1px solid;
+  }
+  .status-live { border-color: var(--green); color: var(--green); }
+  .status-live::before { content:''; width:5px; height:5px; border-radius:50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-green 1.5s infinite; }
+  .status-draft { border-color: var(--text-dim); color: var(--text-dim); }
+
+  .td-arrow { color: var(--text-dim); font-size: 16px; text-align: right; }
+
+  /* ---- TELEMETRY / STATS ---- */
+  .telemetry {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    margin: 0 48px;
+    border: 1px solid var(--rule); border-top: none;
+  }
+
+  .tele-cell {
+    padding: 36px 32px;
+    border-right: 1px solid var(--rule);
+    background: var(--dark);
+    position: relative; overflow: hidden;
+  }
+  .tele-cell:last-child { border-right: none; }
+  .tele-cell::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 70%, var(--amber-ghost));
+    pointer-events: none;
+  }
+
+  .tele-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--text-dim); margin-bottom: 12px;
+  }
+
+  .tele-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 48px; font-weight: 700;
+    color: var(--amber); line-height: 1;
+    text-shadow: 0 0 30px rgba(255,184,0,0.3);
+    margin-bottom: 4px;
+  }
+
+  .tele-unit {
+    font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ---- FOOTER ---- */
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 48px;
+    margin-top: 0;
+    border-top: 1px solid var(--rule);
+    background: var(--dark);
+    font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .footer-sys { display:flex; gap:32px; }
+
+  @media (prefers-reduced-motion: reduce) { *{animation:none!important; transition:none!important;} body::before{display:none;} body::after{display:none;} }
+</style>
+</head>
+<body>
+
+  <!-- NAV STATUS BAR -->
+  <nav>
+    <div class="sys-status">
+      <span class="sys-label">SYS</span>
+      <span class="sys-value"><span class="status-dot"></span> ONLINE</span>
+      <span class="sys-label">|</span>
+      <span class="sys-label">COORD</span>
+      <span class="sys-value">25.0330°N / 121.5654°E</span>
+    </div>
+    <div class="logo">● MaraMap</div>
+    <div class="nav-right">
+      <span class="sys-label">2024.03.11 / 15:09:59</span>
+      <span class="blink-cursor"></span>
+    </div>
+  </nav>
+
+  <!-- MISSION BRIEF -->
+  <section class="mission-header">
+    <div class="mission-row">
+      <div class="mission-id-block">
+        <div>
+          <div class="mission-label">MISSION ID</div>
+          <div class="mission-id">MM-01</div>
+          <div class="mission-code">// TRAVEL_ATLAS_v1.0</div>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.8;">
+          STATUS: ACTIVE<br>
+          ARTICLES: 840<br>
+          LOCATIONS: 12,400<br>
+          ENGINE: AI / NLP
+        </div>
+      </div>
+      <div class="mission-main">
+        <div class="terminal-line">INITIALIZING MARAMAP TRAVEL INTELLIGENCE SYSTEM...</div>
+        <h1 class="mission-title">
+          Every Post<br>Contains a<br><span class="accent">Hidden Map.</span>
+        </h1>
+        <p class="mission-desc">將 Facebook 旅遊貼文解析為結構化旅遊文章，並自動標注地理座標。讓每段旅程都有跡可循。</p>
+        <div class="mission-actions">
+          <a class="btn-launch" href="#">▶ LAUNCH ATLAS</a>
+          <a class="btn-ghost" href="#">VIEW ARCHIVE</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA TABLE -->
+  <div class="data-section">
+    <div class="data-header">
+      <span class="data-title">// RECENT TRANSMISSIONS — TRAVEL ARTICLES</span>
+      <span class="data-time">LAST UPDATED: T-00:03:42</span>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>ARTICLE TITLE</th>
+          <th>COORDINATES</th>
+          <th>STATUS</th>
+          <th>→</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-id">ART-0840</td>
+          <td class="td-title">函館朝市的第一道光：一個城市在甦醒前的樣子</td>
+          <td class="td-loc">41.7687°N / 140.7288°E</td>
+          <td><span class="status-badge status-live">LIVE</span></td>
+          <td class="td-arrow">→</td>
+        </tr>
+        <tr>
+          <td class="td-id">ART-0839</td>
+          <td class="td-title">翡冷翠的橙色黃昏：站在米開朗基羅廣場</td>
+          <td class="td-loc">43.7637°N / 11.2650°E</td>
+          <td><span class="status-badge status-live">LIVE</span></td>
+          <td class="td-arrow">→</td>
+        </tr>
+        <tr>
+          <td class="td-id">ART-0838</td>
+          <td class="td-title">九份雨夜的霓虹迷宮：只有在雨天才完整</td>
+          <td class="td-loc">25.1093°N / 121.8444°E</td>
+          <td><span class="status-badge status-live">LIVE</span></td>
+          <td class="td-arrow">→</td>
+        </tr>
+        <tr>
+          <td class="td-id">ART-0837</td>
+          <td class="td-title">峇里島雨季：旅遊手冊不會告訴你的另一面</td>
+          <td class="td-loc">-8.5069°S / 115.2625°E</td>
+          <td><span class="status-badge status-live">LIVE</span></td>
+          <td class="td-arrow">→</td>
+        </tr>
+        <tr>
+          <td class="td-id">ART-0836</td>
+          <td class="td-title">京都金閣寺：每個旅遊照片背後的另一個角度</td>
+          <td class="td-loc">35.0394°N / 135.7292°E</td>
+          <td><span class="status-badge status-draft">DRAFT</span></td>
+          <td class="td-arrow">→</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TELEMETRY -->
+  <div class="telemetry">
+    <div class="tele-cell">
+      <div class="tele-label">Total Articles</div>
+      <div class="tele-value">840</div>
+      <div class="tele-unit">Travel Stories</div>
+    </div>
+    <div class="tele-cell">
+      <div class="tele-label">Map Nodes</div>
+      <div class="tele-value">12k</div>
+      <div class="tele-unit">Geolocations</div>
+    </div>
+    <div class="tele-cell">
+      <div class="tele-label">Countries</div>
+      <div class="tele-value">38</div>
+      <div class="tele-unit">Regions Mapped</div>
+    </div>
+    <div class="tele-cell" style="background: var(--amber-mid);">
+      <div class="tele-label" style="color:var(--amber);">AI Engine</div>
+      <div class="tele-value" style="font-size:28px; margin-top:8px;">ACTIVE</div>
+      <div class="tele-unit">Processing NLP</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-sys">
+      <span>MARAMAP SYSTEMS</span>
+      <span>VER 1.0.0</span>
+      <span>© 2024</span>
+    </div>
+    <span>TRAVEL INTELLIGENCE PLATFORM // MADE IN TAIWAN</span>
+  </footer>
+
+</body>
+</html>

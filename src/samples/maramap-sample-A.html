@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MaraMap — Style A: Editorial Dark Atlas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================
+     Design Direction: EDITORIAL DARK ATLAS
+     Aesthetic: Magazine brutalism × cartographic
+     DFII: Impact(5) + Fit(5) + Feasibility(4) + Performance(4) - Risk(2) = 16 → cap 15
+     Differentiation: Column-break typography + topographic texture overlay
+     Fonts: DM Serif Display (display) + DM Sans (body)
+  ============================================ */
+  :root {
+    --ink: #12100e;
+    --parchment: #f5ede0;
+    --cream: #faf6ef;
+    --rust: #c0392b;
+    --brass: #b8860b;
+    --fog: rgba(18,16,14,0.06);
+    --text: #1a1714;
+    --muted: #6b5e52;
+    --rule: rgba(18,16,14,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    /* Topographic texture via SVG data URI */
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2312100e' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 100; pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 200px;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 64px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px; letter-spacing: -1px; color: var(--ink);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--rust);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--rust); font-family: 'DM Sans', sans-serif; font-weight: 500;
+  }
+
+  .nav-mid {
+    display: flex; gap: 36px;
+  }
+  .nav-mid a {
+    font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; font-weight: 500;
+    transition: color 0.25s;
+  }
+  .nav-mid a:hover { color: var(--ink); }
+
+  .nav-issue {
+    font-size: 12px; color: var(--muted); letter-spacing: 0.05em;
+    text-align: right; line-height: 1.5;
+  }
+  .nav-issue strong { color: var(--rust); display: block; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 14px; }
+
+  /* ---- HERO ---- */
+  .hero {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--rule);
+    min-height: 75vh;
+  }
+
+  .hero-left {
+    padding: 72px 64px;
+    border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .issue-tag {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--rust); font-weight: 500; margin-bottom: 40px;
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(52px, 6vw, 86px);
+    line-height: 1.0;
+    letter-spacing: -3px;
+    color: var(--ink);
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--rust);
+  }
+
+  .hero-meta {
+    display: flex; align-items: center; gap: 24px;
+    padding-top: 40px; border-top: 1px solid var(--rule);
+    font-size: 13px; color: var(--muted);
+  }
+
+  .hero-meta-divider { width: 1px; height: 20px; background: var(--rule); }
+
+  /* Hero right — Feature image + pull quote */
+  .hero-right {
+    display: grid; grid-template-rows: 1fr auto;
+    background: var(--parchment);
+  }
+
+  .hero-img {
+    background: linear-gradient(160deg, #2c2420 0%, #4a3728 40%, #1a1410 100%);
+    position: relative; overflow: hidden;
+    display: flex; align-items: flex-end;
+    padding: 40px;
+  }
+
+  .hero-img-emoji {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 120px; opacity: 0.15;
+    filter: grayscale(100%);
+  }
+
+  .hero-caption {
+    position: relative; z-index: 2;
+    color: rgba(245,237,224,0.55);
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  .hero-deck {
+    padding: 36px 40px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .pull-quote {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; line-height: 1.5;
+    color: var(--ink); font-style: italic;
+    position: relative; padding-left: 20px;
+  }
+  .pull-quote::before {
+    content: '';
+    position: absolute; left: 0; top: 4px;
+    width: 3px; height: calc(100% - 8px);
+    background: var(--rust);
+  }
+
+  /* ---- ARTICLES GRID ---- */
+  .articles {
+    display: grid; grid-template-columns: 2fr 1px 1fr 1px 1fr;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .col-rule { background: var(--rule); }
+
+  .article-main { padding: 56px 64px; }
+  .article-sub { padding: 56px 40px; }
+  .article-sub2 { padding: 56px 40px; }
+
+  .article-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--rust); font-weight: 600; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .article-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--rust); opacity: 0.4;
+  }
+
+  .article-h { font-family: 'DM Serif Display', serif; line-height: 1.15; color: var(--ink); }
+  .article-main .article-h { font-size: 36px; margin-bottom: 20px; }
+  .article-sub .article-h { font-size: 22px; margin-bottom: 16px; }
+  .article-sub2 .article-h { font-size: 20px; margin-bottom: 16px; }
+
+  .article-body {
+    font-size: 15px; line-height: 1.8; color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .article-main .article-body { column-count: 2; column-gap: 32px; font-size: 14px; }
+
+  .article-loc {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--brass); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+
+  .article-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 120px; color: var(--fog);
+    line-height: 1; float: right; margin: -20px -20px 0 16px;
+    user-select: none;
+  }
+
+  /* ---- MAP STRIP ---- */
+  .map-strip {
+    display: grid; grid-template-columns: 300px 1fr;
+    border-bottom: 1px solid var(--rule);
+    height: 340px;
+  }
+
+  .map-legend {
+    padding: 48px 56px;
+    border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .map-legend h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px; line-height: 1.2; color: var(--ink);
+  }
+
+  .map-legend p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  .legend-items { display: flex; flex-direction: column; gap: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .map-visual {
+    background: #1a1714;
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .map-svg-overlay {
+    position: absolute; inset: 0; opacity: 0.08;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(245,237,224,0.5) 0px, transparent 1px, transparent 40px, rgba(245,237,224,0.5) 40px),
+      repeating-linear-gradient(90deg, rgba(245,237,224,0.5) 0px, transparent 1px, transparent 40px, rgba(245,237,224,0.5) 40px);
+  }
+
+  .map-center-text {
+    position: relative; z-index: 2; text-align: center; color: var(--parchment);
+  }
+  .map-center-text .big { font-family: 'DM Serif Display', serif; font-size: 48px; display: block; opacity: 0.8; }
+  .map-center-text .small { font-size: 13px; opacity: 0.4; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* map pins */
+  .mpin {
+    position: absolute;
+    width: 8px; height: 8px; border-radius: 50%;
+    animation: blink 3s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .mpin::after {
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border: 1px solid currentColor; opacity: 0.3;
+  }
+  .mpin-a { background:#c0392b; color:#c0392b; top:35%; left:28%; animation-delay:0s; }
+  .mpin-b { background:#b8860b; color:#b8860b; top:55%; left:58%; animation-delay:1s; }
+  .mpin-c { background:#5c8a6e; color:#5c8a6e; top:25%; left:70%; animation-delay:2s; }
+
+  /* ---- FOOTER ---- */
+  footer {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid var(--rule);
+  }
+  .footer-col {
+    padding: 36px 48px;
+    border-right: 1px solid var(--rule);
+    font-size: 12px; color: var(--muted); line-height: 1.8;
+  }
+  .footer-col:last-child { border-right: none; }
+  .footer-col strong { color: var(--ink); font-weight: 500; display: block; margin-bottom: 8px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">
+      <div class="logo-mark">M</div>
+      MaraMap
+    </div>
+    <div class="nav-mid">
+      <a href="#">Atlas</a>
+      <a href="#">Articles</a>
+      <a href="#">Places</a>
+      <a href="#">Archive</a>
+    </div>
+    <div class="nav-issue">
+      <strong>Vol. I · Issue 03</strong>
+      March 2024 Edition
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="issue-tag">✦ Feature Story — Asia Pacific</div>
+      <h1 class="hero-title">
+        Every Post<br>Hides a<br><em>Map</em><br>Inside
+      </h1>
+      <div class="hero-meta">
+        <span>AI-Powered</span>
+        <div class="hero-meta-divider"></div>
+        <span>Geospatial</span>
+        <div class="hero-meta-divider"></div>
+        <span>Travel Journalism</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-img">
+        <div class="hero-img-emoji">🗺️</div>
+        <div class="hero-caption">Photo: MaraMap Archive · Hokkaido, Japan</div>
+      </div>
+      <div class="hero-deck">
+        <p class="pull-quote">「MaraMap 將社群上的日常碎片，重新組裝成一張可以走進去的地圖。」</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARTICLES -->
+  <section class="articles">
+    <div class="article-main">
+      <div class="article-label">Editor's Choice</div>
+      <div class="article-num">01</div>
+      <h2 class="article-h">函館朝市的第一道光：一個城市在甦醒前的樣子</h2>
+      <p class="article-body">
+        清晨四點半，整片市場還在沉睡中甦醒。海鮮的鹹味混著薄霧，在港口邊形成了一種只屬於北方城市的氣息。老闆娘用火鉗翻動著炭火上的扇貝，沒有說話，只是對我點了點頭——那是一種比語言更古老的歡迎方式。函館用海鮮說它的故事，用清晨說它的底氣。
+        <br><br>
+        MaraMap 在這篇貼文裡找到了七個地標、三條步行路線，以及一個只有在地人才知道的早市角落。
+      </p>
+      <span class="article-loc">📍 函館市 · 北海道 · 日本</span>
+    </div>
+    <div class="col-rule"></div>
+    <div class="article-sub">
+      <div class="article-label">Travel</div>
+      <h3 class="article-h">翡冷翠的橙色黃昏</h3>
+      <p class="article-body">站在米開朗基羅廣場，整座城市燃燒在夕陽裡，磚紅屋頂像被金箔包裹，時間短暫地失去了真實性。</p>
+      <span class="article-loc">📍 Florence · Italy</span>
+    </div>
+    <div class="col-rule"></div>
+    <div class="article-sub2">
+      <div class="article-label">Hidden Gems</div>
+      <h3 class="article-h">九份雨夜的霓虹迷宮</h3>
+      <p class="article-body">雨水讓石板路倒映出燈籠的橘紅光芒，陡峭的階梯在霧中若隱若現，整個九份像是從現實偷渡來的幻境。</p>
+      <span class="article-loc">📍 新北市 · 台灣</span>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section class="map-strip">
+    <div class="map-legend">
+      <div>
+        <h3>旅遊地標<br>互動地圖</h3>
+        <p>每篇文章的地點，均自動標注座標，可依區域、類型篩選。</p>
+      </div>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background:#c0392b"></div>自然景觀</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#b8860b"></div>美食聚落</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#5c8a6e"></div>城市文化</div>
+      </div>
+    </div>
+    <div class="map-visual">
+      <div class="map-svg-overlay"></div>
+      <div class="mpin mpin-a"></div>
+      <div class="mpin mpin-b"></div>
+      <div class="mpin mpin-c"></div>
+      <div class="map-center-text">
+        <span class="big">🌍</span>
+        <span class="small">Interactive Map · Coming Soon</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-col">
+      <strong>MaraMap</strong>
+      AI 旅遊文章平台。將 Facebook 旅遊貼文轉換為結構化故事，標注地理資料。
+    </div>
+    <div class="footer-col">
+      <strong>Navigation</strong>
+      Atlas · Articles · Places · About · Archive
+    </div>
+    <div class="footer-col">
+      <strong>© 2024 MaraMap</strong>
+      Built with AI · Powered by human curiosity<br>Made in Taiwan
+    </div>
+  </footer>
+
+</body>
+</html>
