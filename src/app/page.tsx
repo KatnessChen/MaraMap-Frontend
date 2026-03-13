@@ -51,7 +51,8 @@ export default async function Home() {
   
   // Fetch real data from the backend
   try {
-    const res = await fetch('http://127.0.0.1:3000/api/v1/posts?page=1&limit=10', { 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+    const res = await fetch(`${apiUrl}/api/v1/posts?page=1&limit=10`, { 
       cache: 'no-store' 
     });
     if (res.ok) {

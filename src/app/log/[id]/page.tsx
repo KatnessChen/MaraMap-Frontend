@@ -57,7 +57,8 @@ export default async function LogDetail({ params }: { params: { id: string } }) 
   let post: Post | null = null;
   
   try {
-    const res = await fetch(`http://127.0.0.1:3000/api/v1/posts/${id}`, { 
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+    const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, { 
       cache: 'no-store' 
     });
     if (res.ok) {
