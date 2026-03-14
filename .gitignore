@@ -13,6 +13,7 @@
 # testing
 /coverage
 /test-results
+/tests/e2e/.auth
 
 # next.js
 /.next/

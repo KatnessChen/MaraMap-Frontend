@@ -29,16 +29,31 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-      - name: Run tests
+      - name: Run unit tests
         run: npm test
 
-      - name: Upload test results
+      - name: Upload unit test results
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: Unit Tests (Node ${{ matrix.node-version }})
           path: 'test-results/junit.xml'
           reporter: 'jest-junit'
+          fail-on-error: false
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: E2E Tests (Node ${{ matrix.node-version }})
+          path: 'test-results/e2e-results.json'
+          reporter: 'java-junit'
           fail-on-error: false
 
       - name: Build
