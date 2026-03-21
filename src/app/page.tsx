@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PostFeed from "@/components/PostFeed";
+import StatisticsBlock from "@/components/StatisticsBlock";
 import { ArrowRight } from "lucide-react";
 interface Post {
   id: string;
@@ -69,20 +70,13 @@ export default async function Home() {
           </div>
         </header>
 
+        {/* Aggregate Statistics Section */}
+        {/* TODO  */}
+
         {/* Highlights - High Contrast Data Blocks */}
         <section className="px-6 py-10 bg-ink text-paper grid grid-cols-2 gap-8 border-b-[6px] border-brand shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
-          <div className="flex flex-col">
-            <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Davis&apos;s Records</span>
-            <div className="font-mono text-6xl md:text-7xl font-bold leading-none text-white tracking-tighter">
-              221<span className="text-base md:text-lg font-normal ml-2 text-brand tracking-normal">Marathons</span>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Rose&apos;s Records</span>
-            <div className="font-mono text-6xl md:text-7xl font-bold leading-none text-white tracking-tighter">
-              32<span className="text-base md:text-lg font-normal ml-2 text-brand tracking-normal">Marathons</span>
-            </div>
-          </div>
+          <StatisticsBlock participant="Davis" />
+          <StatisticsBlock participant="Rose" />
         </section>
 
         {/* Feed - Infinite Scroll Client Component */}
