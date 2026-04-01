@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON } from "re
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
+import { GeoJsonObject } from "geojson";
 import { ArrowRight, X } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 
@@ -20,7 +21,7 @@ const createEventIcon = () => {
 };
 
 // 自定義聚合點 Icon - 僅作為視覺標識，不顯示數字
-const createClusterCustomIcon = (cluster: any) => {
+const createClusterCustomIcon = (cluster: { getChildCount: () => number }) => {
   const count = cluster.getChildCount();
   // 根據聚合點的活動數量做微幅的視覺層級，但縮小範圍且不放數字
   const size = Math.min(Math.max(20, 16 + Math.log2(count) * 4), 48);
@@ -56,7 +57,7 @@ export default function MapView() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState("馬拉松");
   const [isLoading, setIsLoading] = useState(true);
-  const [geoData, setGeoData] = useState<any>(null);
+  const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
 
   // 映射表：將後端中文國家名稱映射至 GeoJSON 的名稱 (ADMIN)
   const countryNameMap: Record<string, string> = {
@@ -104,9 +105,9 @@ export default function MapView() {
   }, []);
 
   // GeoJSON 樣式
-  const geoStyle = (feature: any) => {
-    const name = feature.properties.name;
-    const isoA3 = feature.properties["ISO3166-1-Alpha-3"];
+  const geoStyle = (feature?: { properties: { name: string; "ISO3166-1-Alpha-3": string } }) => {
+    const name = feature?.properties?.name ?? "";
+    const isoA3 = feature?.properties?.["ISO3166-1-Alpha-3"] ?? "";
     const isVisited = visitedCountries.has(name) || visitedCountries.has(isoA3);
 
     return {

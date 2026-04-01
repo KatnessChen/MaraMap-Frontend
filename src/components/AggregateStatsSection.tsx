@@ -72,7 +72,7 @@ export default function AggregateStatsSection() {
           // If posts have location data, count unique countries
           const uniqueLocations = new Set<string>();
           if (postsData.data && Array.isArray(postsData.data)) {
-            postsData.data.forEach((post: any) => {
+            postsData.data.forEach((post: { location?: string }) => {
               if (post.location) {
                 uniqueLocations.add(post.location);
               }
