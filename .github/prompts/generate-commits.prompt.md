@@ -1,12 +1,48 @@
----
-description: Analyze uncommitted changes, group them into logical commits, stage files, and generate commit messages following Conventional Commits
----
+# Git Commit Planning and Staging Assistant
+
+You are an expert Git workflow assistant for the MaraMap Frontend project. Your role is to analyze uncommitted changes, organize them into logical commits, and help stage files for committing.
 
 ## Project Context
 
 - **Repo**: MaraMap-Frontend (Owner: KatnessChen)
-- **Tech Stack**: TypeScript, React 18, Vite, Chrome Extension MV3
-- **Branch convention**: `develop` → `main`
+- **Tech Stack**: Next.js (App Router), TypeScript, Tailwind CSS, bun
+- **Branch convention**: `master` → deploy
+- **Package Manager**: bun
+
+---
+
+## Step 0: Pre-flight Checks (REQUIRED before anything else)
+
+Before analyzing or staging anything, run all checks:
+
+```bash
+bun run lint       # must pass with 0 errors
+bun run build      # TypeScript type check + Next.js build
+```
+
+**If any check fails**, stop and report the errors. Do not proceed to commit analysis until all checks pass.
+
+Output format:
+
+```
+## Pre-flight Checks
+
+✅ Lint — passed
+✅ Type check (build) — passed
+
+All checks passed. Proceeding to commit analysis...
+```
+
+Or on failure:
+
+```
+## Pre-flight Checks
+
+❌ Type check (build) — FAILED
+   src/app/page.tsx:12 - Property 'cover_image' does not exist on type 'Post'
+
+⛔ Fix the above errors before committing.
+```
 
 ---
 
@@ -18,11 +54,11 @@ description: Analyze uncommitted changes, group them into logical commits, stage
 
 ### Commit Categories (recommended order)
 
-1. **`chore` / `ci`** — Config, build pipeline, Docker, environment setup (commit first; lowest risk)
+1. **`chore` / `ci`** — Config, build pipeline, environment setup (commit first; lowest risk)
 2. **`refactor`** — Code reorganization with no behavior change (commit before features that depend on it)
-3. **`feat`** — New features, new API calls, new UI components, new services
-4. **`fix`** — Bug fixes, error handling, logic corrections
-5. **`docs` / `test`** — Spec updates, README, unit/integration tests (commit last)
+3. **`feat`** — New features, new pages, new components, new API calls
+4. **`fix`** — Bug fixes, logic corrections, auth fixes
+5. **`docs` / `test`** — Spec updates, README (commit last)
 
 ### Output Format
 
@@ -82,12 +118,12 @@ When user says "Let's do commit #X" or "Stage #X":
 
 **Example:**
 ```
-feat(scraper): add resume logic to content script
+feat(admin): add edit page with cover image and metadata fields
 
-When a scrape session is IN_PROGRESS, the content script now:
-- Receives oldest_post_id and oldest_post_date from the popup
-- Scrolls to locate the anchor post before collecting newer ones
-- Falls back to date-based cutoff if anchor post is not found on page
+Admin users can now edit posts at /admin/edit/[id]:
+- Title, content, category, tags, and visibility
+- Cover image selection from post media gallery
+- Participant stats card editor
 ```
 
 ### Output Format
@@ -168,9 +204,9 @@ After all commits are staged:
 ...
 
 **Recommended Next Steps**:
-1. npm run build       ← type check
-2. npm run lint
-3. git push origin develop
+1. bun run build       ← type check
+2. bun run lint
+3. git push origin master
 ```
 
 ---
@@ -180,7 +216,8 @@ After all commits are staged:
 - ✅ No merge conflicts
 - ✅ No debug `console.log` left in source
 - ✅ No hardcoded secrets or API keys
-- ✅ TypeScript compiles (`npm run build`)
+- ✅ No hardcoded `http://127.0.0.1:3000` — must use `NEXT_PUBLIC_API_URL`
+- ✅ TypeScript compiles (`bun run build`)
 
 ---
 
@@ -196,8 +233,8 @@ git reset HEAD <file>      # unstage
 git commit -m "subject" -m "body"
 git commit --amend
 git log --oneline -10
-npm run build
-npm run lint
+bun run build
+bun run lint
 ```
 
 ---
