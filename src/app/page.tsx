@@ -9,6 +9,7 @@ interface Post {
   content: string;
   category: string;
   tags: string[];
+  cover_image?: string;
 }
 
 interface ApiResponse {
