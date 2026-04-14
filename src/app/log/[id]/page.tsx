@@ -100,18 +100,11 @@ function getRaceTypeInfo(distName: string) {
 }
 
 function getDisplayTitle(post: Post) {
-  const match = post.content.match(/^\[(.*?)\]/);
-  if (match) return match[1];
-  if (post.tags && post.tags.length > 0) return post.tags.slice(0, 2).join(" • ");
-  const firstLine = post.content.split('\n')[0].trim();
-  return firstLine || "MaraMap 運動日誌";
+  return post.title || "MaraMap 運動日誌";
 }
 
 function getDisplayContent(post: Post) {
-  const match = post.content.match(/^\[(.*?)\]/);
-  let text = post.content;
-  if (match) { text = text.replace(match[0], '').trim(); }
-  return text;
+  return post.content;
 }
 
 function extractCoordinates(media: Media[] | undefined) {
