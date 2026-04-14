@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const categories = ["全部", "馬拉松", "海外馬", "國內馬", "旅遊", "跑步訓練", "日常生活"];
+  const categories = ["全部", "馬拉松", "旅遊", "登山"];
 
   // Debounce 邏輯
   useEffect(() => {
