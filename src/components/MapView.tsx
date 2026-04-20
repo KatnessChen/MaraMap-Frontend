@@ -67,6 +67,12 @@ interface Category {
   sub_categories: SubCategory[];
 }
 
+interface RaceStats {
+  totalFM: number;
+}
+
+const TOTAL_COUNTRIES = 195;
+
 export default function MapView() {
   const [points, setPoints] = useState<FlattenedPoint[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -75,6 +81,13 @@ export default function MapView() {
   const [isLoading, setIsLoading] = useState(true);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
+  const [totalCountryCount, setTotalCountryCount] = useState(0);
+
+  const overseasCount = useMemo(() => {
+    const marathon = categories.find(c => c.name === "馬拉松");
+    return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
+  }, [categories]);
 
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
@@ -113,6 +126,34 @@ export default function MapView() {
       if (match?.country) setSelectedCountry(match.country.trim());
     });
   }, [visitedCountries, points]);
+
+  useEffect(() => {
+    const fetchRaceStats = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/stats?participant=Davis`);
+        if (!res.ok) return;
+        const davis = await res.json();
+        setRaceStats({
+          totalFM: davis.fm_count || 0,
+        });
+      } catch (err) {
+        console.error("Failed to fetch race stats:", err);
+      }
+    };
+    const fetchAllCountries = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/locations`);
+        if (!res.ok) return;
+        const data: FlattenedPoint[] = await res.json();
+        const countries = new Set(data.map(p => p.country_en).filter(Boolean));
+        setTotalCountryCount(countries.size);
+      } catch (err) {
+        console.error("Failed to fetch all locations:", err);
+      }
+    };
+    fetchRaceStats();
+    fetchAllCountries();
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -167,6 +208,38 @@ export default function MapView() {
           </p>
         </div>
 
+        {/* 統計區塊 */}
+        <div className="px-6 py-6 border-b border-line shrink-0">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/40 mb-4">足跡統計</p>
+          <div className="mb-5">
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono font-bold text-5xl text-brand tabular-nums leading-none">
+                {totalCountryCount}
+              </span>
+              <span className="font-serif text-xl text-ink/50 ml-1">國</span>
+              <span className="font-mono text-sm text-ink/35 ml-auto">
+                {((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <p className="font-mono text-xs text-ink/35 mt-2 tracking-widest">
+              已到訪國家
+              <span className="text-ink/20 ml-1">/ {TOTAL_COUNTRIES} 國</span>
+            </p>
+          </div>
+          {raceStats && (
+            <div className="flex gap-5 pt-4 border-t border-line/60">
+              <div>
+                <span className="font-mono font-bold text-2xl text-ink tabular-nums">{raceStats.totalFM}</span>
+                <p className="font-mono text-xs text-ink/35 mt-0.5 tracking-widest">全馬場數</p>
+              </div>
+              <div className="border-l border-line/60 pl-5">
+                <span className="font-mono font-bold text-2xl text-ink tabular-nums">{overseasCount}</span>
+                <p className="font-mono text-xs text-ink/35 mt-0.5 tracking-widest">海外馬場數</p>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* 分類切換 */}
         <nav className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-1">
           {categories.map((cat) => {
@@ -180,14 +253,14 @@ export default function MapView() {
                     setActiveSubCategory(null);
                   }}
                   className={`
-                    w-full flex items-center justify-between px-3 py-3 transition-all duration-200 text-left
+                    w-full flex items-center justify-between px-3 py-4 transition-all duration-200 text-left
                     ${isCatActive
                       ? "bg-ink text-paper"
                       : "text-ink/60 hover:text-ink hover:bg-ink/5"}
                   `}
                 >
-                  <span className="font-serif font-bold text-lg tracking-wide">{cat.name}</span>
-                  <span className={`font-mono text-sm tabular-nums ${isCatActive ? "text-paper/60" : "text-ink/30"}`}>
+                  <span className="font-serif font-bold text-xl tracking-wide">{cat.name}</span>
+                  <span className={`font-mono text-base tabular-nums ${isCatActive ? "text-paper/60" : "text-ink/30"}`}>
                     {cat.count}
                   </span>
                 </button>
@@ -205,14 +278,14 @@ export default function MapView() {
                             setActiveSubCategory(isSubActive ? null : sub.name);
                           }}
                           className={`
-                            w-full flex items-center justify-between pl-6 pr-3 py-2.5 transition-all duration-200 text-left border-l-2 ml-3
+                            w-full flex items-center justify-between pl-6 pr-3 py-3 transition-all duration-200 text-left border-l-2 ml-3
                             ${isSubActive
                               ? "border-brand text-brand font-bold bg-brand/5"
                               : "border-transparent text-ink/45 hover:text-ink hover:border-ink/20"}
                           `}
                         >
-                          <span className="font-serif text-base">{sub.name}</span>
-                          <span className={`font-mono text-sm tabular-nums ${isSubActive ? "text-brand/70" : "text-ink/25"}`}>
+                          <span className="font-serif text-lg">{sub.name}</span>
+                          <span className={`font-mono text-base tabular-nums ${isSubActive ? "text-brand/70" : "text-ink/25"}`}>
                             {sub.count}
                           </span>
                         </button>
@@ -285,6 +358,8 @@ export default function MapView() {
                     )}
                     <Link
                       href={`/log/${pt.postId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink hover:text-brand transition-colors"
                     >
                       VIEW LOG <ArrowRight size={12} />
