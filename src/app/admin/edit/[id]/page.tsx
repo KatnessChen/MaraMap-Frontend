@@ -777,7 +777,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 <button onClick={addParticipant} className="text-brand hover:opacity-70 transition-opacity"><PlusCircle size={28} /></button>
               </div>
               <div className="space-y-8">
-                {formData.metadata.participants.map((p, idx) => (
+                {formData.metadata.participants.map((p, idx) => p.name !== "Davis" ? null : (
                   <div key={idx} className="bg-white border-2 border-line p-6 shadow-sm relative space-y-6 rounded-sm">
                     <button onClick={() => removeParticipant(idx)} className="absolute top-4 right-4 text-ink/20 hover:text-brand transition-colors"><Trash2 size={18} /></button>
                     <div className="space-y-4">

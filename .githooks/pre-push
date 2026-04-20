@@ -1,8 +1,22 @@
 #!/bin/sh
-# Pre-push hook: run unit tests before pushing to remote.
+# Pre-push hook: auto-fix ESLint issues, then run unit tests.
 # Install via: git config core.hooksPath .githooks
 # (auto-installed by `bun install` via the prepare script)
 
+echo "🔧 Running ESLint auto-fix..."
+bun run lint --fix
+
+# If eslint --fix changed any tracked files, amend them into the latest commit
+FIXED=$(git diff --name-only)
+if [ -n "$FIXED" ]; then
+  echo "   Auto-fixed files:"
+  echo "$FIXED" | sed 's/^/   ✏️  /'
+  git add -u
+  git commit --amend --no-edit --no-verify
+  echo "   Amended into last commit."
+fi
+
+echo ""
 echo "🧪 Running unit tests before push..."
 bun run test
 
@@ -13,4 +27,4 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ All tests passed. Proceeding with push."
+echo "✅ All checks passed. Proceeding with push."

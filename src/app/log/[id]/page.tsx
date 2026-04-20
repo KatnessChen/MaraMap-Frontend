@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -164,7 +165,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       
       <div className="w-full h-[45vh] md:h-[60vh] bg-paper-dark border-b-[6px] border-brand relative overflow-hidden flex items-center justify-center">
         {post.cover_image ? (
-          <img src={post.cover_image} alt="Cover" className="w-full h-full object-cover animate-in fade-in duration-1000" />
+          <Image src={post.cover_image} alt="Cover" fill className="object-cover animate-in fade-in duration-1000" />
         ) : (
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%231a1a1a' stroke-width='0.5' stroke-opacity='0.2'%3E%3Cpath d='M0 100h400M0 200h400M0 300h400M100 0v400M200 0v400M300 0v400'/%3E%3C/g%3E%3Cpath d='M80 320 Q 150 200 200 150 T 320 80' stroke='%23E63946' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='80' cy='320' r='6' fill='%231a1a1a'/%3E%3Ccircle cx='320' cy='80' r='6' fill='%23E63946'/%3E%3C/svg%3E")`, backgroundSize: 'cover' }} />
         )}
@@ -200,7 +201,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             
             {post.metadata && post.metadata.participants && Array.isArray(post.metadata.participants) && (
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                {post.metadata.participants.map((p, idx) => {
+                {post.metadata.participants.filter(p => p.name === "Davis").map((p, idx) => {
                   const displayTime = p.time && p.time !== '---' && p.time !== 'N/A' ? p.time : '進行中';
                   const normalizedDist = getNormalizedDistance(p.distance, p.stats?.distance_km);
                   const displayPace = calculatePace(p.time, p.distance, p.stats?.distance_km);
@@ -283,7 +284,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                     {mediaItem.type === 'video' ? (
                       <video src={mediaItem.uri} controls playsInline className="w-full h-full object-cover bg-ink" />
                     ) : (
-                      <img src={mediaItem.uri} alt={`Moment ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                      <Image src={mediaItem.uri} alt={`Moment ${idx + 1}`} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
                     )}
                   </div>
                 ))}
