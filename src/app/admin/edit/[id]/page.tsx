@@ -337,6 +337,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     sub_categories: [],
     tags: "",
     is_hidden: false,
+    is_pb: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [] },
   });
@@ -380,6 +381,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             sub_categories: data.sub_categories || [],
             tags: (data.tags || []).join(", "),
             is_hidden: data.is_hidden || false,
+            is_pb: data.is_pb || false,
             cover_image: data.cover_image || "",
             metadata: {
               race_name: data.metadata?.race_name || "",
@@ -772,6 +774,27 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">隱藏此文章</label>
               </div>
             </div>
+
+            {/* PB flag — 馬拉松限定 */}
+            {formData.category === "馬拉松" && (
+              <div className="space-y-6">
+                <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
+                  <Activity size={24} className="text-brand" /> 個人最佳成績
+                </label>
+                <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
+                  <input
+                    type="checkbox"
+                    id="is_pb"
+                    checked={formData.is_pb}
+                    onChange={e => setFormData({ ...formData, is_pb: e.target.checked })}
+                    className="w-7 h-7 accent-brand cursor-pointer"
+                  />
+                  <label htmlFor="is_pb" className="font-sans text-lg font-black cursor-pointer select-none">
+                    此場為個人最佳成績（PB）
+                  </label>
+                </div>
+              </div>
+            )}
 
             {/* Participants */}
             <div className="space-y-6">
