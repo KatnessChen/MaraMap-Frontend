@@ -43,6 +43,7 @@ interface Post {
   sub_categories: string[];
   tags: string[];
   is_hidden: boolean;
+  is_pb: boolean;
   cover_image?: string;
   media: Media[];
   metadata?: MarathonMetadata | null;
@@ -56,6 +57,7 @@ interface FormData {
   sub_categories: string[];
   tags: string;
   is_hidden: boolean;
+  is_pb: boolean;
   cover_image: string;
   metadata: {
     race_name: string | null;
@@ -624,6 +626,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 bg-white p-6 border border-line shadow-sm">
                 {post.media && post.media.filter(m => m.type !== "video").map((m, idx) => (
                   <button key={idx} onClick={() => setFormData({ ...formData, cover_image: m.uri })} className={`relative aspect-square border-2 transition-all overflow-hidden rounded-md ${formData.cover_image === m.uri ? "border-brand ring-4 ring-brand/10 shadow-lg scale-[1.05] z-10" : "border-line opacity-40 hover:opacity-100"}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.uri} alt="預覽" className="w-full h-full object-cover" />
                     {formData.cover_image === m.uri && <div className="absolute top-2 right-2 bg-brand text-white p-1 rounded-full shadow-md"><Check size={12} /></div>}
                   </button>
