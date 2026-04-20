@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
+
 // --- API Data Interfaces ---
 interface Media {
   lat: number | null;
@@ -115,7 +116,6 @@ function extractCoordinates(media: Media[] | undefined) {
 
 export default function LogDetail({ params }: { params: Promise<{ id: string }> }) {
   const [post, setPost] = useState<Post | null>(null);
-  const [nav, setNav] = useState<{ prev: Post | null, next: Post | null }>({ prev: null, next: null });
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -133,16 +133,6 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         if (!res.ok) { setIsLoading(false); return; }
         const data = await res.json();
         setPost(data);
-
-        const listRes = await fetch(`${apiUrl}/api/v1/posts?limit=100`, { cache: 'no-store' });
-        if (listRes.ok) {
-          const listJson = await listRes.json();
-          const list: Post[] = listJson.data;
-          const idx = list.findIndex(p => p.id === id);
-          if (idx !== -1) {
-            setNav({ next: list[idx - 1] || null, prev: list[idx + 1] || null });
-          }
-        }
       } catch (error) {
         console.error("Failed to fetch post detail or navigation:", error);
       } finally {
@@ -301,25 +291,6 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             </div>
           )}
 
-          <div className="mt-32 pt-16 border-t-2 border-ink flex flex-col md:flex-row justify-between gap-16">
-            {nav.prev ? (
-              <Link href={`/log/${nav.prev.id}`} className="group flex-1">
-                <span className="font-sans text-xs text-ink/30 font-black uppercase tracking-widest block mb-3 group-hover:text-brand transition-colors">← 上一篇紀錄</span>
-                <h4 className="font-serif text-xl font-black text-ink leading-tight group-hover:text-brand transition-colors">{getDisplayTitle(nav.prev)}</h4>
-              </Link>
-            ) : (
-              <div className="flex-1 opacity-20"><span className="font-sans text-xs font-black uppercase tracking-widest block mb-3">首篇紀錄</span><h4 className="font-serif text-xl font-black">這是日誌的開端</h4></div>
-            )}
-            <div className="w-px h-16 bg-line hidden md:block"></div>
-            {nav.next ? (
-              <Link href={`/log/${nav.next.id}`} className="group flex-1 md:text-right">
-                <span className="font-sans text-xs text-ink/30 font-black uppercase tracking-widest block mb-3 group-hover:text-brand transition-colors">下一篇紀錄 →</span>
-                <h4 className="font-serif text-xl font-black text-ink leading-tight group-hover:text-brand transition-colors">{getDisplayTitle(nav.next)}</h4>
-              </Link>
-            ) : (
-              <div className="flex-1 md:text-right opacity-20"><span className="font-sans text-xs font-black uppercase tracking-widest block mb-3">最新紀錄</span><h4 className="font-serif text-xl font-black">目前已是最新</h4></div>
-            )}
-          </div>
         </div>
       </div>
 
