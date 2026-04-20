@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-push hook: run unit tests before pushing to remote.
+# Install via: git config core.hooksPath .githooks
+# (auto-installed by `bun install` via the prepare script)
+
+echo "🧪 Running unit tests before push..."
+bun run test
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Tests failed. Push aborted."
+  echo "   Fix the failing tests and try again."
+  exit 1
+fi
+
+echo "✅ All tests passed. Proceeding with push."
