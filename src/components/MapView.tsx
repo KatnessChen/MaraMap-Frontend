@@ -89,6 +89,19 @@ export default function MapView() {
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
   }, [categories]);
 
+  const sevenMajorsCount = useMemo(() => {
+    const marathon = categories.find(c => c.name === "馬拉松");
+    return marathon?.sub_categories.find(s => s.name === "七大馬")?.count ?? 0;
+  }, [categories]);
+
+  const travelCount = useMemo(() => {
+    return categories.find(c => c.name === "旅遊")?.count ?? 0;
+  }, [categories]);
+
+  const hikingCount = useMemo(() => {
+    return categories.find(c => c.name === "登山")?.count ?? 0;
+  }, [categories]);
+
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
     points.forEach(p => {
@@ -194,113 +207,92 @@ export default function MapView() {
     <div className="flex w-screen h-screen overflow-hidden">
 
       {/* ── Aside ── */}
-      <aside className="w-72 shrink-0 flex flex-col bg-paper border-r border-line z-10">
+      <aside className="w-80 shrink-0 flex flex-col bg-paper border-r border-line z-10">
 
-        {/* Logo 區 */}
-        <div className="px-6 pt-8 pb-6 border-b border-line">
-          <h1 className="font-mono font-bold text-3xl text-ink tracking-tight mb-1">
-            Mara<span className="text-brand">Map</span>
-          </h1>
-          <p className="font-serif font-black text-lg text-ink tracking-wide">
+        {/* 標題 */}
+        <div className="px-7 pt-8 pb-5 border-b border-line">
+          <p className="font-serif font-black text-xl text-ink tracking-wide">
             <span className="italic">Davis & Rose</span>
-            <span className="text-brand mx-1.5">·</span>
-            <span className="text-ink/70 font-normal not-italic">環球跑旅</span>
+            <span className="text-brand mx-2">·</span>
+            <span className="text-ink/60 font-normal not-italic">環球跑旅</span>
           </p>
         </div>
 
-        {/* 統計區塊 */}
-        <div className="px-6 py-6 border-b border-line shrink-0">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/40 mb-4">足跡統計</p>
-          <div className="mb-5">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono font-bold text-5xl text-brand tabular-nums leading-none">
-                {totalCountryCount}
-              </span>
-              <span className="font-serif text-xl text-ink/50 ml-1">國</span>
-              <span className="font-mono text-sm text-ink/35 ml-auto">
-                {((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1)}%
-              </span>
+        {/* Hero 數字 — 已到訪國家 */}
+        <div className="px-7 pt-8 pb-6 border-b border-line">
+          <div className="flex items-end gap-3 mb-2">
+            <span className="font-mono font-bold text-8xl text-brand tabular-nums leading-none">
+              {totalCountryCount}
+            </span>
+            <div className="pb-2.5">
+              <span className="font-serif text-3xl text-ink/30">國</span>
             </div>
-            <p className="font-mono text-xs text-ink/35 mt-2 tracking-widest">
-              已到訪國家
-              <span className="text-ink/20 ml-1">/ {TOTAL_COUNTRIES} 國</span>
-            </p>
+            <span className="font-mono text-sm text-ink/30 pb-3 ml-auto">
+              {((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1)}%
+            </span>
           </div>
-          {raceStats && (
-            <div className="flex gap-5 pt-4 border-t border-line/60">
-              <div>
-                <span className="font-mono font-bold text-2xl text-ink tabular-nums">{raceStats.totalFM}</span>
-                <p className="font-mono text-xs text-ink/35 mt-0.5 tracking-widest">全馬場數</p>
-              </div>
-              <div className="border-l border-line/60 pl-5">
-                <span className="font-mono font-bold text-2xl text-ink tabular-nums">{overseasCount}</span>
-                <p className="font-mono text-xs text-ink/35 mt-0.5 tracking-widest">海外馬場數</p>
-              </div>
-            </div>
-          )}
+          <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">已到訪國家</p>
         </div>
 
-        {/* 分類切換 */}
-        <nav className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-1">
-          {categories.map((cat) => {
-            const isCatActive = activeCategory === cat.name;
+        {/* 可點擊統計方塊 */}
+        <div className="px-5 py-5 grid grid-cols-2 gap-2">
+          {[
+            { label: "全馬", unit: "場", value: raceStats?.totalFM ?? 0, cat: "馬拉松", sub: null },
+            { label: "海外馬", unit: "場", value: overseasCount, cat: "馬拉松", sub: "海外馬" },
+            { label: "七大馬", unit: "場", value: sevenMajorsCount, cat: "馬拉松", sub: "七大馬" },
+            { label: "旅遊", unit: "篇", value: travelCount, cat: "旅遊", sub: null },
+            { label: "百岳", unit: "座", value: hikingCount, cat: "登山", sub: null },
+          ].map(({ label, unit, value, cat, sub }) => {
+            const isActive = activeCategory === cat && activeSubCategory === sub;
             return (
-              <div key={cat.name} className="mb-1">
-                {/* 主分類 */}
-                <button
-                  onClick={() => {
-                    setActiveCategory(cat.name);
+              <button
+                key={label}
+                onClick={() => {
+                  if (isActive) {
+                    setActiveCategory("馬拉松");
                     setActiveSubCategory(null);
-                  }}
-                  className={`
-                    w-full flex items-center justify-between px-3 py-4 transition-all duration-200 text-left
-                    ${isCatActive
-                      ? "bg-ink text-paper"
-                      : "text-ink/60 hover:text-ink hover:bg-ink/5"}
-                  `}
-                >
-                  <span className="font-serif font-bold text-xl tracking-wide">{cat.name}</span>
-                  <span className={`font-mono text-base tabular-nums ${isCatActive ? "text-paper/60" : "text-ink/30"}`}>
-                    {cat.count}
+                  } else {
+                    setActiveCategory(cat);
+                    setActiveSubCategory(sub);
+                  }
+                }}
+                className={`group flex flex-col items-start px-4 py-4 transition-all duration-200 text-left border-2 ${
+                  isActive
+                    ? "border-brand bg-brand/8"
+                    : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
+                }`}
+              >
+                <div className="flex items-baseline gap-1 leading-none">
+                  <span className={`font-mono font-bold text-4xl tabular-nums ${
+                    isActive ? "text-brand" : "text-ink"
+                  }`}>
+                    {value}
                   </span>
-                </button>
-
-                {/* 子分類 — 永遠展開 */}
-                {cat.sub_categories.length > 0 && (
-                  <div className="flex flex-col gap-0.5 mt-0.5">
-                    {cat.sub_categories.map((sub) => {
-                      const isSubActive = activeSubCategory === sub.name && isCatActive;
-                      return (
-                        <button
-                          key={sub.name}
-                          onClick={() => {
-                            setActiveCategory(cat.name);
-                            setActiveSubCategory(isSubActive ? null : sub.name);
-                          }}
-                          className={`
-                            w-full flex items-center justify-between pl-6 pr-3 py-3 transition-all duration-200 text-left border-l-2 ml-3
-                            ${isSubActive
-                              ? "border-brand text-brand font-bold bg-brand/5"
-                              : "border-transparent text-ink/45 hover:text-ink hover:border-ink/20"}
-                          `}
-                        >
-                          <span className="font-serif text-lg">{sub.name}</span>
-                          <span className={`font-mono text-base tabular-nums ${isSubActive ? "text-brand/70" : "text-ink/25"}`}>
-                            {sub.count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                  <span className={`font-serif text-base ${
+                    isActive ? "text-brand/50" : "text-ink/30"
+                  }`}>
+                    {unit}
+                  </span>
+                </div>
+                <span className={`font-mono text-xs mt-2.5 tracking-widest leading-tight ${
+                  isActive ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
+                }`}>
+                  {label}
+                </span>
+              </button>
             );
           })}
-        </nav>
+        </div>
+
       </aside>
 
       {/* ── Map ── */}
       <main className="flex-1 relative">
+        <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
+          <span className="font-mono text-xs text-ink/50 tracking-widest">
+            Powered by Mara<span className="text-brand">Map</span>
+          </span>
+        </div>
         {isLoading && points.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/40">
             Generating Spatial Log...

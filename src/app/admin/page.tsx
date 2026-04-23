@@ -5,13 +5,31 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Edit2, Eye, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, Tag, X } from "lucide-react";
 
+interface ParticipantStats {
+  distance_km: number | null;
+}
+
+interface Participant {
+  name: string;
+  distance: string | null;
+  time: string | null;
+  stats: ParticipantStats;
+}
+
 interface Post {
   id: string;
   event_date: string;
   title: string;
   category: string;
+  sub_categories: string[];
   is_hidden: boolean;
   tags: string[];
+  metadata?: {
+    race_name: string | null;
+    country: string | null;
+    city: string | null;
+    participants: Participant[];
+  } | null;
 }
 
 interface ApiResponse {
@@ -25,26 +43,40 @@ export default function AdminDashboard() {
   const [meta, setMeta] = useState<ApiResponse["meta"] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 篩選與排序狀態
-  const [page, setPage] = useState(1);
+  // 輸入狀態（表單用）
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("全部");
   const [status, setStatus] = useState("all");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [tag, setTag] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [subCategory, setSubCategory] = useState("");
+  const [continent, setContinent] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
+
+  // 已套用狀態（驅動 API）
+  const [page, setPage] = useState(1);
+  const [applied, setApplied] = useState({
+    search: "", category: "全部", status: "all", order: "desc" as "asc" | "desc",
+    tag: "", startDate: "", endDate: "", subCategory: "", continent: "", country: "", city: "",
+  });
 
   const categories = ["全部", "馬拉松", "旅遊", "登山"];
+  const SUB_CATEGORY_MAP: Record<string, string[]> = {
+    馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查"],
+    旅遊: [],
+    登山: ["大百岳", "小百岳", "海外登山"],
+  };
+  const subCategories = category === "全部"
+    ? ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查", "大百岳", "小百岳", "海外登山"]
+    : (SUB_CATEGORY_MAP[category] || []);
 
-  // Debounce 邏輯
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const applyFilters = () => {
+    setApplied({ search: searchQuery, category, status, order, tag, startDate, endDate, subCategory, continent, country, city });
+    setPage(1);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("maramap_admin_token");
@@ -57,32 +89,31 @@ export default function AdminDashboard() {
       setIsLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
-        
-        let url = "";
         const limit = 20;
-        
-        if (debouncedSearch) {
-          // 使用模糊搜尋 API
+        let url = "";
+
+        if (applied.search) {
           const params = new URLSearchParams({
-            q: debouncedSearch,
+            q: applied.search,
             limit: limit.toString(),
             offset: ((page - 1) * limit).toString(),
-            category: category === "全部" ? "" : category,
-            // 注意：後端模糊搜尋 API 可能不支援所有管理後台的進階篩選（如日期範圍），
-            // 這裡視後端實作而定。目前先傳入關鍵欄位。
+            category: applied.category === "全部" ? "" : applied.category,
           });
           url = `${apiUrl}/api/v1/posts/search?${params.toString()}`;
         } else {
-          // 使用管理列表 API
           const params = new URLSearchParams({
             page: page.toString(),
             limit: limit.toString(),
-            status,
-            order,
-            category: category === "全部" ? "" : category,
-            tag,
-            startDate,
-            endDate
+            status: applied.status,
+            order: applied.order,
+            category: applied.category === "全部" ? "" : applied.category,
+            tag: applied.tag,
+            startDate: applied.startDate,
+            endDate: applied.endDate,
+            sub_category: applied.subCategory,
+            continent: applied.continent,
+            country: applied.country,
+            city: applied.city,
           });
           url = `${apiUrl}/api/v1/posts?${params.toString()}&showHidden=true`;
         }
@@ -91,14 +122,12 @@ export default function AdminDashboard() {
         if (res.ok) {
           const json: ApiResponse = await res.json();
           setPosts(json.data);
-          
-          // 統一 Meta 結構以便分頁器使用
-          if (debouncedSearch) {
+          if (applied.search) {
             setMeta({
               total: json.meta.total,
               limit: json.meta.limit,
               page: Math.floor(json.meta.offset! / json.meta.limit) + 1,
-              last_page: Math.ceil(json.meta.total / json.meta.limit)
+              last_page: Math.ceil(json.meta.total / json.meta.limit),
             });
           } else {
             setMeta(json.meta);
@@ -110,9 +139,9 @@ export default function AdminDashboard() {
         setIsLoading(false);
       }
     };
-    
+
     fetchPosts();
-  }, [page, debouncedSearch, category, status, order, tag, startDate, endDate, router]);
+  }, [page, applied, router]);
 
   const toggleHidden = async (id: string, currentHidden: boolean) => {
     const token = localStorage.getItem("maramap_admin_token");
@@ -147,6 +176,11 @@ export default function AdminDashboard() {
     setTag("");
     setStartDate("");
     setEndDate("");
+    setSubCategory("");
+    setContinent("");
+    setCountry("");
+    setCity("");
+    setApplied({ search: "", category: "全部", status: "all", order, tag: "", startDate: "", endDate: "", subCategory: "", continent: "", country: "", city: "" });
     setPage(1);
   };
 
@@ -159,9 +193,8 @@ export default function AdminDashboard() {
               <Link href="/" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm font-bold mb-4 transition-colors">
                 <ArrowLeft size={16} /> 回網站首頁
               </Link>
-              <h1 className="font-serif font-black text-4xl text-ink tracking-tight flex items-baseline gap-3">
+              <h1 className="font-serif font-black text-4xl text-ink tracking-tight">
                 文章<span className="text-brand">管理</span>
-                {meta && <span className="font-sans text-base text-ink/30 font-normal">共 {meta.total} 篇</span>}
               </h1>
             </div>
             <button onClick={handleLogout} className="p-3 bg-ink/5 text-ink/40 hover:text-brand transition-all rounded-full" title="登出系統">
@@ -177,65 +210,32 @@ export default function AdminDashboard() {
             <span className="font-sans text-base font-black uppercase tracking-widest">篩選條件</span>
           </div>
           
+          {/* Row 1: 搜尋 / 類別 / 子分類 / 狀態 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* 模糊搜尋 */}
             <div className="space-y-3">
               <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">模糊搜尋</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  className="w-full pl-10 pr-10 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors"
-                  placeholder="搜尋關鍵字..."
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyFilters()} className="w-full pl-10 pr-10 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors" placeholder="搜尋關鍵字..." />
+                {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink"><X size={16} /></button>}
               </div>
             </div>
-
-            {/* 分類篩選 */}
             <div className="space-y-3">
               <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">文章類別</label>
-              <select 
-                value={category}
-                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-                className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base font-bold focus:border-brand outline-none appearance-none cursor-pointer"
-              >
+              <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(""); }} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base font-bold focus:border-brand outline-none appearance-none cursor-pointer">
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-
-            {/* 標籤篩選 */}
             <div className="space-y-3">
-              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">標籤篩選 (Tag)</label>
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
-                <input 
-                  type="text" 
-                  value={tag}
-                  onChange={(e) => { setTag(e.target.value); setPage(1); }}
-                  className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors"
-                  placeholder="輸入標籤..."
-                />
-              </div>
+              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">子分類</label>
+              <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} disabled={subCategories.length === 0} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base font-bold focus:border-brand outline-none appearance-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                <option value="">全部</option>
+                {subCategories.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-
-            {/* 狀態篩選 */}
             <div className="space-y-3">
               <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">文章狀態</label>
-              <select 
-                value={status}
-                onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-                className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base font-bold focus:border-brand outline-none appearance-none cursor-pointer"
-              >
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base font-bold focus:border-brand outline-none appearance-none cursor-pointer">
                 <option value="all">顯示全部</option>
                 <option value="visible">僅看公開</option>
                 <option value="hidden">僅看隱藏</option>
@@ -243,50 +243,68 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* Row 2: 大洲 / 國家 / 城市 / 標籤 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pt-2 border-t border-line/50">
+            <div className="space-y-3">
+              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">大洲</label>
+              <input type="text" value={continent} onChange={(e) => setContinent(e.target.value)} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors" placeholder="亞洲、歐洲…" />
+            </div>
+            <div className="space-y-3">
+              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">國家</label>
+              <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors" placeholder="台灣、日本…" />
+            </div>
+            <div className="space-y-3">
+              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">城市</label>
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-4 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors" placeholder="台北、東京…" />
+            </div>
+            <div className="space-y-3">
+              <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">標籤 (Tag)</label>
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
+                <input type="text" value={tag} onChange={(e) => setTag(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-base focus:border-brand outline-none transition-colors" placeholder="輸入標籤…" />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: 日期範圍 / 重置 / 排序 */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 pt-2 border-t border-line/50">
-            {/* 日期篩選 */}
             <div className="lg:col-span-2 space-y-3">
               <label className="block font-sans text-sm font-bold text-ink/60 uppercase tracking-widest">日期範圍</label>
               <div className="flex items-center gap-4">
                 <div className="relative flex-1">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
-                  <input 
-                    type="date" 
-                    value={startDate}
-                    onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                    className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-sm focus:border-brand outline-none"
-                  />
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-sm focus:border-brand outline-none" />
                 </div>
                 <span className="text-ink/20 font-bold">至</span>
                 <div className="relative flex-1">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
-                  <input 
-                    type="date" 
-                    value={endDate}
-                    onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                    className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-sm focus:border-brand outline-none"
-                  />
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-paper/30 border border-line font-sans text-sm focus:border-brand outline-none" />
                 </div>
               </div>
             </div>
-
             <div className="lg:col-span-2 flex items-end justify-end gap-6">
-              <button 
-                onClick={resetFilters}
-                className="px-6 py-3 font-sans text-base font-bold text-ink/40 hover:text-ink transition-colors"
-              >
-                重置篩選
-              </button>
-              <button 
-                disabled={!!debouncedSearch}
-                onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
-                className={`px-8 py-3 font-sans text-base font-bold flex items-center gap-3 transition-all shadow-lg rounded-full ${debouncedSearch ? "bg-ink/5 text-ink/20 cursor-not-allowed shadow-none" : "bg-ink text-paper hover:bg-brand"}`}
-              >
+              <button onClick={resetFilters} className="px-6 py-3 font-sans text-base font-bold text-ink/40 hover:text-ink transition-colors">重置篩選</button>
+              <button onClick={applyFilters} className="px-8 py-3 font-sans text-base font-bold bg-brand text-white hover:bg-brand/80 transition-all shadow-sm">套用篩選條件</button>
+              <button disabled={!!searchQuery} onClick={() => setOrder(order === "desc" ? "asc" : "desc")} className={`px-8 py-3 font-sans text-base font-bold flex items-center gap-3 transition-all shadow-lg rounded-full ${searchQuery ? "bg-ink/5 text-ink/20 cursor-not-allowed shadow-none" : "bg-ink text-paper hover:bg-brand"}`}>
                 {order === "desc" ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                 {order === "desc" ? "新 → 舊" : "舊 → 新"}
               </button>
             </div>
           </div>
+        </div>
+
+        {/* 篇數摘要 */}
+        <div className="flex items-center justify-between mb-4 px-1">
+          {isLoading ? (
+            <span className="font-sans text-sm text-ink/30">載入中…</span>
+          ) : meta ? (
+            <span className="font-sans text-sm text-ink/50">
+              搜尋結果：共 <span className="font-black text-ink">{meta.total}</span> 篇
+              {meta.last_page! > 1 && (
+                <span className="ml-2 text-ink/30">（第 {page} / {meta.last_page} 頁）</span>
+              )}
+            </span>
+          ) : null}
         </div>
 
         {/* 列表表格 */}
@@ -316,14 +334,41 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               ) : (
-                posts.map((post) => (
+                posts.map((post) => {
+                  const davis = post.metadata?.participants?.find(p => p.name === "Davis");
+                  const hasTime = !!(davis?.time && davis.time !== '---' && davis.time !== 'N/A' && davis.time !== '0:00:00');
+                  return (
                   <tr key={post.id} className="hover:bg-paper/50 transition-colors group">
                     <td className="px-6 py-6 whitespace-nowrap font-mono text-base text-ink/60">{post.event_date}</td>
-                    <td className="px-6 py-6 whitespace-nowrap">
-                      <span className="font-sans text-sm font-bold bg-ink/5 text-ink/60 px-3 py-1.5 rounded-sm uppercase">{post.category}</span>
+                    <td className="px-6 py-6 align-top">
+                      <span className="font-sans text-sm font-bold bg-ink/5 text-ink/60 px-3 py-1.5 rounded-sm uppercase block w-fit mb-2">{post.category}</span>
+                      {post.sub_categories?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {post.sub_categories.map((s, i) => (
+                            <span key={i} className="font-sans text-xs font-bold text-brand/70 bg-brand/5 border border-brand/15 px-2 py-0.5">{s}</span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-6">
                       <div className="font-serif font-black text-xl text-ink leading-tight mb-2">{post.title || "未命名文章"}</div>
+                      {post.category === "馬拉松" && davis && (
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-sans text-xs font-bold text-ink/40 uppercase tracking-wider">{davis.distance || "—"}</span>
+                          {hasTime && (
+                            <>
+                              <span className="text-ink/20">·</span>
+                              <span className="font-mono text-sm font-bold text-ink/70">{davis.time}</span>
+                            </>
+                          )}
+                          {post.metadata?.country && (
+                            <>
+                              <span className="text-ink/20">·</span>
+                              <span className="font-sans text-xs text-ink/40">{post.metadata.country}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         {post.tags && post.tags.map((t, idx) => (
                           <span key={idx} className="font-sans text-sm text-ink/40 bg-paper px-2 py-0.5 rounded-xs border border-line/50">#{t}</span>
@@ -349,7 +394,7 @@ export default function AdminDashboard() {
                       </Link>
                     </td>
                   </tr>
-                ))
+                ); })
               )}
             </tbody>
           </table>

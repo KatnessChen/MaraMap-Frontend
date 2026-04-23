@@ -47,6 +47,18 @@ interface Post {
   cover_image?: string;
   media?: Media[];
   metadata?: MarathonMetadata | null;
+  trip_id?: string | null;
+}
+
+interface TripPost {
+  postId: string;
+  title: string;
+  date: string;
+  category: string;
+  country: string | null;
+  city: string | null;
+  coverImage: string | null;
+  isPrimary: boolean;
 }
 
 // --- Helper Functions ---
@@ -120,6 +132,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
 
   useEffect(() => {
     // 檢查是否具備管理員權限
@@ -134,6 +147,13 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         if (!res.ok) { setIsLoading(false); return; }
         const data = await res.json();
         setPost(data);
+        if (data.trip_id) {
+          const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${data.trip_id}`);
+          if (tripRes.ok) {
+            const all: TripPost[] = await tripRes.json();
+            setTripPosts(all.filter(p => p.postId !== data.id));
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch post detail or navigation:", error);
       } finally {
@@ -202,57 +222,69 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             {post.metadata && post.metadata.participants && Array.isArray(post.metadata.participants) && (
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
                 {post.metadata.participants.filter(p => p.name === "Davis").map((p, idx) => {
-                  const displayTime = p.time && p.time !== '---' && p.time !== 'N/A' ? p.time : '進行中';
+                  const hasTime = !!(p.time && p.time !== '---' && p.time !== 'N/A' && p.time !== '0:00:00');
                   const normalizedDist = getNormalizedDistance(p.distance, p.stats?.distance_km);
-                  const displayPace = calculatePace(p.time, p.distance, p.stats?.distance_km);
+                  const displayPace = hasTime ? calculatePace(p.time, p.distance, p.stats?.distance_km) : null;
                   const info = getRaceTypeInfo(normalizedDist);
-                  
+
                   return (
                     <div key={idx} className={`group relative overflow-hidden p-8 border-2 shadow-xl transition-all duration-500 hover:-translate-y-1 ${info.bg} ${info.border}`}>
-                      {/* 浮水印字樣 */}
+                      {/* 浮水印 */}
                       <div className={`absolute -right-4 -bottom-4 font-serif font-black text-[140px] leading-none select-none pointer-events-none transition-all duration-1000 group-hover:scale-110 group-hover:-rotate-6 ${info.text}`}>
                         {info.label}
                       </div>
 
                       <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-8 border-b border-black/5 pb-4">
-                          <div className="flex flex-col">
-                            <span className={`font-serif text-3xl font-black italic tracking-tighter leading-none mb-3 ${info.dataText}`}>{p.name}</span>
-                            
-                            {/* 呈現所有場數資訊 */}
-                            <div className="flex flex-wrap gap-4">
-                              {p.stats?.FM_count && (
-                                <div className="flex flex-col">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>全馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
-                                </div>
-                              )}
-                              {p.stats?.HM_count && (
-                                <div className="flex flex-col border-l border-black/5 pl-4">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>半馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
-                                </div>
-                              )}
-                              {p.stats?.UM_count && (
-                                <div className="flex flex-col border-l border-black/5 pl-4">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>超馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <span className={`font-sans text-sm font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
+                        {/* Header: name + distance badge */}
+                        <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-5">
+                          <span className={`font-serif text-4xl font-black italic tracking-tighter leading-none ${info.dataText}`}>{p.name}</span>
+                          <span className={`font-sans text-base font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
                         </div>
-                        
-                        <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+
+                        {/* Cumulative counts */}
+                        {(p.stats?.FM_count || p.stats?.HM_count || p.stats?.UM_count) && (
+                          <div className="flex flex-wrap gap-5 mb-7">
+                            {p.stats?.FM_count && (
+                              <div className="flex flex-col">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>全馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
+                              </div>
+                            )}
+                            {p.stats?.HM_count && (
+                              <div className="flex flex-col border-l border-black/10 pl-5">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>半馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
+                              </div>
+                            )}
+                            {p.stats?.UM_count && (
+                              <div className="flex flex-col border-l border-black/10 pl-5">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>超馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Time + Pace */}
+                        <div className="flex flex-wrap items-end gap-x-12 gap-y-4">
                           <div className="flex flex-col">
-                            <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}><Timer size={14} /><span className="font-sans text-[10px] uppercase font-black tracking-widest">完賽時間</span></div>
-                            <span className={`font-mono text-4xl font-black tabular-nums leading-none ${info.dataText}`}>{displayTime}</span>
+                            <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
+                              <Timer size={14} />
+                              <span className="font-sans text-xs uppercase font-black tracking-widest">完賽時間</span>
+                            </div>
+                            {hasTime ? (
+                              <span className={`font-mono text-4xl font-black tabular-nums leading-none ${info.dataText}`}>{p.time}</span>
+                            ) : (
+                              <span className={`font-mono text-4xl font-black leading-none opacity-20 ${info.dataText}`}>—</span>
+                            )}
                           </div>
                           {displayPace && (
                             <div className="flex flex-col">
-                              <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}><Gauge size={14} /><span className="font-sans text-[10px] uppercase font-black tracking-widest">平均配速</span></div>
-                              <span className={`font-mono text-4xl font-black italic tabular-nums leading-none text-brand`}>{displayPace}</span>
+                              <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
+                                <Gauge size={14} />
+                                <span className="font-sans text-xs uppercase font-black tracking-widest">平均配速</span>
+                              </div>
+                              <span className="font-mono text-4xl font-black italic tabular-nums leading-none text-brand">{displayPace}</span>
                             </div>
                           )}
                         </div>
@@ -273,10 +305,42 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             })}
           </article>
 
+          {tripPosts.length > 0 && (
+            <div className="mt-20 mb-12">
+              <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                同行足跡 <span className="font-mono text-sm font-normal">({tripPosts.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {tripPosts.map((tp) => (
+                  <Link
+                    key={tp.postId}
+                    href={`/log/${tp.postId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex gap-4 border border-line hover:border-brand transition-colors p-3"
+                  >
+                    <div className="w-20 h-20 shrink-0 overflow-hidden bg-paper-dark border border-line">
+                      {tp.coverImage
+                        ? /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={tp.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        : <div className="w-full h-full flex items-center justify-center text-ink/20 font-mono text-xs">{tp.category}</div>
+                      }
+                    </div>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{tp.category} · {tp.date}</span>
+                      <span className="font-serif font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{tp.title}</span>
+                      {tp.city && <span className="font-mono text-xs text-ink/40 mt-1">{tp.city}</span>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {post.media && post.media.length > 0 && (
             <div className="mt-20 mb-12">
               <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                現場捕捉的照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
+                精彩照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {post.media.map((mediaItem, idx) => (

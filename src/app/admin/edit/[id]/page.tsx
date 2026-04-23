@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, User, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Search, X } from "lucide-react";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -34,6 +34,25 @@ interface Media {
   type: string;
 }
 
+interface TripPost {
+  postId: string;
+  title: string;
+  date: string;
+  category: string;
+  country: string | null;
+  city: string | null;
+  coverImage: string | null;
+  isPrimary: boolean;
+}
+
+interface PostSummary {
+  id: string;
+  title: string;
+  event_date: string;
+  cover_image?: string;
+  category: string;
+}
+
 interface Post {
   id: string;
   title: string;
@@ -45,6 +64,7 @@ interface Post {
   is_hidden: boolean;
   is_pb: boolean;
   cover_image?: string;
+  trip_id?: string | null;
   media: Media[];
   metadata?: MarathonMetadata | null;
 }
@@ -348,12 +368,17 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const [errors, setErrors] = useState<FieldErrors>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [warnDismissed, setWarnDismissed] = useState(false);
+  const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
+  const [showTripSearch, setShowTripSearch] = useState(false);
+  const [tripSearchQuery, setTripSearchQuery] = useState("");
+  const [tripSearchResults, setTripSearchResults] = useState<PostSummary[]>([]);
+  const [isTripSearching, setIsTripSearching] = useState(false);
 
   const checkAuth = () => {
     const token = localStorage.getItem("maramap_admin_token");
     const loginTime = localStorage.getItem("maramap_admin_login_time");
     if (!token || !loginTime) return null;
-    if (Date.now() - parseInt(loginTime) > 60 * 60 * 1000) {
+    if (Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
       localStorage.removeItem("maramap_admin_token");
       localStorage.removeItem("maramap_admin_login_time");
       return null;
@@ -363,7 +388,10 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => {
     const token = checkAuth();
-    if (!token) { router.push("/admin/login"); return; }
+    if (!token) {
+      router.push(`/admin/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
 
     const fetchPost = async () => {
       try {
@@ -381,7 +409,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             sub_categories: data.sub_categories || [],
             tags: (data.tags || []).join(", "),
             is_hidden: data.is_hidden || false,
-            is_pb: data.is_pb || false,
+            is_pb: data.is_pb === true,
             cover_image: data.cover_image || "",
             metadata: {
               race_name: data.metadata?.race_name || "",
@@ -391,6 +419,20 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               participants: data.metadata?.participants || [],
             },
           });
+
+          // Fetch sibling posts in the same trip
+          const tripId = data.trip_id;
+          if (tripId) {
+            try {
+              const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${tripId}`, { cache: "no-store" });
+              if (tripRes.ok) {
+                const all: TripPost[] = await tripRes.json();
+                setTripPosts(all.filter(p => p.postId !== data.id));
+              }
+            } catch {
+              // non-critical, ignore
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to fetch post:", error);
@@ -493,6 +535,63 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  // ── Trip helpers ──────────────────────────────────────────────
+  const refreshTripPosts = async (tripId: string, currentId: string) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+    const res = await fetch(`${apiUrl}/api/v1/posts/trip/${tripId}`, { cache: "no-store" });
+    if (res.ok) {
+      const all: TripPost[] = await res.json();
+      setTripPosts(all.filter(p => p.postId !== currentId));
+    }
+  };
+
+  const searchForTripAdd = async (q: string) => {
+    if (!q.trim()) { setTripSearchResults([]); return; }
+    setIsTripSearching(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+      const res = await fetch(`${apiUrl}/api/v1/posts/search?q=${encodeURIComponent(q)}&limit=8`);
+      if (res.ok) {
+        const json = await res.json();
+        const results: PostSummary[] = json.data || json;
+        const existingIds = new Set([post?.id, ...tripPosts.map(tp => tp.postId)]);
+        setTripSearchResults(results.filter(p => !existingIds.has(p.id)));
+      }
+    } catch { /* non-critical */ }
+    finally { setIsTripSearching(false); }
+  };
+
+  const handleAddToTrip = async (targetPostId: string) => {
+    const token = checkAuth();
+    if (!token || !post?.trip_id) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+    const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ trip_id: post.trip_id }),
+    });
+    if (res.ok) {
+      await refreshTripPosts(post.trip_id, post.id);
+      setTripSearchQuery("");
+      setTripSearchResults([]);
+      setShowTripSearch(false);
+    }
+  };
+
+  const handleRemoveFromTrip = async (targetPostId: string) => {
+    const token = checkAuth();
+    if (!token) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+    const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ trip_id: null }),
+    });
+    if (res.ok) {
+      setTripPosts(prev => prev.filter(tp => tp.postId !== targetPostId));
+    }
+  };
+
   // ── Participant helpers ───────────────────────────────────────
   const updateParticipant = (index: number, field: string, value: string | number | null) => {
     const newParticipants = [...formData.metadata.participants] as (Participant & Record<string, unknown>)[];
@@ -525,9 +624,9 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   if (!post) return <div className="p-12 text-center font-sans text-xl font-bold text-ink">找不到該文章。</div>;
 
   const categories = ["馬拉松", "旅遊", "登山"];
-  const distances = ["全馬", "半馬", "超馬", "10K", "5K"];
+  const distances = ["超馬", "全馬", "半馬"];
   const SUB_CATEGORY_MAP: Record<string, string[]> = {
-    馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬"],
+    馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查"],
     旅遊: [],
     登山: ["大百岳", "小百岳", "海外登山"],
   };
@@ -656,7 +755,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             {/* Category */}
             <div id="field-category" className="space-y-6">
               <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                <LayoutGrid size={24} className="text-brand" /> 文章類別
+                <LayoutGrid size={24} className="text-brand" /> 主分類（單選）
               </label>
               <div className="relative">
                 <select
@@ -676,7 +775,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             {availableSubs.length > 0 && (
               <div className="space-y-6">
                 <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                  <List size={24} className="text-brand" /> 子分類
+                  <List size={24} className="text-brand" /> 次分類（多選）
                 </label>
                 <div className="flex flex-wrap gap-3">
                   {availableSubs.map(sub => {
@@ -756,25 +855,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               </div>
             </div>
 
-            {/* Tags */}
-            <div className="space-y-6">
-              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                <Tags size={24} className="text-brand" /> 標籤編輯
-              </label>
-              <input type="text" value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} className="w-full bg-white border border-line p-5 font-sans text-lg focus:outline-none focus:border-brand shadow-sm" placeholder="例如：東京, 2024, 全馬" />
-            </div>
-
-            {/* Visibility */}
-            <div className="space-y-6">
-              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                {formData.is_hidden ? <EyeOff size={24} className="text-brand" /> : <Eye size={24} className="text-brand" />} 顯示設定
-              </label>
-              <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
-                <input type="checkbox" id="is_hidden" checked={formData.is_hidden} onChange={e => setFormData({ ...formData, is_hidden: e.target.checked })} className="w-7 h-7 accent-brand cursor-pointer" />
-                <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">隱藏此文章</label>
-              </div>
-            </div>
-
             {/* PB flag — 馬拉松限定 */}
             {formData.category === "馬拉松" && (
               <div className="space-y-6">
@@ -790,7 +870,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                     className="w-7 h-7 accent-brand cursor-pointer"
                   />
                   <label htmlFor="is_pb" className="font-sans text-lg font-black cursor-pointer select-none">
-                    此場為個人最佳成績（PB）
+                    此場曾創個人最佳成績
                   </label>
                 </div>
               </div>
@@ -806,13 +886,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 {formData.metadata.participants.map((p, idx) => p.name !== "Davis" ? null : (
                   <div key={idx} className="bg-white border-2 border-line p-6 shadow-sm relative space-y-6 rounded-sm">
                     <button onClick={() => removeParticipant(idx)} className="absolute top-4 right-4 text-ink/20 hover:text-brand transition-colors"><Trash2 size={18} /></button>
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-2 font-sans text-xs font-black text-ink/40 uppercase tracking-widest"><User size={12} /> 參賽者</label>
-                      <select value={p.name} onChange={e => updateParticipant(idx, "name", e.target.value)} className="w-full bg-paper p-2 font-sans text-base font-bold border border-line">
-                        <option value="Davis">Davis</option>
-                        <option value="Rose">Rose</option>
-                      </select>
-                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="block font-sans text-[10px] font-black text-ink/40 uppercase tracking-widest">賽事距離</label>
@@ -853,6 +926,171 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-6">
+              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
+                <Tags size={24} className="text-brand" /> 標籤編輯
+              </label>
+              <input type="text" value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} className="w-full bg-white border border-line p-5 font-sans text-lg focus:outline-none focus:border-brand shadow-sm" placeholder="例如：東京, 2024, 全馬" />
+            </div>
+
+            {/* Visibility */}
+            <div className="space-y-6">
+              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
+                {formData.is_hidden ? <EyeOff size={24} className="text-brand" /> : <Eye size={24} className="text-brand" />} 顯示設定
+              </label>
+              <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
+                <input type="checkbox" id="is_hidden" checked={formData.is_hidden} onChange={e => setFormData({ ...formData, is_hidden: e.target.checked })} className="w-7 h-7 accent-brand cursor-pointer" />
+                <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">隱藏此文章</label>
+              </div>
+            </div>
+
+            {/* Trip siblings panel */}
+            <div className="space-y-6">
+              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
+                <List size={24} className="text-brand" /> 同行程文章
+              </label>
+
+              {!post?.trip_id ? (
+                <p className="font-sans text-sm text-ink/30">此篇文章尚未設定行程 ID</p>
+              ) : (
+                <>
+                  {/* Current post row */}
+                  <div className="flex items-center gap-3 px-4 py-3 bg-ink/5 border border-line">
+                    {post.cover_image ? (
+                      <div className="w-12 h-12 shrink-0 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={post.cover_image} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 shrink-0 bg-ink/10 flex items-center justify-center">
+                        <MapPin size={16} className="text-ink/20" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-sm font-black text-ink leading-tight truncate">{post.title || "（無標題）"}</p>
+                      <p className="font-mono text-xs text-ink/30 mt-0.5">{post.event_date}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-ink/10 text-ink/50">本文</span>
+                      {post.id === post.trip_id
+                        ? <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-brand text-white">主文</span>
+                        : <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border border-line text-ink/40">次文</span>
+                      }
+                    </div>
+                  </div>
+
+                  {/* Other trip posts */}
+                  {tripPosts.length > 0 && (
+                    <ul className="divide-y divide-line border border-line">
+                      {tripPosts.map(tp => (
+                        <li key={tp.postId} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors group">
+                          <Link href={`/admin/edit/${tp.postId}`} className="flex items-center gap-3 flex-1 min-w-0">
+                            {tp.coverImage ? (
+                              <div className="w-12 h-12 shrink-0 overflow-hidden">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={tp.coverImage} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 shrink-0 bg-ink/5 flex items-center justify-center">
+                                <MapPin size={16} className="text-ink/20" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-sm font-black text-ink leading-tight truncate group-hover:text-brand transition-colors">
+                                {tp.title || "（無標題）"}
+                              </p>
+                              <p className="font-mono text-xs text-ink/30 mt-0.5">{tp.date}</p>
+                            </div>
+                          </Link>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {tp.isPrimary
+                              ? <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-brand text-white">主文</span>
+                              : <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border border-line text-ink/40">次文</span>
+                            }
+                            <button
+                              onClick={() => handleRemoveFromTrip(tp.postId)}
+                              title="從行程移除"
+                              className="p-1 text-ink/20 hover:text-brand transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Add post search */}
+                  {showTripSearch ? (
+                    <div className="space-y-3 border border-line p-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" size={14} />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={tripSearchQuery}
+                          onChange={e => { setTripSearchQuery(e.target.value); searchForTripAdd(e.target.value); }}
+                          placeholder="搜尋文章標題..."
+                          className="w-full pl-8 pr-8 py-2 border border-line font-sans text-sm focus:border-brand outline-none bg-white"
+                        />
+                        {tripSearchQuery && (
+                          <button onClick={() => { setTripSearchQuery(""); setTripSearchResults([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink">
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {isTripSearching && <p className="font-sans text-xs text-ink/30 text-center py-2">搜尋中…</p>}
+                      {!isTripSearching && tripSearchQuery && tripSearchResults.length === 0 && (
+                        <p className="font-sans text-xs text-ink/30 text-center py-2">找不到結果</p>
+                      )}
+                      {tripSearchResults.length > 0 && (
+                        <ul className="divide-y divide-line border border-line max-h-64 overflow-y-auto">
+                          {tripSearchResults.map(p => (
+                            <li key={p.id}>
+                              <button
+                                onClick={() => handleAddToTrip(p.id)}
+                                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-ink/5 transition-colors text-left"
+                              >
+                                {p.cover_image ? (
+                                  <div className="w-10 h-10 shrink-0 overflow-hidden">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={p.cover_image} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 shrink-0 bg-ink/5 flex items-center justify-center">
+                                    <MapPin size={12} className="text-ink/20" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-sans text-xs font-black text-ink truncate">{p.title || "（無標題）"}</p>
+                                  <p className="font-mono text-[10px] text-ink/30 mt-0.5">{p.event_date}</p>
+                                </div>
+                                <PlusCircle size={14} className="shrink-0 text-brand ml-auto" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button
+                        onClick={() => { setShowTripSearch(false); setTripSearchQuery(""); setTripSearchResults([]); }}
+                        className="font-sans text-xs text-ink/30 hover:text-ink transition-colors"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowTripSearch(true)}
+                      className="flex items-center gap-2 font-sans text-sm font-bold text-ink/40 hover:text-brand transition-colors"
+                    >
+                      <PlusCircle size={16} /> 新增文章至行程
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
