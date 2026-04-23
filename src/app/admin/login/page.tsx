@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Lock, Loader2 } from "lucide-react";
 
-export default function AdminLogin() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/admin";
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +31,7 @@ export default function AdminLogin() {
         const data = await res.json();
         localStorage.setItem("maramap_admin_token", data.token);
         localStorage.setItem("maramap_admin_login_time", Date.now().toString());
-        router.push("/admin");
+        router.push(redirect);
       } else {
         setError("帳號或密碼錯誤。");
       }
@@ -50,13 +53,16 @@ export default function AdminLogin() {
             <Lock size={32} />
           </div>
           <h1 className="font-serif font-black text-4xl text-ink tracking-tight">管理員 <span className="text-brand">登入</span></h1>
+          {redirect !== "/admin" && (
+            <p className="font-sans text-sm text-ink/40 mt-3">登入後將自動跳轉至目標頁面</p>
+          )}
         </header>
 
         <form onSubmit={handleLogin} className="space-y-8">
           <div>
             <label className="block font-sans text-sm font-black uppercase tracking-widest text-ink/60 mb-3">帳號</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               required
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -66,8 +72,8 @@ export default function AdminLogin() {
           </div>
           <div>
             <label className="block font-sans text-sm font-black uppercase tracking-widest text-ink/60 mb-3">密碼</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               required
               value={formData.password}
               onChange={e => setFormData({ ...formData, password: e.target.value })}
@@ -78,7 +84,7 @@ export default function AdminLogin() {
 
           {error && <div className="text-brand font-sans text-base font-bold text-center">{error}</div>}
 
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className="w-full bg-ink text-paper py-5 rounded-full font-sans text-xl font-bold tracking-[0.3em] hover:bg-brand transition-all flex items-center justify-center gap-4 disabled:opacity-50 shadow-xl"
@@ -88,5 +94,13 @@ export default function AdminLogin() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AdminLogin() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

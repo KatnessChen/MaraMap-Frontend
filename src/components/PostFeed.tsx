@@ -136,12 +136,13 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
         } else {
           setIsReady(true);
         }
-      } catch (e) {
+      } catch {
         setIsReady(true);
       }
     } else {
       setIsReady(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 監聽捲動位置與狀態 (搜尋時不儲存狀態)
@@ -201,6 +202,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
     };
 
     resetAndFetch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, debouncedSearch, isMounted, isReady]);
 
   // 載入更多 (分頁 - 僅在非搜尋模式下)

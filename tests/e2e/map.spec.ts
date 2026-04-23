@@ -11,6 +11,7 @@ test.describe('Map Page', () => {
 
   test('should display map container', async ({ page }) => {
     // Wait for map to load
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mapContainer = page.locator('[class*="map"]', { hasText: /Map/ }).first();
     
     // Check if page has main content

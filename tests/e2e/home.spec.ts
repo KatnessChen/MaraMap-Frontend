@@ -7,36 +7,23 @@ test.describe('Home Page', () => {
 
   test('should load home page successfully', async ({ page }) => {
     await expect(page).toHaveTitle(/MaraMap|Next.js/i);
-    
-    // Check for main heading
-    const heading = page.locator('h1');
-    await expect(heading).toContainText('Mara');
   });
 
-  test('should display header with navigation', async ({ page }) => {
-    const header = page.locator('header');
-    await expect(header).toBeVisible();
-    
-    // Check for Explore Map button
-    const mapButton = page.locator('a:has-text("Explore Map")');
-    await expect(mapButton).toBeVisible();
+  test('should display sidebar with branding', async ({ page }) => {
+    const sidebar = page.locator('aside');
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toContainText('Davis & Rose');
+    await expect(sidebar).toContainText('環球跑旅');
   });
 
-  test('should navigate to map page', async ({ page }) => {
-    const mapLink = page.locator('a:has-text("Explore Map")');
-    await mapLink.click();
-    
-    // Wait for navigation
-    await page.waitForURL(/\/map/);
-    expect(page.url()).toContain('/map');
+  test('should display stat tiles', async ({ page }) => {
+    const sidebar = page.locator('aside');
+    await expect(sidebar.locator('button', { hasText: '全馬' })).toBeVisible();
+    await expect(sidebar.locator('button', { hasText: '百岳' })).toBeVisible();
   });
 
-  test('should display post feed', async ({ page }) => {
-    // Wait for posts to load
-    await page.waitForSelector('article, div:has-text("MaraMap")', { timeout: 10000 });
-    
-    // Check if page has content
-    const content = page.locator('main');
-    await expect(content).toBeVisible();
+  test('should display visited countries section', async ({ page }) => {
+    const sidebar = page.locator('aside');
+    await expect(sidebar).toContainText('已到訪國家');
   });
 });

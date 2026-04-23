@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2 } from "lucide-react";
 import { notFound } from "next/navigation";
+
 
 // --- API Data Interfaces ---
 interface Media {
@@ -45,6 +47,18 @@ interface Post {
   cover_image?: string;
   media?: Media[];
   metadata?: MarathonMetadata | null;
+  trip_id?: string | null;
+}
+
+interface TripPost {
+  postId: string;
+  title: string;
+  date: string;
+  category: string;
+  country: string | null;
+  city: string | null;
+  coverImage: string | null;
+  isPrimary: boolean;
 }
 
 // --- Helper Functions ---
@@ -100,18 +114,11 @@ function getRaceTypeInfo(distName: string) {
 }
 
 function getDisplayTitle(post: Post) {
-  const match = post.content.match(/^\[(.*?)\]/);
-  if (match) return match[1];
-  if (post.tags && post.tags.length > 0) return post.tags.slice(0, 2).join(" • ");
-  const firstLine = post.content.split('\n')[0].trim();
-  return firstLine || "MaraMap 運動日誌";
+  return post.title || "MaraMap 運動日誌";
 }
 
 function getDisplayContent(post: Post) {
-  const match = post.content.match(/^\[(.*?)\]/);
-  let text = post.content;
-  if (match) { text = text.replace(match[0], '').trim(); }
-  return text;
+  return post.content;
 }
 
 function extractCoordinates(media: Media[] | undefined) {
@@ -122,10 +129,10 @@ function extractCoordinates(media: Media[] | undefined) {
 
 export default function LogDetail({ params }: { params: Promise<{ id: string }> }) {
   const [post, setPost] = useState<Post | null>(null);
-  const [nav, setNav] = useState<{ prev: Post | null, next: Post | null }>({ prev: null, next: null });
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
 
   useEffect(() => {
     // 檢查是否具備管理員權限
@@ -140,14 +147,11 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         if (!res.ok) { setIsLoading(false); return; }
         const data = await res.json();
         setPost(data);
-
-        const listRes = await fetch(`${apiUrl}/api/v1/posts?limit=100`, { cache: 'no-store' });
-        if (listRes.ok) {
-          const listJson = await listRes.json();
-          const list: Post[] = listJson.data;
-          const idx = list.findIndex(p => p.id === id);
-          if (idx !== -1) {
-            setNav({ next: list[idx - 1] || null, prev: list[idx + 1] || null });
+        if (data.trip_id) {
+          const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${data.trip_id}`);
+          if (tripRes.ok) {
+            const all: TripPost[] = await tripRes.json();
+            setTripPosts(all.filter(p => p.postId !== data.id));
           }
         }
       } catch (error) {
@@ -181,7 +185,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       
       <div className="w-full h-[45vh] md:h-[60vh] bg-paper-dark border-b-[6px] border-brand relative overflow-hidden flex items-center justify-center">
         {post.cover_image ? (
-          <img src={post.cover_image} alt="Cover" className="w-full h-full object-cover animate-in fade-in duration-1000" />
+          <Image src={post.cover_image} alt="Cover" fill className="object-cover animate-in fade-in duration-1000" />
         ) : (
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%231a1a1a' stroke-width='0.5' stroke-opacity='0.2'%3E%3Cpath d='M0 100h400M0 200h400M0 300h400M100 0v400M200 0v400M300 0v400'/%3E%3C/g%3E%3Cpath d='M80 320 Q 150 200 200 150 T 320 80' stroke='%23E63946' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='80' cy='320' r='6' fill='%231a1a1a'/%3E%3Ccircle cx='320' cy='80' r='6' fill='%23E63946'/%3E%3C/svg%3E")`, backgroundSize: 'cover' }} />
         )}
@@ -217,58 +221,70 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             
             {post.metadata && post.metadata.participants && Array.isArray(post.metadata.participants) && (
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-                {post.metadata.participants.map((p, idx) => {
-                  const displayTime = p.time && p.time !== '---' && p.time !== 'N/A' ? p.time : '進行中';
+                {post.metadata.participants.filter(p => p.name === "Davis").map((p, idx) => {
+                  const hasTime = !!(p.time && p.time !== '---' && p.time !== 'N/A' && p.time !== '0:00:00');
                   const normalizedDist = getNormalizedDistance(p.distance, p.stats?.distance_km);
-                  const displayPace = calculatePace(p.time, p.distance, p.stats?.distance_km);
+                  const displayPace = hasTime ? calculatePace(p.time, p.distance, p.stats?.distance_km) : null;
                   const info = getRaceTypeInfo(normalizedDist);
-                  
+
                   return (
                     <div key={idx} className={`group relative overflow-hidden p-8 border-2 shadow-xl transition-all duration-500 hover:-translate-y-1 ${info.bg} ${info.border}`}>
-                      {/* 浮水印字樣 */}
+                      {/* 浮水印 */}
                       <div className={`absolute -right-4 -bottom-4 font-serif font-black text-[140px] leading-none select-none pointer-events-none transition-all duration-1000 group-hover:scale-110 group-hover:-rotate-6 ${info.text}`}>
                         {info.label}
                       </div>
 
                       <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-8 border-b border-black/5 pb-4">
-                          <div className="flex flex-col">
-                            <span className={`font-serif text-3xl font-black italic tracking-tighter leading-none mb-3 ${info.dataText}`}>{p.name}</span>
-                            
-                            {/* 呈現所有場數資訊 */}
-                            <div className="flex flex-wrap gap-4">
-                              {p.stats?.FM_count && (
-                                <div className="flex flex-col">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>全馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
-                                </div>
-                              )}
-                              {p.stats?.HM_count && (
-                                <div className="flex flex-col border-l border-black/5 pl-4">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>半馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
-                                </div>
-                              )}
-                              {p.stats?.UM_count && (
-                                <div className="flex flex-col border-l border-black/5 pl-4">
-                                  <span className={`font-sans text-[9px] uppercase font-black opacity-40 leading-none mb-1 ${info.dataText}`}>超馬累計</span>
-                                  <span className="font-mono text-sm font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <span className={`font-sans text-sm font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
+                        {/* Header: name + distance badge */}
+                        <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-5">
+                          <span className={`font-serif text-4xl font-black italic tracking-tighter leading-none ${info.dataText}`}>{p.name}</span>
+                          <span className={`font-sans text-base font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
                         </div>
-                        
-                        <div className="flex flex-wrap items-end gap-x-12 gap-y-6">
+
+                        {/* Cumulative counts */}
+                        {(p.stats?.FM_count || p.stats?.HM_count || p.stats?.UM_count) && (
+                          <div className="flex flex-wrap gap-5 mb-7">
+                            {p.stats?.FM_count && (
+                              <div className="flex flex-col">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>全馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
+                              </div>
+                            )}
+                            {p.stats?.HM_count && (
+                              <div className="flex flex-col border-l border-black/10 pl-5">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>半馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
+                              </div>
+                            )}
+                            {p.stats?.UM_count && (
+                              <div className="flex flex-col border-l border-black/10 pl-5">
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>超馬累計</span>
+                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Time + Pace */}
+                        <div className="flex flex-wrap items-end gap-x-12 gap-y-4">
                           <div className="flex flex-col">
-                            <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}><Timer size={14} /><span className="font-sans text-[10px] uppercase font-black tracking-widest">完賽時間</span></div>
-                            <span className={`font-mono text-4xl font-black tabular-nums leading-none ${info.dataText}`}>{displayTime}</span>
+                            <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
+                              <Timer size={14} />
+                              <span className="font-sans text-xs uppercase font-black tracking-widest">完賽時間</span>
+                            </div>
+                            {hasTime ? (
+                              <span className={`font-mono text-4xl font-black tabular-nums leading-none ${info.dataText}`}>{p.time}</span>
+                            ) : (
+                              <span className={`font-mono text-4xl font-black leading-none opacity-20 ${info.dataText}`}>—</span>
+                            )}
                           </div>
                           {displayPace && (
                             <div className="flex flex-col">
-                              <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}><Gauge size={14} /><span className="font-sans text-[10px] uppercase font-black tracking-widest">平均配速</span></div>
-                              <span className={`font-mono text-4xl font-black italic tabular-nums leading-none text-brand`}>{displayPace}</span>
+                              <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
+                                <Gauge size={14} />
+                                <span className="font-sans text-xs uppercase font-black tracking-widest">平均配速</span>
+                              </div>
+                              <span className="font-mono text-4xl font-black italic tabular-nums leading-none text-brand">{displayPace}</span>
                             </div>
                           )}
                         </div>
@@ -289,10 +305,42 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             })}
           </article>
 
+          {tripPosts.length > 0 && (
+            <div className="mt-20 mb-12">
+              <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                同行足跡 <span className="font-mono text-sm font-normal">({tripPosts.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {tripPosts.map((tp) => (
+                  <Link
+                    key={tp.postId}
+                    href={`/log/${tp.postId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex gap-4 border border-line hover:border-brand transition-colors p-3"
+                  >
+                    <div className="w-20 h-20 shrink-0 overflow-hidden bg-paper-dark border border-line">
+                      {tp.coverImage
+                        ? /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={tp.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        : <div className="w-full h-full flex items-center justify-center text-ink/20 font-mono text-xs">{tp.category}</div>
+                      }
+                    </div>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{tp.category} · {tp.date}</span>
+                      <span className="font-serif font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{tp.title}</span>
+                      {tp.city && <span className="font-mono text-xs text-ink/40 mt-1">{tp.city}</span>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {post.media && post.media.length > 0 && (
             <div className="mt-20 mb-12">
               <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                現場捕捉的照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
+                精彩照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {post.media.map((mediaItem, idx) => (
@@ -300,7 +348,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                     {mediaItem.type === 'video' ? (
                       <video src={mediaItem.uri} controls playsInline className="w-full h-full object-cover bg-ink" />
                     ) : (
-                      <img src={mediaItem.uri} alt={`Moment ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                      <Image src={mediaItem.uri} alt={`Moment ${idx + 1}`} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
                     )}
                   </div>
                 ))}
@@ -308,25 +356,6 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             </div>
           )}
 
-          <div className="mt-32 pt-16 border-t-2 border-ink flex flex-col md:flex-row justify-between gap-16">
-            {nav.prev ? (
-              <Link href={`/log/${nav.prev.id}`} className="group flex-1">
-                <span className="font-sans text-xs text-ink/30 font-black uppercase tracking-widest block mb-3 group-hover:text-brand transition-colors">← 上一篇紀錄</span>
-                <h4 className="font-serif text-xl font-black text-ink leading-tight group-hover:text-brand transition-colors">{getDisplayTitle(nav.prev)}</h4>
-              </Link>
-            ) : (
-              <div className="flex-1 opacity-20"><span className="font-sans text-xs font-black uppercase tracking-widest block mb-3">首篇紀錄</span><h4 className="font-serif text-xl font-black">這是日誌的開端</h4></div>
-            )}
-            <div className="w-px h-16 bg-line hidden md:block"></div>
-            {nav.next ? (
-              <Link href={`/log/${nav.next.id}`} className="group flex-1 md:text-right">
-                <span className="font-sans text-xs text-ink/30 font-black uppercase tracking-widest block mb-3 group-hover:text-brand transition-colors">下一篇紀錄 →</span>
-                <h4 className="font-serif text-xl font-black text-ink leading-tight group-hover:text-brand transition-colors">{getDisplayTitle(nav.next)}</h4>
-              </Link>
-            ) : (
-              <div className="flex-1 md:text-right opacity-20"><span className="font-sans text-xs font-black uppercase tracking-widest block mb-3">最新紀錄</span><h4 className="font-serif text-xl font-black">目前已是最新</h4></div>
-            )}
-          </div>
         </div>
       </div>
 

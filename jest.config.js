@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const nextJest = require('next/jest')
 
 const createJestConfig = nextJest({
@@ -15,6 +16,11 @@ const customJestConfig = {
   testMatch: [
     '**/__tests__/**/*.[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)',
+  ],
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/',
+    '<rootDir>/tests/e2e/',
   ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
