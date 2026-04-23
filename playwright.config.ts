@@ -23,6 +23,7 @@ export default defineConfig({
   reporter: [
     ['html', { open: 'never' }],
     ['json', { outputFile: './test-results/e2e-results.json' }],
+    ['junit', { outputFile: './test-results/e2e-junit.xml' }],
   ],
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
