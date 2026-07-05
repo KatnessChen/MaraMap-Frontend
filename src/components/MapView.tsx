@@ -249,7 +249,7 @@ export default function MapView() {
   const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden md:flex">
+    <div className="relative flex flex-col md:flex-row w-screen h-screen overflow-hidden">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
       <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
@@ -344,7 +344,129 @@ export default function MapView() {
       </aside>
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
-      <main className="absolute inset-0 md:relative md:flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+        {/* ── Mobile Header ── */}
+        <header className="md:hidden shrink-0 h-14 bg-paper border-b border-line flex items-center justify-between px-4">
+          <p className="font-serif font-black text-base text-ink">
+            <span className="italic">Davis & Rose</span>
+            <span className="text-brand mx-1.5">·</span>
+            <span className="text-ink/60 font-normal not-italic text-sm">環球跑旅</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
+              className="flex items-baseline gap-0.5 hover:opacity-70 transition-opacity"
+            >
+              <span className="font-mono font-bold text-xl text-brand tabular-nums">{totalCountryCount}</span>
+              <span className="font-serif text-sm text-ink/40">國</span>
+            </button>
+            <span className="font-mono text-xs text-ink/20">·</span>
+            <button
+              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
+              className="flex items-baseline gap-0.5 hover:opacity-70 transition-opacity"
+            >
+              <span className="font-mono font-bold text-xl text-brand tabular-nums">{overseasCount}</span>
+              <span className="font-serif text-sm text-ink/40">場</span>
+            </button>
+            <div className="ml-2 flex items-center border border-line/60 rounded-full">
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-1 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+              >
+                地圖
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+              >
+                清單
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Mobile Time Filter ── */}
+        <div className="md:hidden shrink-0 px-3 py-2 bg-paper border-b border-line/40">
+          <div className="time-chip-scroll flex items-center gap-1.5 overflow-x-auto">
+            <button
+              onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
+              className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                selectedYear === null ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
+              }`}
+            >
+              全部
+            </button>
+            {availableYears.map(year => (
+              <button
+                key={year}
+                onClick={() => { setSelectedYear(year); setSelectedMonth(null); }}
+                className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                  selectedYear === year ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+            {selectedYear !== null && availableMonths.length > 0 && (
+              <>
+                <span className="shrink-0 text-ink/20 text-xs px-0.5">·</span>
+                <button
+                  onClick={() => setSelectedMonth(null)}
+                  className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                    selectedMonth === null ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40'
+                  }`}
+                >
+                  全月
+                </button>
+                {availableMonths.map(month => (
+                  <button
+                    key={month}
+                    onClick={() => setSelectedMonth(month)}
+                    className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                      selectedMonth === month ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40'
+                    }`}
+                  >
+                    {month}月
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Mobile Category Chips ── */}
+        <div className="md:hidden shrink-0 px-3 py-2 bg-paper border-b border-line/40">
+          <div className="chip-scroll flex gap-2 overflow-x-auto">
+            <button
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
+              className={`shrink-0 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+                activeCategory === null
+                  ? "border-brand bg-brand text-white"
+                  : "border-line bg-paper text-ink/60 active:bg-ink/5"
+              }`}
+            >
+              所有
+            </button>
+            {statItems.map(({ label, value, cat, sub }) => {
+              const isActive = activeCategory === cat && activeSubCategory === sub;
+              return (
+                <button
+                  key={label}
+                  onClick={() => handleFilterClick(cat, sub)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+                    isActive
+                      ? "border-brand bg-brand text-white"
+                      : "border-line bg-paper text-ink/60 active:bg-ink/5"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className="font-bold tabular-nums">{value}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── Time filter + View toggle bar (desktop) ── */}
         <div className="hidden md:flex shrink-0 items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
@@ -501,55 +623,6 @@ export default function MapView() {
         </MapContainer>
         </div>{/* end map/list area */}
       </main>
-
-      {/* ── Mobile Header ── */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-[1000] h-14 bg-paper/95 backdrop-blur-sm border-b border-line flex items-center justify-between px-4">
-        <p className="font-serif font-black text-base text-ink">
-          <span className="italic">Davis & Rose</span>
-          <span className="text-brand mx-1.5">·</span>
-          <span className="text-ink/60 font-normal not-italic text-sm">環球跑旅</span>
-        </p>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-mono font-bold text-2xl text-brand tabular-nums">{totalCountryCount}</span>
-          <span className="font-serif text-sm text-ink/40">國</span>
-          <span className="font-mono text-xs text-ink/20 mx-0.5">·</span>
-          <span className="font-mono font-bold text-2xl text-brand tabular-nums">{overseasCount}</span>
-          <span className="font-serif text-sm text-ink/40">場</span>
-        </div>
-      </header>
-
-      {/* ── Mobile Filter Chips ── */}
-      <div className="md:hidden fixed top-14 left-0 right-0 z-[999] px-3 py-2 bg-paper/90 backdrop-blur-sm border-b border-line/40">
-        <div className="chip-scroll flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
-            className={`shrink-0 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
-              activeCategory === null
-                ? "border-brand bg-brand text-white"
-                : "border-line bg-paper text-ink/60 active:bg-ink/5"
-            }`}
-          >
-            所有
-          </button>
-          {statItems.map(({ label, value, cat, sub }) => {
-            const isActive = activeCategory === cat && activeSubCategory === sub;
-            return (
-              <button
-                key={label}
-                onClick={() => handleFilterClick(cat, sub)}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
-                  isActive
-                    ? "border-brand bg-brand text-white"
-                    : "border-line bg-paper text-ink/60 active:bg-ink/5"
-                }`}
-              >
-                <span>{label}</span>
-                <span className="font-bold tabular-nums">{value}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Country Modal */}
       {selectedCountry && (
