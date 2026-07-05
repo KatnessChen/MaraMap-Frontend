@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -341,6 +341,20 @@ export default function MapView() {
           })}
         </div>
 
+        {/* Personal Best link */}
+        <div className="mt-auto px-5 py-4 border-t border-line">
+          <Link
+            href="/personal-best"
+            className="flex items-center justify-between px-4 py-4 border border-line/60 hover:border-brand/40 hover:bg-brand/5 transition-all group"
+          >
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/30 mb-1">Personal Best</p>
+              <p className="font-serif text-sm font-bold text-ink group-hover:text-brand transition-colors">歷年最佳成績</p>
+            </div>
+            <Trophy size={16} className="text-ink/20 group-hover:text-brand transition-colors shrink-0" />
+          </Link>
+        </div>
+
       </aside>
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
@@ -465,6 +479,13 @@ export default function MapView() {
                 </button>
               );
             })}
+            <Link
+              href="/personal-best"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line bg-paper text-ink/60 active:bg-ink/5 font-mono text-xs whitespace-nowrap"
+            >
+              <Trophy size={11} />
+              PB
+            </Link>
           </div>
         </div>
 
