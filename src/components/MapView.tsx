@@ -80,7 +80,7 @@ const TOTAL_COUNTRIES = 195;
 export default function MapView() {
   const [points, setPoints] = useState<FlattenedPoint[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState("馬拉松");
+  const [activeCategory, setActiveCategory] = useState<string | null>("馬拉松");
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
@@ -129,6 +129,7 @@ export default function MapView() {
       setActiveCategory(cat);
       setActiveSubCategory(sub);
     }
+    setListFilter(null);
   }, [activeCategory, activeSubCategory]);
 
   useEffect(() => {
@@ -195,7 +196,8 @@ export default function MapView() {
     const fetchLocations = async () => {
       try {
         setIsLoading(true);
-        const params = new URLSearchParams({ category: activeCategory });
+        const params = new URLSearchParams();
+        if (activeCategory) params.set('category', activeCategory);
         if (activeSubCategory) params.set('sub_category', activeSubCategory);
         const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
         if (res.ok) {
@@ -240,7 +242,6 @@ export default function MapView() {
                 <span className="font-serif text-2xl text-ink/30 pb-1">國</span>
               </div>
               <p className={`font-mono text-xs tracking-[0.25em] transition-colors ${listFilter === 'all' ? 'text-ink/60 underline underline-offset-2' : 'text-ink/30'}`}>已到訪國家</p>
-              <p className="font-mono text-xs text-ink/20 mt-0.5">{pct}%</p>
             </button>
             <button
               onClick={() => setListFilter(f => f === 'overseas' ? null : 'overseas')}
@@ -258,6 +259,25 @@ export default function MapView() {
         </div>
 
         <div className="px-5 py-5 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
+            className={`group flex flex-col items-start px-4 py-4 transition-all duration-200 text-left border-2 ${
+              activeCategory === null
+                ? "border-brand bg-brand/8"
+                : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
+            }`}
+          >
+            <div className="flex items-baseline gap-1 leading-none">
+              <span className={`font-mono font-bold text-4xl tabular-nums ${activeCategory === null ? "text-brand" : "text-ink"}`}>
+                全
+              </span>
+            </div>
+            <span className={`font-mono text-xs mt-2.5 tracking-widest leading-tight ${
+              activeCategory === null ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
+            }`}>
+              所有
+            </span>
+          </button>
           {statItems.map(({ label, unit, value, cat, sub }) => {
             const isActive = activeCategory === cat && activeSubCategory === sub;
             return (
@@ -290,12 +310,13 @@ export default function MapView() {
 
       </aside>
 
-      {/* ── Main area: ListView or Map ── */}
-      <main className="absolute inset-0 md:relative md:flex-1 flex flex-col">
+      {/* ── Main area: Map (always mounted) + ListView overlay ── */}
+      <main className="absolute inset-0 md:relative md:flex-1">
         {listFilter && (
-          <ListView filter={listFilter} onClose={() => setListFilter(null)} />
+          <div className="absolute inset-0 z-20 bg-paper">
+            <ListView filter={listFilter} onClose={() => setListFilter(null)} />
+          </div>
         )}
-        <div className={listFilter ? 'hidden' : 'contents'}>
         <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
           <span className="font-mono text-xs text-ink/50 tracking-widest">
             Powered by Mara<span className="text-brand">Map</span>
@@ -370,7 +391,6 @@ export default function MapView() {
             ))}
           </MarkerClusterGroup>
         </MapContainer>
-        </div>
       </main>
 
       {/* ── Mobile Header ── */}
@@ -392,6 +412,16 @@ export default function MapView() {
       {/* ── Mobile Filter Chips ── */}
       <div className="md:hidden fixed top-14 left-0 right-0 z-[999] px-3 py-2 bg-paper/90 backdrop-blur-sm border-b border-line/40">
         <div className="chip-scroll flex gap-2 overflow-x-auto">
+          <button
+            onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
+            className={`shrink-0 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+              activeCategory === null
+                ? "border-brand bg-brand text-white"
+                : "border-line bg-paper text-ink/60 active:bg-ink/5"
+            }`}
+          >
+            所有
+          </button>
           {statItems.map(({ label, value, cat, sub }) => {
             const isActive = activeCategory === cat && activeSubCategory === sub;
             return (
