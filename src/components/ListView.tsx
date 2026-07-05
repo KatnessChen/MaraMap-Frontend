@@ -29,11 +29,12 @@ interface ListPoint {
 }
 
 interface ListViewProps {
-  filter: 'all' | 'overseas';
+  category: string | null;
+  subCategory: string | null;
   onClose: () => void;
 }
 
-export default function ListView({ filter, onClose }: ListViewProps) {
+export default function ListView({ category, subCategory, onClose }: ListViewProps) {
   const [points, setPoints] = useState<ListPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openContinents, setOpenContinents] = useState<Set<string>>(new Set());
@@ -44,10 +45,8 @@ export default function ListView({ filter, onClose }: ListViewProps) {
       setIsLoading(true);
       try {
         const params = new URLSearchParams();
-        if (filter === 'overseas') {
-          params.set('category', '馬拉松');
-          params.set('sub_category', '海外馬');
-        }
+        if (category) params.set('category', category);
+        if (subCategory) params.set('sub_category', subCategory);
         const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
         if (res.ok) setPoints(await res.json());
       } catch (err) {
@@ -57,7 +56,7 @@ export default function ListView({ filter, onClose }: ListViewProps) {
       }
     };
     fetchData();
-  }, [filter]);
+  }, [category, subCategory]);
 
   const grouped = useMemo(() => {
     // continent → country → city → events
@@ -117,9 +116,9 @@ export default function ListView({ filter, onClose }: ListViewProps) {
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-line">
         <p className="font-mono text-xs uppercase tracking-[0.3em] text-ink/50">
-          {filter === 'all' ? '已到訪國家' : '海外馬拉松'}
+          {!category ? '已到訪國家' : subCategory ?? category}
           <span className="ml-3 text-brand tabular-nums">
-            {filter === 'all' ? distinctCountryCount : points.length}
+            {!category ? distinctCountryCount : points.length}
           </span>
         </p>
         <div className="flex items-center gap-3">

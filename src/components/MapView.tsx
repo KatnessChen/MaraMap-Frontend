@@ -87,7 +87,7 @@ export default function MapView() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   const [totalCountryCount, setTotalCountryCount] = useState(0);
-  const [listFilter, setListFilter] = useState<'all' | 'overseas' | null>(null);
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -129,7 +129,6 @@ export default function MapView() {
       setActiveCategory(cat);
       setActiveSubCategory(sub);
     }
-    setListFilter(null);
   }, [activeCategory, activeSubCategory]);
 
   useEffect(() => {
@@ -232,28 +231,28 @@ export default function MapView() {
         <div className="px-7 pt-8 pb-6 border-b border-line">
           <div className="grid grid-cols-2 gap-5">
             <button
-              onClick={() => setListFilter(f => f === 'all' ? null : 'all')}
-              className={`text-left group transition-all ${listFilter === 'all' ? 'opacity-100' : 'hover:opacity-80'}`}
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
+              className="text-left group transition-all hover:opacity-80"
             >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className={`font-mono font-bold text-7xl tabular-nums leading-none transition-colors ${listFilter === 'all' ? 'text-ink' : 'text-brand'}`}>
+                <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
                   {totalCountryCount}
                 </span>
                 <span className="font-serif text-2xl text-ink/30 pb-1">國</span>
               </div>
-              <p className={`font-mono text-xs tracking-[0.25em] transition-colors ${listFilter === 'all' ? 'text-ink/60 underline underline-offset-2' : 'text-ink/30'}`}>已到訪國家</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/30">已到訪國家</p>
             </button>
             <button
-              onClick={() => setListFilter(f => f === 'overseas' ? null : 'overseas')}
-              className={`text-left group transition-all ${listFilter === 'overseas' ? 'opacity-100' : 'hover:opacity-80'}`}
+              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
+              className="text-left group transition-all hover:opacity-80"
             >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className={`font-mono font-bold text-7xl tabular-nums leading-none transition-colors ${listFilter === 'overseas' ? 'text-ink' : 'text-brand'}`}>
+                <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
                   {overseasCount}
                 </span>
                 <span className="font-serif text-2xl text-ink/30 pb-1">場</span>
               </div>
-              <p className={`font-mono text-xs tracking-[0.25em] transition-colors ${listFilter === 'overseas' ? 'text-ink/60 underline underline-offset-2' : 'text-ink/30'}`}>海外馬拉松</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/30">海外馬拉松</p>
             </button>
           </div>
         </div>
@@ -312,9 +311,30 @@ export default function MapView() {
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="absolute inset-0 md:relative md:flex-1">
-        {listFilter && (
+
+        {/* Map / List toggle */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center bg-paper/95 backdrop-blur-sm border border-line/60 rounded-full shadow-sm">
+          <button
+            onClick={() => setViewMode('map')}
+            className={`px-5 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+          >
+            地圖
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-5 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+          >
+            清單
+          </button>
+        </div>
+
+        {viewMode === 'list' && (
           <div className="absolute inset-0 z-20 bg-paper">
-            <ListView filter={listFilter} onClose={() => setListFilter(null)} />
+            <ListView
+              category={activeCategory}
+              subCategory={activeSubCategory}
+              onClose={() => setViewMode('map')}
+            />
           </div>
         )}
         <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
@@ -341,7 +361,6 @@ export default function MapView() {
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            noWrap={true}
           />
 
           {geoData && (
