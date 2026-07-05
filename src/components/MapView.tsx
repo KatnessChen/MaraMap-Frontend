@@ -9,6 +9,7 @@ import { GeoJsonObject, Feature, Geometry } from "geojson";
 import { ArrowRight } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
+import ListView from "./ListView";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 
@@ -23,6 +24,8 @@ interface FlattenedPoint {
   uri: string;
   country?: string;
   country_en?: string;
+  continent?: string;
+  city?: string;
 }
 
 function FitBounds({ points }: { points: FlattenedPoint[] }) {
@@ -84,6 +87,7 @@ export default function MapView() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   const [totalCountryCount, setTotalCountryCount] = useState(0);
+  const [listFilter, setListFilter] = useState<'all' | 'overseas' | null>(null);
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -225,25 +229,31 @@ export default function MapView() {
 
         <div className="px-7 pt-8 pb-6 border-b border-line">
           <div className="grid grid-cols-2 gap-5">
-            <div>
+            <button
+              onClick={() => setListFilter(f => f === 'all' ? null : 'all')}
+              className={`text-left group transition-all ${listFilter === 'all' ? 'opacity-100' : 'hover:opacity-80'}`}
+            >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className="font-mono font-bold text-7xl text-brand tabular-nums leading-none">
+                <span className={`font-mono font-bold text-7xl tabular-nums leading-none transition-colors ${listFilter === 'all' ? 'text-ink' : 'text-brand'}`}>
                   {totalCountryCount}
                 </span>
                 <span className="font-serif text-2xl text-ink/30 pb-1">國</span>
               </div>
-              <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">已到訪國家</p>
+              <p className={`font-mono text-xs tracking-[0.25em] transition-colors ${listFilter === 'all' ? 'text-ink/60 underline underline-offset-2' : 'text-ink/30'}`}>已到訪國家</p>
               <p className="font-mono text-xs text-ink/20 mt-0.5">{pct}%</p>
-            </div>
-            <div>
+            </button>
+            <button
+              onClick={() => setListFilter(f => f === 'overseas' ? null : 'overseas')}
+              className={`text-left group transition-all ${listFilter === 'overseas' ? 'opacity-100' : 'hover:opacity-80'}`}
+            >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className="font-mono font-bold text-7xl text-brand tabular-nums leading-none">
+                <span className={`font-mono font-bold text-7xl tabular-nums leading-none transition-colors ${listFilter === 'overseas' ? 'text-ink' : 'text-brand'}`}>
                   {overseasCount}
                 </span>
                 <span className="font-serif text-2xl text-ink/30 pb-1">場</span>
               </div>
-              <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">海外馬拉松</p>
-            </div>
+              <p className={`font-mono text-xs tracking-[0.25em] transition-colors ${listFilter === 'overseas' ? 'text-ink/60 underline underline-offset-2' : 'text-ink/30'}`}>海外馬拉松</p>
+            </button>
           </div>
         </div>
 
@@ -280,8 +290,12 @@ export default function MapView() {
 
       </aside>
 
-      {/* ── Map (full-screen on mobile, flex-1 on desktop) ── */}
-      <main className="absolute inset-0 md:relative md:flex-1">
+      {/* ── Main area: ListView or Map ── */}
+      <main className="absolute inset-0 md:relative md:flex-1 flex flex-col">
+        {listFilter && (
+          <ListView filter={listFilter} onClose={() => setListFilter(null)} />
+        )}
+        <div className={listFilter ? 'hidden' : 'contents'}>
         <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
           <span className="font-mono text-xs text-ink/50 tracking-widest">
             Powered by Mara<span className="text-brand">Map</span>
@@ -356,6 +370,7 @@ export default function MapView() {
             ))}
           </MarkerClusterGroup>
         </MapContainer>
+        </div>
       </main>
 
       {/* ── Mobile Header ── */}
