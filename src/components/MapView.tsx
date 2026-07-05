@@ -46,10 +46,11 @@ const createEventIcon = () => {
 
 const createClusterCustomIcon = (cluster: { getChildCount: () => number }) => {
   const count = cluster.getChildCount();
-  const size = Math.min(Math.max(20, 16 + Math.log2(count) * 4), 48);
+  const size = Math.min(Math.max(28, 20 + Math.log2(count) * 4), 52);
+  const fontSize = Math.max(10, Math.round(size * 0.38));
   return L.divIcon({
-    html: `<div class="flex items-center justify-center rounded-full bg-brand shadow-[0_0_20px_rgba(230,57,70,0.4)] border-2 border-white/50 backdrop-blur-[2px]"
-                style="width: ${size}px; height: ${size}px;">
+    html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e63946;border:2px solid rgba(255,255,255,0.5);box-shadow:0 0 20px rgba(230,57,70,0.4);">
+             <span style="color:white;font-size:${fontSize}px;font-weight:700;font-family:monospace;line-height:1;">${count}</span>
            </div>`,
     className: "custom-cluster-icon",
     iconSize: L.point(size, size, true),
@@ -83,7 +84,6 @@ export default function MapView() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   const [totalCountryCount, setTotalCountryCount] = useState(0);
-
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -102,13 +102,30 @@ export default function MapView() {
     return categories.find(c => c.name === "登山")?.count ?? 0;
   }, [categories]);
 
+  const statItems = useMemo<Array<{ label: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
+    { label: "全馬",  unit: "場", value: raceStats?.totalFM ?? 0, cat: "馬拉松", sub: null      },
+    { label: "海外馬", unit: "場", value: overseasCount,           cat: "馬拉松", sub: "海外馬"  },
+    { label: "七大馬", unit: "場", value: sevenMajorsCount,        cat: "馬拉松", sub: "七大馬"  },
+    { label: "旅遊",  unit: "篇", value: travelCount,              cat: "旅遊",   sub: null      },
+    { label: "百岳",  unit: "座", value: hikingCount,              cat: "登山",   sub: null      },
+  ], [raceStats, overseasCount, sevenMajorsCount, travelCount, hikingCount]);
+
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
-    points.forEach(p => {
-      if (p.country_en) set.add(p.country_en);
-    });
+    points.forEach(p => { if (p.country_en) set.add(p.country_en); });
     return set;
   }, [points]);
+
+  const handleFilterClick = useCallback((cat: string, sub: string | null) => {
+    const isActive = activeCategory === cat && activeSubCategory === sub;
+    if (isActive) {
+      setActiveCategory("馬拉松");
+      setActiveSubCategory(null);
+    } else {
+      setActiveCategory(cat);
+      setActiveSubCategory(sub);
+    }
+  }, [activeCategory, activeSubCategory]);
 
   useEffect(() => {
     fetch("https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson")
@@ -146,26 +163,13 @@ export default function MapView() {
         const res = await fetch(`${API_URL}/api/v1/stats?participant=Davis`);
         if (!res.ok) return;
         const davis = await res.json();
-        setRaceStats({
-          totalFM: davis.fm_count || 0,
-        });
+        setRaceStats({ totalFM: davis.fm_count || 0 });
+        setTotalCountryCount(davis.country_count || 0);
       } catch (err) {
         console.error("Failed to fetch race stats:", err);
       }
     };
-    const fetchAllCountries = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/v1/locations`);
-        if (!res.ok) return;
-        const data: FlattenedPoint[] = await res.json();
-        const countries = new Set(data.map(p => p.country_en).filter(Boolean));
-        setTotalCountryCount(countries.size);
-      } catch (err) {
-        console.error("Failed to fetch all locations:", err);
-      }
-    };
     fetchRaceStats();
-    fetchAllCountries();
   }, []);
 
   useEffect(() => {
@@ -203,13 +207,14 @@ export default function MapView() {
     fetchLocations();
   }, [activeCategory, activeSubCategory]);
 
+  const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
+
   return (
-    <div className="flex w-screen h-screen overflow-hidden">
+    <div className="relative w-screen h-screen overflow-hidden md:flex">
 
-      {/* ── Aside ── */}
-      <aside className="w-80 shrink-0 flex flex-col bg-paper border-r border-line z-10">
+      {/* ── Desktop Aside (hidden on mobile) ── */}
+      <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
 
-        {/* 標題 */}
         <div className="px-7 pt-8 pb-5 border-b border-line">
           <p className="font-serif font-black text-xl text-ink tracking-wide">
             <span className="italic">Davis & Rose</span>
@@ -218,44 +223,37 @@ export default function MapView() {
           </p>
         </div>
 
-        {/* Hero 數字 — 已到訪國家 */}
         <div className="px-7 pt-8 pb-6 border-b border-line">
-          <div className="flex items-end gap-3 mb-2">
-            <span className="font-mono font-bold text-8xl text-brand tabular-nums leading-none">
-              {totalCountryCount}
-            </span>
-            <div className="pb-2.5">
-              <span className="font-serif text-3xl text-ink/30">國</span>
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <div className="flex items-end gap-1.5 mb-2">
+                <span className="font-mono font-bold text-7xl text-brand tabular-nums leading-none">
+                  {totalCountryCount}
+                </span>
+                <span className="font-serif text-2xl text-ink/30 pb-1">國</span>
+              </div>
+              <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">已到訪國家</p>
+              <p className="font-mono text-xs text-ink/20 mt-0.5">{pct}%</p>
             </div>
-            <span className="font-mono text-sm text-ink/30 pb-3 ml-auto">
-              {((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1)}%
-            </span>
+            <div>
+              <div className="flex items-end gap-1.5 mb-2">
+                <span className="font-mono font-bold text-7xl text-brand tabular-nums leading-none">
+                  {overseasCount}
+                </span>
+                <span className="font-serif text-2xl text-ink/30 pb-1">場</span>
+              </div>
+              <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">海外馬拉松</p>
+            </div>
           </div>
-          <p className="font-mono text-xs text-ink/30 tracking-[0.25em]">已到訪國家</p>
         </div>
 
-        {/* 可點擊統計方塊 */}
         <div className="px-5 py-5 grid grid-cols-2 gap-2">
-          {[
-            { label: "全馬", unit: "場", value: raceStats?.totalFM ?? 0, cat: "馬拉松", sub: null },
-            { label: "海外馬", unit: "場", value: overseasCount, cat: "馬拉松", sub: "海外馬" },
-            { label: "七大馬", unit: "場", value: sevenMajorsCount, cat: "馬拉松", sub: "七大馬" },
-            { label: "旅遊", unit: "篇", value: travelCount, cat: "旅遊", sub: null },
-            { label: "百岳", unit: "座", value: hikingCount, cat: "登山", sub: null },
-          ].map(({ label, unit, value, cat, sub }) => {
+          {statItems.map(({ label, unit, value, cat, sub }) => {
             const isActive = activeCategory === cat && activeSubCategory === sub;
             return (
               <button
                 key={label}
-                onClick={() => {
-                  if (isActive) {
-                    setActiveCategory("馬拉松");
-                    setActiveSubCategory(null);
-                  } else {
-                    setActiveCategory(cat);
-                    setActiveSubCategory(sub);
-                  }
-                }}
+                onClick={() => handleFilterClick(cat, sub)}
                 className={`group flex flex-col items-start px-4 py-4 transition-all duration-200 text-left border-2 ${
                   isActive
                     ? "border-brand bg-brand/8"
@@ -263,14 +261,10 @@ export default function MapView() {
                 }`}
               >
                 <div className="flex items-baseline gap-1 leading-none">
-                  <span className={`font-mono font-bold text-4xl tabular-nums ${
-                    isActive ? "text-brand" : "text-ink"
-                  }`}>
+                  <span className={`font-mono font-bold text-4xl tabular-nums ${isActive ? "text-brand" : "text-ink"}`}>
                     {value}
                   </span>
-                  <span className={`font-serif text-base ${
-                    isActive ? "text-brand/50" : "text-ink/30"
-                  }`}>
+                  <span className={`font-serif text-base ${isActive ? "text-brand/50" : "text-ink/30"}`}>
                     {unit}
                   </span>
                 </div>
@@ -286,8 +280,8 @@ export default function MapView() {
 
       </aside>
 
-      {/* ── Map ── */}
-      <main className="flex-1 relative">
+      {/* ── Map (full-screen on mobile, flex-1 on desktop) ── */}
+      <main className="absolute inset-0 md:relative md:flex-1">
         <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
           <span className="font-mono text-xs text-ink/50 tracking-widest">
             Powered by Mara<span className="text-brand">Map</span>
@@ -364,6 +358,45 @@ export default function MapView() {
         </MapContainer>
       </main>
 
+      {/* ── Mobile Header ── */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-[1000] h-14 bg-paper/95 backdrop-blur-sm border-b border-line flex items-center justify-between px-4">
+        <p className="font-serif font-black text-base text-ink">
+          <span className="italic">Davis & Rose</span>
+          <span className="text-brand mx-1.5">·</span>
+          <span className="text-ink/60 font-normal not-italic text-sm">環球跑旅</span>
+        </p>
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-mono font-bold text-2xl text-brand tabular-nums">{totalCountryCount}</span>
+          <span className="font-serif text-sm text-ink/40">國</span>
+          <span className="font-mono text-xs text-ink/20 mx-0.5">·</span>
+          <span className="font-mono font-bold text-2xl text-brand tabular-nums">{overseasCount}</span>
+          <span className="font-serif text-sm text-ink/40">場</span>
+        </div>
+      </header>
+
+      {/* ── Mobile Filter Chips ── */}
+      <div className="md:hidden fixed top-14 left-0 right-0 z-[999] px-3 py-2 bg-paper/90 backdrop-blur-sm border-b border-line/40">
+        <div className="chip-scroll flex gap-2 overflow-x-auto">
+          {statItems.map(({ label, value, cat, sub }) => {
+            const isActive = activeCategory === cat && activeSubCategory === sub;
+            return (
+              <button
+                key={label}
+                onClick={() => handleFilterClick(cat, sub)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+                  isActive
+                    ? "border-brand bg-brand text-white"
+                    : "border-line bg-paper text-ink/60 active:bg-ink/5"
+                }`}
+              >
+                <span>{label}</span>
+                <span className="font-bold tabular-nums">{value}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Country Modal */}
       {selectedCountry && (
         <CountryModal
@@ -386,6 +419,14 @@ export default function MapView() {
         .custom-cluster-icon {
           background: none !important;
           border: none !important;
+        }
+        /* Hide filter chip scrollbar */
+        .chip-scroll::-webkit-scrollbar {
+          display: none;
+        }
+        .chip-scroll {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
       `}</style>
     </div>
