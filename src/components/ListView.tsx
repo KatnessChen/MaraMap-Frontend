@@ -64,7 +64,7 @@ export default function ListView({ filter, onClose }: ListViewProps) {
     const map = new Map<string, Map<string, Map<string, ListPoint[]>>>();
     points.forEach(p => {
       const continent = CONTINENT_EN[p.continent ?? ''] || p.continent || 'Unknown';
-      const country = p.country_en || p.country || 'Unknown';
+      const country = p.country || p.country_en || 'Unknown';
       const city = p.city || '—';
       if (!map.has(continent)) map.set(continent, new Map());
       const byCountry = map.get(continent)!;
@@ -76,6 +76,16 @@ export default function ListView({ filter, onClose }: ListViewProps) {
     // Sort continents A→Z
     return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
   }, [points]);
+
+  useEffect(() => {
+    if (grouped.size === 0) return;
+    setOpenContinents(new Set(grouped.keys()));
+    setOpenCountries(new Set(
+      [...grouped.entries()].flatMap(([continent, countryMap]) =>
+        [...countryMap.keys()].map(country => `${continent}::${country}`)
+      )
+    ));
+  }, [grouped]);
 
   const toggleContinent = (c: string) =>
     setOpenContinents(prev => {
@@ -112,13 +122,31 @@ export default function ListView({ filter, onClose }: ListViewProps) {
             {filter === 'all' ? distinctCountryCount : points.length}
           </span>
         </p>
-        <button
-          onClick={onClose}
-          className="p-1 text-ink/30 hover:text-ink transition-colors"
-          aria-label="Close list view"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setOpenCountries(new Set(
+              [...grouped.entries()].flatMap(([continent, countryMap]) =>
+                [...countryMap.keys()].map(country => `${continent}::${country}`)
+              )
+            ))}
+            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-brand transition-colors"
+          >
+            全部展開
+          </button>
+          <button
+            onClick={() => setOpenCountries(new Set())}
+            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-brand transition-colors"
+          >
+            全部收合
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 text-ink/30 hover:text-ink transition-colors"
+            aria-label="Close list view"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -186,7 +214,7 @@ export default function ListView({ filter, onClose }: ListViewProps) {
                                     <div key={city} className="border-b border-line/20">
 
                                       {/* City label */}
-                                      <p className="pl-24 pr-6 pt-3 pb-1 font-mono text-[10px] uppercase tracking-[0.3em] text-ink/30">
+                                      <p className="pl-24 pr-6 pt-3 pb-1 font-mono text-xs tracking-wide text-ink/50">
                                         {city}
                                       </p>
 
