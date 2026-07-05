@@ -249,18 +249,10 @@ export default function MapView() {
   const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   return (
-    <div className="relative flex flex-col md:flex-row w-screen h-screen overflow-hidden">
+    <div className="relative flex flex-col md:flex-row w-full h-full overflow-hidden">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
       <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
-
-        <div className="px-7 pt-8 pb-5 border-b border-line">
-          <p className="font-serif font-black text-xl text-ink tracking-wide">
-            <span className="italic">Davis & Rose</span>
-            <span className="text-brand mx-2">·</span>
-            <span className="text-ink/60 font-normal not-italic">環球跑旅</span>
-          </p>
-        </div>
 
         <div className="px-7 pt-8 pb-6 border-b border-line">
           <div className="grid grid-cols-2 gap-5">
@@ -359,18 +351,6 @@ export default function MapView() {
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-
-        {/* ── Mobile Header (minimal) ── */}
-        <header className="md:hidden shrink-0 h-12 bg-paper border-b border-line flex items-center justify-between px-4">
-          <p className="font-serif font-black text-sm text-ink">
-            <span className="italic">Davis & Rose</span>
-            <span className="text-brand mx-1.5">·</span>
-            <span className="text-ink/60 font-normal not-italic">環球跑旅</span>
-          </p>
-          <Link href="/personal-best" className="p-1.5 text-ink/30 active:text-brand transition-colors" aria-label="Personal Best">
-            <Trophy size={16} />
-          </Link>
-        </header>
 
         {/* ── Mobile Time Filter ── */}
         <div className="md:hidden shrink-0 px-3 py-2 bg-paper border-b border-line/40">

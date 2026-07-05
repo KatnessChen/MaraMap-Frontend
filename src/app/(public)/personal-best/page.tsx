@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
@@ -91,24 +91,18 @@ export default function PersonalBestPage() {
   }, [current]);
 
   return (
-    <div className="min-h-screen bg-paper">
-      <header className="sticky top-0 z-10 bg-paper/90 backdrop-blur-sm border-b border-line">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-ink/40 hover:text-brand transition-colors">
-            <ArrowLeft size={14} /> Map
-          </Link>
-          <span className="font-mono text-xs uppercase tracking-[0.3em] text-ink/30">Personal Best</span>
-          <div className="w-16" />
-        </div>
-      </header>
+    <div className="flex-1 min-h-0 overflow-y-auto bg-paper">
+      <main className="max-w-4xl mx-auto px-6 py-10">
+        <h1 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/30 mb-10">
+          <Trophy size={13} className="text-brand" /> Personal Best
+        </h1>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 font-mono text-xs uppercase tracking-widest text-ink/30 animate-pulse">
+          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/30 animate-pulse">
             Loading...
           </div>
         ) : !data || participants.length === 0 ? (
-          <div className="flex items-center justify-center h-64 font-mono text-xs uppercase tracking-widest text-ink/30">
+          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/30">
             尚無 Personal Best 紀錄
           </div>
         ) : (
@@ -132,9 +126,7 @@ export default function PersonalBestPage() {
             )}
 
             <section>
-              <h2 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/40 mb-6">
-                <Trophy size={13} className="text-brand" /> 當前最佳成績
-              </h2>
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink/30 mb-5">當前最佳成績</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {DISTANCE_ORDER.map((distance) => (
                   <BestCard key={distance} distance={distance} entry={current?.bests[distance]} />
