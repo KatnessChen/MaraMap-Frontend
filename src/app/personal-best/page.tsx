@@ -6,7 +6,7 @@ import { ArrowLeft, Trophy, TrendingDown, TrendingUp, Minus } from "lucide-react
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
-const DISTANCE_ORDER = ["超馬", "全馬", "半馬", "10K", "5K"];
+const DISTANCE_ORDER = ["超馬", "全馬", "半馬"];
 
 interface BestEntry {
   time: string;
