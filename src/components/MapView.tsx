@@ -78,7 +78,9 @@ interface RaceStats {
 const TOTAL_COUNTRIES = 195;
 
 export default function MapView() {
-  const [points, setPoints] = useState<FlattenedPoint[]>([]);
+  const [allPoints, setAllPoints] = useState<FlattenedPoint[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>("馬拉松");
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
@@ -113,6 +115,38 @@ export default function MapView() {
     { label: "旅遊",  unit: "篇", value: travelCount,              cat: "旅遊",   sub: null      },
     { label: "百岳",  unit: "座", value: hikingCount,              cat: "登山",   sub: null      },
   ], [raceStats, overseasCount, sevenMajorsCount, travelCount, hikingCount]);
+
+  const points = useMemo(() => {
+    let filtered = allPoints;
+    if (selectedYear !== null)
+      filtered = filtered.filter(p => new Date(p.date).getFullYear() === selectedYear);
+    if (selectedMonth !== null)
+      filtered = filtered.filter(p => new Date(p.date).getMonth() + 1 === selectedMonth);
+    return filtered;
+  }, [allPoints, selectedYear, selectedMonth]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set(allPoints.map(p => new Date(p.date).getFullYear()));
+    return [...years].sort((a, b) => b - a);
+  }, [allPoints]);
+
+  const availableMonths = useMemo(() => {
+    if (selectedYear === null) return [];
+    const months = new Set(
+      allPoints
+        .filter(p => new Date(p.date).getFullYear() === selectedYear)
+        .map(p => new Date(p.date).getMonth() + 1)
+    );
+    return [...months].sort((a, b) => a - b);
+  }, [allPoints, selectedYear]);
+
+  const { startDate, endDate } = useMemo(() => {
+    if (selectedYear === null) return { startDate: undefined, endDate: undefined };
+    const mm = selectedMonth !== null ? String(selectedMonth).padStart(2, '0') : null;
+    if (!mm) return { startDate: `${selectedYear}-01-01`, endDate: `${selectedYear}-12-31` };
+    const lastDay = new Date(selectedYear, selectedMonth!, 0).getDate();
+    return { startDate: `${selectedYear}-${mm}-01`, endDate: `${selectedYear}-${mm}-${lastDay}` };
+  }, [selectedYear, selectedMonth]);
 
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
@@ -201,7 +235,7 @@ export default function MapView() {
         const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
         if (res.ok) {
           const data: FlattenedPoint[] = await res.json();
-          setPoints(data);
+          setAllPoints(data);
         }
       } catch (error) {
         console.error("Failed to fetch locations:", error);
@@ -310,43 +344,98 @@ export default function MapView() {
       </aside>
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
-      <main className="absolute inset-0 md:relative md:flex-1">
+      <main className="absolute inset-0 md:relative md:flex-1 flex flex-col">
 
-        {/* Map / List toggle */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center bg-paper/95 backdrop-blur-sm border border-line/60 rounded-full shadow-sm">
-          <button
-            onClick={() => setViewMode('map')}
-            className={`px-5 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
-          >
-            地圖
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-5 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
-          >
-            清單
-          </button>
+        {/* ── Time filter + View toggle bar (desktop) ── */}
+        <div className="hidden md:flex shrink-0 items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
+
+          {/* Time chips */}
+          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto time-chip-scroll">
+            <button
+              onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
+              className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                selectedYear === null ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
+              }`}
+            >
+              全部
+            </button>
+            {availableYears.map(year => (
+              <button
+                key={year}
+                onClick={() => { setSelectedYear(year); setSelectedMonth(null); }}
+                className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                  selectedYear === year ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+            {selectedYear !== null && availableMonths.length > 0 && (
+              <>
+                <span className="shrink-0 text-ink/20 text-xs px-0.5">·</span>
+                <button
+                  onClick={() => setSelectedMonth(null)}
+                  className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                    selectedMonth === null ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40 hover:text-ink/70'
+                  }`}
+                >
+                  全月
+                </button>
+                {availableMonths.map(month => (
+                  <button
+                    key={month}
+                    onClick={() => setSelectedMonth(month)}
+                    className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
+                      selectedMonth === month ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40 hover:text-ink/70'
+                    }`}
+                  >
+                    {month}月
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Map/List toggle */}
+          <div className="shrink-0 flex items-center bg-paper border border-line/60 rounded-full">
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+            >
+              地圖
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+            >
+              清單
+            </button>
+          </div>
         </div>
 
-        {viewMode === 'list' && (
-          <div className="absolute inset-0 z-20 bg-paper">
-            <ListView
-              category={activeCategory}
-              subCategory={activeSubCategory}
-              onClose={() => setViewMode('map')}
-            />
+        {/* ── Map / List area ── */}
+        <div className="flex-1 relative overflow-hidden min-h-0">
+          {viewMode === 'list' && (
+            <div className="absolute inset-0 z-20 bg-paper">
+              <ListView
+                category={activeCategory}
+                subCategory={activeSubCategory}
+                startDate={startDate}
+                endDate={endDate}
+                onClose={() => setViewMode('map')}
+              />
+            </div>
+          )}
+          <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
+            <span className="font-mono text-xs text-ink/50 tracking-widest">
+              Powered by Mara<span className="text-brand">Map</span>
+            </span>
           </div>
-        )}
-        <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
-          <span className="font-mono text-xs text-ink/50 tracking-widest">
-            Powered by Mara<span className="text-brand">Map</span>
-          </span>
-        </div>
-        {isLoading && points.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/40">
-            Generating Spatial Log...
-          </div>
-        )}
+          {isLoading && allPoints.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/40">
+              Generating Spatial Log...
+            </div>
+          )}
         <MapContainer
           center={[20, 0]}
           zoom={2}
@@ -410,6 +499,7 @@ export default function MapView() {
             ))}
           </MarkerClusterGroup>
         </MapContainer>
+        </div>{/* end map/list area */}
       </main>
 
       {/* ── Mobile Header ── */}
@@ -485,10 +575,12 @@ export default function MapView() {
           border: none !important;
         }
         /* Hide filter chip scrollbar */
-        .chip-scroll::-webkit-scrollbar {
+        .chip-scroll::-webkit-scrollbar,
+        .time-chip-scroll::-webkit-scrollbar {
           display: none;
         }
-        .chip-scroll {
+        .chip-scroll,
+        .time-chip-scroll {
           scrollbar-width: none;
           -ms-overflow-style: none;
         }

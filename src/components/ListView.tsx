@@ -31,10 +31,12 @@ interface ListPoint {
 interface ListViewProps {
   category: string | null;
   subCategory: string | null;
+  startDate?: string;
+  endDate?: string;
   onClose: () => void;
 }
 
-export default function ListView({ category, subCategory, onClose }: ListViewProps) {
+export default function ListView({ category, subCategory, startDate, endDate, onClose }: ListViewProps) {
   const [points, setPoints] = useState<ListPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openContinents, setOpenContinents] = useState<Set<string>>(new Set());
@@ -47,6 +49,8 @@ export default function ListView({ category, subCategory, onClose }: ListViewPro
         const params = new URLSearchParams();
         if (category) params.set('category', category);
         if (subCategory) params.set('sub_category', subCategory);
+        if (startDate) params.set('start_date', startDate);
+        if (endDate) params.set('end_date', endDate);
         const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
         if (res.ok) setPoints(await res.json());
       } catch (err) {
@@ -56,7 +60,7 @@ export default function ListView({ category, subCategory, onClose }: ListViewPro
       }
     };
     fetchData();
-  }, [category, subCategory]);
+  }, [category, subCategory, startDate, endDate]);
 
   const grouped = useMemo(() => {
     // continent → country → city → events
