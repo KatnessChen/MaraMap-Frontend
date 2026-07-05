@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Search, X } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Search, X, Lock } from "lucide-react";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -62,7 +62,8 @@ interface Post {
   sub_categories: string[];
   tags: string[];
   is_hidden: boolean;
-  is_pb: boolean;
+  is_personal_best: boolean;
+  is_ai_editing_locked: boolean;
   cover_image?: string;
   trip_id?: string | null;
   media: Media[];
@@ -77,7 +78,8 @@ interface FormData {
   sub_categories: string[];
   tags: string;
   is_hidden: boolean;
-  is_pb: boolean;
+  is_personal_best: boolean;
+  is_ai_editing_locked: boolean;
   cover_image: string;
   metadata: {
     race_name: string | null;
@@ -357,7 +359,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     sub_categories: [],
     tags: "",
     is_hidden: false,
-    is_pb: false,
+    is_personal_best: false,
+    is_ai_editing_locked: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [] },
   });
@@ -409,7 +412,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             sub_categories: data.sub_categories || [],
             tags: (data.tags || []).join(", "),
             is_hidden: data.is_hidden || false,
-            is_pb: data.is_pb === true,
+            is_personal_best: data.is_personal_best === true,
+            is_ai_editing_locked: data.is_ai_editing_locked ?? false,
             cover_image: data.cover_image || "",
             metadata: {
               race_name: data.metadata?.race_name || "",
@@ -524,6 +528,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       } else if (res.status === 401) {
         setFeedback({ type: "error", msg: "登入已過期，請重新登入。" });
         router.push("/admin/login");
+      } else if (res.status === 403) {
+        setFeedback({ type: "error", msg: "此文章已鎖定，無法儲存。請先解除鎖定。" });
       } else {
         const errorData = await res.json();
         setFeedback({ type: "error", msg: `儲存失敗：${errorData.message || "發生錯誤"}` });
@@ -681,10 +687,15 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
           <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-base font-black transition-colors">
             <ArrowLeft size={20} /> 回文章列表
           </Link>
-          <button onClick={handleSave} disabled={isSaving} className="bg-ink text-paper px-12 py-4 rounded-full font-sans text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-3 disabled:opacity-50 shadow-2xl">
-            {isSaving ? <Loader2 className="animate-spin" size={24} /> : feedback.type === "success" ? <Check size={24} /> : <Save size={24} />}
-            {isSaving ? "儲存中..." : "儲存變更"}
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={handleSave} disabled={isSaving || (!!post.is_ai_editing_locked && formData.is_ai_editing_locked)} className="bg-ink text-paper px-12 py-4 rounded-full font-sans text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-3 disabled:opacity-50 shadow-2xl">
+              {isSaving ? <Loader2 className="animate-spin" size={24} /> : feedback.type === "success" ? <Check size={24} /> : <Save size={24} />}
+              {isSaving ? "儲存中..." : "儲存變更"}
+            </button>
+            {post.is_ai_editing_locked && formData.is_ai_editing_locked && (
+              <p className="font-sans text-xs text-amber-600 font-bold">請先解除鎖定再儲存</p>
+            )}
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
@@ -864,12 +875,12 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
                   <input
                     type="checkbox"
-                    id="is_pb"
-                    checked={formData.is_pb}
-                    onChange={e => setFormData({ ...formData, is_pb: e.target.checked })}
+                    id="is_personal_best"
+                    checked={formData.is_personal_best}
+                    onChange={e => setFormData({ ...formData, is_personal_best: e.target.checked })}
                     className="w-7 h-7 accent-brand cursor-pointer"
                   />
-                  <label htmlFor="is_pb" className="font-sans text-lg font-black cursor-pointer select-none">
+                  <label htmlFor="is_personal_best" className="font-sans text-lg font-black cursor-pointer select-none">
                     此場曾創個人最佳成績
                   </label>
                 </div>
@@ -944,6 +955,28 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
                 <input type="checkbox" id="is_hidden" checked={formData.is_hidden} onChange={e => setFormData({ ...formData, is_hidden: e.target.checked })} className="w-7 h-7 accent-brand cursor-pointer" />
                 <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">隱藏此文章</label>
+              </div>
+            </div>
+
+            {/* Lock flag */}
+            <div className="space-y-6">
+              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
+                <Lock size={24} className="text-brand" /> 鎖定編輯
+              </label>
+              <div className={`flex items-center gap-5 p-6 border-2 rounded-lg shadow-sm ${formData.is_ai_editing_locked ? 'border-amber-400 bg-amber-50' : 'border-line bg-white'}`}>
+                <input
+                  type="checkbox"
+                  id="is_ai_editing_locked"
+                  checked={formData.is_ai_editing_locked}
+                  onChange={e => setFormData({ ...formData, is_ai_editing_locked: e.target.checked })}
+                  className="w-7 h-7 accent-brand cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="is_ai_editing_locked" className="font-sans text-lg font-black cursor-pointer select-none block">
+                    鎖定此文章
+                  </label>
+                  <p className="font-sans text-xs text-ink/40 mt-1">鎖定後 AI 自動化腳本將無法修改此文章</p>
+                </div>
               </div>
             </div>
 
