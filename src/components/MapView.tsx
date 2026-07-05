@@ -383,7 +383,10 @@ export default function MapView() {
               <span className="font-mono font-bold text-xl text-brand tabular-nums">{overseasCount}</span>
               <span className="font-serif text-sm text-ink/40">場</span>
             </button>
-            <div className="ml-2 flex items-center border border-line/60 rounded-full">
+            <Link href="/personal-best" className="ml-1 p-1.5 text-ink/30 hover:text-brand transition-colors" aria-label="Personal Best">
+              <Trophy size={16} />
+            </Link>
+            <div className="flex items-center border border-line/60 rounded-full">
               <button
                 onClick={() => setViewMode('map')}
                 className={`px-3 py-1 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40'}`}
@@ -479,13 +482,6 @@ export default function MapView() {
                 </button>
               );
             })}
-            <Link
-              href="/personal-best"
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line bg-paper text-ink/60 active:bg-ink/5 font-mono text-xs whitespace-nowrap"
-            >
-              <Trophy size={11} />
-              PB
-            </Link>
           </div>
         </div>
 
