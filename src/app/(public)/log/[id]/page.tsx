@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2 } from "lucide-react";
+import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2 } from "lucide-react";
 import { notFound } from "next/navigation";
 
 
@@ -127,12 +127,189 @@ function extractCoordinates(media: Media[] | undefined) {
   return loc ? `${loc.lat?.toFixed(4)}° N, ${loc.lng?.toFixed(4)}° E` : null;
 }
 
+function useSliderDrag(idx: number, count: number, onPrev: () => void, onNext: () => void) {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef<number | null>(null);
+  const liveOffset = useRef(0);
+  const didDrag = useRef(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    didDrag.current = false;
+    setDragging(true);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startX.current === null) return;
+    const raw = e.touches[0].clientX - startX.current;
+    if (Math.abs(raw) > 5) didDrag.current = true;
+    // rubber-band at edges
+    const clamped =
+      (idx === 0 && raw > 0) ? raw * 0.22 :
+      (idx === count - 1 && raw < 0) ? raw * 0.22 :
+      raw;
+    liveOffset.current = clamped;
+    setOffset(clamped);
+  };
+  const onTouchEnd = () => {
+    const o = liveOffset.current;
+    setDragging(false);
+    setOffset(0);
+    liveOffset.current = 0;
+    startX.current = null;
+    if (Math.abs(o) > 48) o < 0 ? onNext() : onPrev();
+  };
+
+  // CSS for the sliding strip: percentage is relative to strip width
+  const stripStyle: React.CSSProperties = {
+    width: `${count * 100}%`,
+    transform: `translateX(calc(-${(idx / count) * 100}% + ${offset}px))`,
+    transition: dragging ? 'none' : 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    willChange: 'transform',
+  };
+
+  return { stripStyle, onTouchStart, onTouchMove, onTouchEnd, didDrag };
+}
+
+function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) => void }) {
+  const [idx, setIdx] = useState(0);
+  const prev = useCallback(() => setIdx(i => (i - 1 + items.length) % items.length), [items.length]);
+  const next = useCallback(() => setIdx(i => (i + 1) % items.length), [items.length]);
+  const drag = useSliderDrag(idx, items.length, prev, next);
+
+  return (
+    <div>
+      <div
+        className="relative aspect-[4/3] overflow-hidden bg-ink group cursor-zoom-in select-none"
+        onClick={() => { if (!drag.didDrag.current) onOpen(idx); }}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+      >
+        {/* Sliding strip */}
+        <div className="flex h-full" style={drag.stripStyle}>
+          {items.map((item, i) => (
+            <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 relative">
+              {item.type === 'video'
+                ? <video src={item.uri} playsInline muted className="w-full h-full object-cover pointer-events-none" />
+                : <Image src={item.uri} alt={`Media ${i + 1}`} fill className="object-cover pointer-events-none" />}
+            </div>
+          ))}
+        </div>
+
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/30 pointer-events-none" />
+
+        <div className="absolute top-3 right-3 bg-ink/50 backdrop-blur-sm p-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Maximize2 size={14} className="text-white" />
+        </div>
+
+        {items.length > 1 && (
+          <div className="absolute bottom-3 left-3 font-mono text-[11px] text-white/80 bg-ink/50 backdrop-blur-sm px-2 py-0.5 pointer-events-none">
+            {idx + 1} / {items.length}
+          </div>
+        )}
+
+        {items.length > 1 && (
+          <>
+            <button onClick={e => { e.stopPropagation(); prev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
+              <ChevronLeft size={18} className="text-ink" />
+            </button>
+            <button onClick={e => { e.stopPropagation(); next(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
+              <ChevronRight size={18} className="text-ink" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {items.length > 1 && (
+        <div className="flex gap-1.5 mt-1.5 overflow-x-auto pb-0.5">
+          {items.map((m, i) => (
+            <button key={i} onClick={() => setIdx(i)} className={`shrink-0 w-14 h-14 relative overflow-hidden border-2 transition-all ${i === idx ? 'border-brand' : 'border-transparent opacity-50 hover:opacity-80'}`}>
+              {m.type === 'video'
+                ? <video src={m.uri} muted className="w-full h-full object-cover pointer-events-none" />
+                : <Image src={m.uri} alt="" fill className="object-cover" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(initialIdx);
+  const prev = useCallback(() => setIdx(i => (i - 1 + items.length) % items.length), [items.length]);
+  const next = useCallback(() => setIdx(i => (i + 1) % items.length), [items.length]);
+  const drag = useSliderDrag(idx, items.length, prev, next);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose, prev, next]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/95" onClick={onClose}>
+      {/* Sliding strip wrapper */}
+      <div
+        className="relative w-full h-full overflow-hidden"
+        onClick={e => e.stopPropagation()}
+        onTouchStart={drag.onTouchStart}
+        onTouchMove={drag.onTouchMove}
+        onTouchEnd={drag.onTouchEnd}
+      >
+        <div className="flex h-full items-center" style={drag.stripStyle}>
+          {items.map((item, i) => (
+            <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center p-4 md:p-16">
+              {item.type === 'video'
+                ? <video src={item.uri} controls autoPlay={i === idx} className="max-w-full max-h-full outline-none" />
+                : /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={item.uri} alt={`Media ${i + 1}`} className="max-w-full max-h-full object-contain select-none" draggable={false} />}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full z-10">
+          <X size={18} />
+        </button>
+
+        {items.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 font-mono text-xs text-white/40 z-10">
+            {idx + 1} / {items.length}
+          </div>
+        )}
+
+        {items.length > 1 && (
+          <>
+            <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white rounded-full z-10">
+              <ChevronLeft size={22} />
+            </button>
+            <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white rounded-full z-10">
+              <ChevronRight size={22} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LogDetail({ params }: { params: Promise<{ id: string }> }) {
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   useEffect(() => {
     // 檢查是否具備管理員權限
@@ -342,18 +519,12 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
               <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
                 精彩照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {post.media.map((mediaItem, idx) => (
-                  <div key={idx} className="relative aspect-square overflow-hidden bg-paper-dark border border-line shadow-sm group">
-                    {mediaItem.type === 'video' ? (
-                      <video src={mediaItem.uri} controls playsInline className="w-full h-full object-cover bg-ink" />
-                    ) : (
-                      <Image src={mediaItem.uri} alt={`Moment ${idx + 1}`} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
-                    )}
-                  </div>
-                ))}
-              </div>
+              <MediaCarousel items={post.media} onOpen={i => setLightboxIdx(i)} />
             </div>
+          )}
+
+          {lightboxIdx !== null && post.media && (
+            <Lightbox items={post.media} initialIdx={lightboxIdx} onClose={() => setLightboxIdx(null)} />
           )}
 
         </div>
