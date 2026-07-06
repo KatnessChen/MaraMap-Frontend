@@ -20,11 +20,13 @@
 
 @layer base {
   html, body {
+    height: 100%;
+    overflow: hidden;
     background-color: var(--color-paper) !important;
     color: var(--color-ink) !important;
     font-family: var(--font-sans);
     line-height: 1.8;
     -webkit-font-smoothing: antialiased;
-    font-size: 18px; 
+    font-size: 18px;
   }
 }

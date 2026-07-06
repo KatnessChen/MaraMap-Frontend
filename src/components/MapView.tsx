@@ -425,21 +425,24 @@ export default function MapView() {
           </div>
         </div>
 
-        <div className="px-5 py-5 grid grid-cols-2 gap-2">
+        <div
+          className="flex-1 min-h-0 p-5 grid grid-cols-2 gap-5 overflow-y-auto"
+          style={{ gridTemplateRows: 'repeat(3, minmax(5rem, 1fr))' }}
+        >
           <button
             onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
-            className={`group flex flex-col items-start px-4 py-4 transition-all duration-200 text-left border-2 ${
+            className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 ${
               activeCategory === null
                 ? "border-brand bg-brand/8"
                 : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
             }`}
           >
             <div className="flex items-baseline gap-1 leading-none">
-              <span className={`font-mono font-bold text-4xl tabular-nums ${activeCategory === null ? "text-brand" : "text-ink"}`}>
+              <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${activeCategory === null ? "text-brand" : "text-ink"}`}>
                 全
               </span>
             </div>
-            <span className={`font-mono text-xs mt-2.5 tracking-widest leading-tight ${
+            <span className={`font-mono tracking-widest leading-tight [font-size:clamp(0.5rem,12cqh,0.75rem)] ${
               activeCategory === null ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
             }`}>
               所有
@@ -451,21 +454,21 @@ export default function MapView() {
               <button
                 key={label}
                 onClick={() => handleFilterClick(cat, sub)}
-                className={`group flex flex-col items-start px-4 py-4 transition-all duration-200 text-left border-2 ${
+                className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 ${
                   isActive
                     ? "border-brand bg-brand/8"
                     : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
                 }`}
               >
                 <div className="flex items-baseline gap-1 leading-none">
-                  <span className={`font-mono font-bold text-4xl tabular-nums ${isActive ? "text-brand" : "text-ink"}`}>
+                  <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${isActive ? "text-brand" : "text-ink"}`}>
                     {value}
                   </span>
-                  <span className={`font-serif text-base ${isActive ? "text-brand/50" : "text-ink/30"}`}>
+                  <span className={`font-serif [font-size:clamp(0.6rem,16cqh,1rem)] ${isActive ? "text-brand/50" : "text-ink/30"}`}>
                     {unit}
                   </span>
                 </div>
-                <span className={`font-mono text-xs mt-2.5 tracking-widest leading-tight ${
+                <span className={`font-mono tracking-widest leading-tight [font-size:clamp(0.5rem,12cqh,0.75rem)] ${
                   isActive ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
                 }`}>
                   {label}

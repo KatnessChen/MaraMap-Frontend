@@ -310,6 +310,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
   const [isAdmin, setIsAdmin] = useState(false);
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // 檢查是否具備管理員權限
@@ -338,9 +339,11 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       }
     };
     fetchPostAndNav();
-    const toggleVisibility = () => { setIsVisible(window.pageYOffset > 500); };
-    window.addEventListener("scroll", toggleVisibility);
-    return () => window.removeEventListener("scroll", toggleVisibility);
+    const el = mainRef.current;
+    if (!el) return;
+    const toggleVisibility = () => setIsVisible(el.scrollTop > 500);
+    el.addEventListener("scroll", toggleVisibility);
+    return () => el.removeEventListener("scroll", toggleVisibility);
   }, [params]);
 
   if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/40">正在載入紀錄...</div>;
@@ -354,7 +357,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
     : null;
 
   return (
-    <main className="min-h-screen relative overflow-x-hidden pb-24 bg-paper text-ink">
+    <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative pb-24 bg-paper text-ink">
       <div 
         className="fixed top-0 left-0 w-screen h-screen -z-10 pointer-events-none mix-blend-multiply opacity-[0.03]"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 100 Q 150 200 400 50' fill='none' stroke='%231a1a1a' stroke-width='0.5'/%3E%3Cpath d='M0 200 Q 200 300 400 150' fill='none' stroke='%231a1a1a' stroke-width='0.5'/%3E%3Cpath d='M0 300 Q 250 400 400 250' fill='none' stroke='%231a1a1a' stroke-width='0.5'/%3E%3C/svg%3E")` }}
@@ -530,7 +533,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed bottom-10 right-10 z-[1000] p-5 bg-ink text-paper rounded-full shadow-2xl transition-all duration-500 hover:bg-brand hover:-translate-y-2 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}>
+      <button onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed bottom-10 right-10 z-[1000] p-5 bg-ink text-paper rounded-full shadow-2xl transition-all duration-500 hover:bg-brand hover:-translate-y-2 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}>
         <div className="flex flex-col items-center gap-1 font-sans text-[10px] font-black uppercase tracking-widest"><ArrowUp size={20} /><span>置頂</span></div>
       </button>
     </main>
