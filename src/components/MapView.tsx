@@ -483,14 +483,30 @@ export default function MapView() {
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="flex-1 flex flex-col min-h-0">
 
-        {/* ── Mobile Time Filter ── */}
-        <div className="md:hidden shrink-0 px-3 py-2 bg-paper border-b border-line/40">
-          <DateRangePicker
-            availableYears={availableYears}
-            applied={dateFilter}
-            onApply={setDateFilter}
-            onClear={() => setDateFilter(null)}
-          />
+        {/* ── Mobile Time Filter + View Toggle ── */}
+        <div className="md:hidden shrink-0 flex items-center gap-2 px-3 py-2 bg-paper border-b border-line/40">
+          <div className="flex-1 min-w-0">
+            <DateRangePicker
+              availableYears={availableYears}
+              applied={dateFilter}
+              onApply={setDateFilter}
+              onClear={() => setDateFilter(null)}
+            />
+          </div>
+          <div className="shrink-0 flex items-center border border-line/60 rounded-full">
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+            >
+              地圖
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+            >
+              清單
+            </button>
+          </div>
         </div>
 
 
@@ -529,15 +545,16 @@ export default function MapView() {
                 subCategory={activeSubCategory}
                 startDate={startDate}
                 endDate={endDate}
-                onClose={() => setViewMode('map')}
               />
             </div>
           )}
-          <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
-            <span className="font-mono text-xs text-ink/50 tracking-widest">
-              Powered by Mara<span className="text-brand">Map</span>
-            </span>
-          </div>
+          {viewMode !== 'list' && (
+            <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
+              <span className="font-mono text-xs text-ink/50 tracking-widest">
+                Powered by Mara<span className="text-brand">Map</span>
+              </span>
+            </div>
+          )}
           {isLoading && allPoints.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/40">
               Generating Spatial Log...
@@ -610,8 +627,25 @@ export default function MapView() {
 
         {/* ── Mobile Bottom Panel ── */}
         <div className="md:hidden shrink-0 bg-paper border-t border-line">
+          {/* Hero stats */}
+          <div className="flex items-center gap-4 px-4 py-3 border-b border-line/30">
+            <button
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
+              className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
+            >
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{totalCountryCount}</span>
+              <span className="font-serif text-base text-ink/40">國</span>
+            </button>
+            <button
+              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
+              className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
+            >
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{overseasCount}</span>
+              <span className="font-serif text-base text-ink/40">場海外馬</span>
+            </button>
+          </div>
           {/* Category chips */}
-          <div className="chip-scroll flex gap-2 overflow-x-auto px-3 py-2.5 border-b border-line/30">
+          <div className="chip-scroll flex gap-2 overflow-x-auto px-3 py-2.5 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
               className={`shrink-0 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
@@ -639,39 +673,6 @@ export default function MapView() {
                 </button>
               );
             })}
-          </div>
-          {/* Hero stats + Map/List toggle */}
-          <div className="flex items-center justify-between px-4 py-3 pb-safe">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
-                className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
-              >
-                <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{totalCountryCount}</span>
-                <span className="font-serif text-base text-ink/40">國</span>
-              </button>
-              <button
-                onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
-                className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
-              >
-                <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{overseasCount}</span>
-                <span className="font-serif text-base text-ink/40">場海外馬</span>
-              </button>
-            </div>
-            <div className="flex items-center border border-line/60 rounded-full">
-              <button
-                onClick={() => setViewMode('map')}
-                className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40'}`}
-              >
-                地圖
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40'}`}
-              >
-                清單
-              </button>
-            </div>
           </div>
         </div>
 

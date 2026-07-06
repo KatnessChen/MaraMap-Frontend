@@ -2,19 +2,9 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
-
-const CONTINENT_EN: Record<string, string> = {
-  亞洲: 'Asia',
-  歐洲: 'Europe',
-  北美洲: 'North America',
-  南美洲: 'South America',
-  非洲: 'Africa',
-  大洋洲: 'Oceania',
-  南極洲: 'Antarctica',
-};
 
 interface ListPoint {
   id: string;
@@ -33,10 +23,9 @@ interface ListViewProps {
   subCategory: string | null;
   startDate?: string;
   endDate?: string;
-  onClose: () => void;
 }
 
-export default function ListView({ category, subCategory, startDate, endDate, onClose }: ListViewProps) {
+export default function ListView({ category, subCategory, startDate, endDate }: ListViewProps) {
   const [points, setPoints] = useState<ListPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openContinents, setOpenContinents] = useState<Set<string>>(new Set());
@@ -51,6 +40,7 @@ export default function ListView({ category, subCategory, startDate, endDate, on
         if (subCategory) params.set('sub_category', subCategory);
         if (startDate) params.set('start_date', startDate);
         if (endDate) params.set('end_date', endDate);
+        params.set('geoOnly', 'false');
         const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
         if (res.ok) setPoints(await res.json());
       } catch (err) {
@@ -63,21 +53,17 @@ export default function ListView({ category, subCategory, startDate, endDate, on
   }, [category, subCategory, startDate, endDate]);
 
   const grouped = useMemo(() => {
-    // continent → country → city → events
-    const map = new Map<string, Map<string, Map<string, ListPoint[]>>>();
+    // continent → country → events
+    const map = new Map<string, Map<string, ListPoint[]>>();
     points.forEach(p => {
-      const continent = CONTINENT_EN[p.continent ?? ''] || p.continent || 'Unknown';
-      const country = p.country || p.country_en || 'Unknown';
-      const city = p.city || '—';
+      const continent = p.continent || '其他';
+      const country = p.country || p.country_en || '未知';
       if (!map.has(continent)) map.set(continent, new Map());
       const byCountry = map.get(continent)!;
-      if (!byCountry.has(country)) byCountry.set(country, new Map());
-      const byCity = byCountry.get(country)!;
-      if (!byCity.has(city)) byCity.set(city, []);
-      byCity.get(city)!.push(p);
+      if (!byCountry.has(country)) byCountry.set(country, []);
+      byCountry.get(country)!.push(p);
     });
-    // Sort continents A→Z
-    return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+    return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh')));
   }, [points]);
 
   useEffect(() => {
@@ -108,11 +94,14 @@ export default function ListView({ category, subCategory, startDate, endDate, on
     [...grouped.values()].reduce((sum, countries) => sum + countries.size, 0),
   [grouped]);
 
-  const totalCount = (countries: Map<string, Map<string, ListPoint[]>>) =>
-    [...countries.values()].reduce(
-      (sum, cities) => sum + [...cities.values()].reduce((s, evts) => s + evts.length, 0),
-      0
-    );
+  const totalCount = (countries: Map<string, ListPoint[]>) =>
+    [...countries.values()].reduce((sum, evts) => sum + evts.length, 0);
+
+  const allCountryKeys = useMemo(() =>
+    [...grouped.entries()].flatMap(([continent, countryMap]) =>
+      [...countryMap.keys()].map(country => `${continent}::${country}`)
+    ),
+  [grouped]);
 
   return (
     <div className="flex flex-col w-full h-full bg-paper overflow-hidden">
@@ -127,27 +116,18 @@ export default function ListView({ category, subCategory, startDate, endDate, on
         </p>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setOpenCountries(new Set(
-              [...grouped.entries()].flatMap(([continent, countryMap]) =>
-                [...countryMap.keys()].map(country => `${continent}::${country}`)
-              )
-            ))}
-            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-brand transition-colors"
+            onClick={() => setOpenCountries(new Set(allCountryKeys))}
+            className="p-1 text-ink/25 hover:text-ink/60 transition-colors"
+            aria-label="全部展開"
           >
-            全部展開
+            <ChevronsDown size={14} />
           </button>
           <button
             onClick={() => setOpenCountries(new Set())}
-            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-brand transition-colors"
+            className="p-1 text-ink/25 hover:text-ink/60 transition-colors"
+            aria-label="全部收合"
           >
-            全部收合
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1 text-ink/30 hover:text-ink transition-colors"
-            aria-label="Close list view"
-          >
-            <X size={16} />
+            <ChevronsUp size={14} />
           </button>
         </div>
       </div>
@@ -185,10 +165,9 @@ export default function ListView({ category, subCategory, startDate, endDate, on
                   <div className="border-t border-line/40">
                     {[...countries.entries()]
                       .sort((a, b) => a[0].localeCompare(b[0]))
-                      .map(([country, cities]) => {
+                      .map(([country, events]) => {
                         const countryKey = `${continent}::${country}`;
                         const countryOpen = openCountries.has(countryKey);
-                        const countryTotal = [...cities.values()].reduce((s, evts) => s + evts.length, 0);
                         return (
                           <div key={country}>
 
@@ -205,41 +184,33 @@ export default function ListView({ category, subCategory, startDate, endDate, on
                                 <span className="font-mono text-sm text-ink/70">{country}</span>
                               </div>
                               <span className="font-mono text-xs text-ink/25 tabular-nums">
-                                {countryTotal}
+                                {events.length}
                               </span>
                             </button>
 
                             {countryOpen && (
                               <div>
-                                {[...cities.entries()]
-                                  .sort((a, b) => a[0].localeCompare(b[0]))
-                                  .map(([city, events]) => (
-                                    <div key={city} className="border-b border-line/20">
-
-                                      {/* City label */}
-                                      <p className="pl-24 pr-6 pt-3 pb-1 font-mono text-xs tracking-wide text-ink/50">
-                                        {city}
-                                      </p>
-
-                                      {/* Events */}
-                                      {events.map(evt => (
-                                        <Link
-                                          key={evt.id}
-                                          href={`/log/${evt.postId}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex items-center justify-between pl-24 pr-6 py-2 hover:bg-brand/5 group transition-colors"
-                                        >
-                                          <span className="font-serif text-sm text-ink group-hover:text-brand transition-colors line-clamp-1 mr-4">
-                                            {evt.title}
-                                          </span>
-                                          <span className="font-mono text-xs text-ink/30 tabular-nums shrink-0">
-                                            {evt.date}
-                                          </span>
-                                        </Link>
-                                      ))}
+                                {events.map(evt => (
+                                  <Link
+                                    key={evt.id}
+                                    href={`/log/${evt.postId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between pl-24 pr-6 py-2.5 hover:bg-brand/5 group transition-colors border-b border-line/20"
+                                  >
+                                    <div className="flex items-baseline gap-1.5 min-w-0 mr-4">
+                                      {evt.city && (
+                                        <span className="font-mono text-xs text-ink/30 shrink-0">{evt.city}</span>
+                                      )}
+                                      <span className="font-serif text-sm text-ink group-hover:text-brand transition-colors line-clamp-1">
+                                        {evt.title}
+                                      </span>
                                     </div>
-                                  ))}
+                                    <span className="font-mono text-xs text-ink/30 tabular-nums shrink-0">
+                                      {evt.date}
+                                    </span>
+                                  </Link>
+                                ))}
                               </div>
                             )}
                           </div>
