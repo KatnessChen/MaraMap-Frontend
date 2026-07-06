@@ -33,22 +33,22 @@ function BestCard({ distance, entry }: { distance: string; entry: BestEntry | un
 
   const inner = entry ? (
     <Link href={`/log/${entry.postId}`} target="_blank" rel="noopener noreferrer" className="flex flex-col h-full group">
-      <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink/30 mb-3">{label}</span>
+      <span className="font-mono text-xs uppercase tracking-[0.3em] text-ink/60 mb-3">{label}</span>
       <span className="font-serif font-black text-3xl md:text-4xl text-ink group-hover:text-brand transition-colors tabular-nums leading-none">
         {entry.time}
       </span>
       <div className="mt-auto pt-4 space-y-0.5">
         <p className="font-sans text-sm font-bold text-ink/70 line-clamp-1">{entry.raceName || "—"}</p>
-        <p className="font-mono text-xs text-ink/30">
+        <p className="font-mono text-xs text-ink/60">
           {entry.date}{entry.country ? ` · ${entry.country}` : ""}
         </p>
       </div>
     </Link>
   ) : (
     <div className="flex flex-col h-full">
-      <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink/30 mb-3">{distance}</span>
+      <span className="font-mono text-xs uppercase tracking-[0.3em] text-ink/60 mb-3">{distance}</span>
       <span className="font-serif font-black text-3xl md:text-4xl text-ink/15 leading-none">—</span>
-      <p className="mt-auto pt-4 font-sans text-xs text-ink/20">尚無紀錄</p>
+      <p className="mt-auto pt-4 font-sans text-xs text-ink/50">尚無紀錄</p>
     </div>
   );
 
@@ -93,16 +93,16 @@ export default function PersonalBestPage() {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-paper">
       <main className="max-w-4xl mx-auto px-6 py-10">
-        <h1 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/30 mb-10">
+        <h1 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/60 mb-10">
           <Trophy size={13} className="text-brand" /> 個人最佳成績
         </h1>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/30 animate-pulse">
+          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/60 animate-pulse">
             Loading...
           </div>
         ) : !data || participants.length === 0 ? (
-          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/30">
+          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/60">
             尚無 Personal Best 紀錄
           </div>
         ) : (
@@ -116,7 +116,7 @@ export default function PersonalBestPage() {
                     className={`px-5 py-2.5 font-mono text-xs uppercase tracking-[0.2em] border-b-2 -mb-px transition-colors ${
                       activeParticipant === name
                         ? "border-brand text-brand"
-                        : "border-transparent text-ink/40 hover:text-ink"
+                        : "border-transparent text-ink/60 hover:text-ink"
                     }`}
                   >
                     {name}

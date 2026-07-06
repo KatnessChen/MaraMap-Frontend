@@ -239,7 +239,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
       {/* 搜尋框 */}
       <div className="mb-10 relative">
         <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-brand transition-colors" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/40 group-focus-within:text-brand transition-colors" size={20} />
           <input 
             type="text" 
             placeholder="搜尋標題、內容或賽事關鍵字..." 
@@ -250,14 +250,14 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/50 hover:text-ink"
             >
               <X size={20} />
             </button>
           )}
         </div>
         {debouncedSearch && (
-          <div className="mt-3 font-sans text-sm text-ink/40 font-bold">
+          <div className="mt-3 font-sans text-sm text-ink/60 font-bold">
             正在搜尋：「{debouncedSearch}」... 找到 {posts.length} 篇結果
           </div>
         )}
@@ -279,7 +279,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
 
       {posts.length === 0 && !isLoading ? (
         <div className="py-24 text-center">
-          <div className="font-serif text-2xl text-ink/20 font-black mb-4 italic">No matching logs found.</div>
+          <div className="font-serif text-2xl text-ink/50 font-black mb-4 italic">No matching logs found.</div>
           <button onClick={() => {setSearchQuery(""); setActiveCategory("全部");}} className="text-brand font-sans font-bold underline">重設搜尋條件</button>
         </div>
       ) : (

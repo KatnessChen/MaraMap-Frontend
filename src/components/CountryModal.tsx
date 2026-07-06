@@ -85,14 +85,14 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
             </p>
             <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">{country}</h2>
             {!isLoading && (
-              <p className="font-mono text-sm text-ink/40 mt-1">
+              <p className="font-mono text-sm text-ink/60 mt-1">
                 共 {races.length} 筆紀錄
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-ink/40 hover:text-brand transition-colors"
+            className="p-1.5 text-ink/60 hover:text-brand transition-colors"
           >
             <X size={22} />
           </button>
@@ -101,7 +101,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
         {/* Race list */}
         <div>
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 font-mono text-sm text-ink/40 animate-pulse">
+            <div className="flex items-center justify-center py-16 font-mono text-sm text-ink/60 animate-pulse">
               載入中...
             </div>
           ) : races.length === 0 ? (
@@ -122,8 +122,8 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                     </span>
                     {race.city && (
                       <>
-                        <span className="text-ink/20">·</span>
-                        <span className="font-mono text-sm text-ink/50">
+                        <span className="text-ink/40">·</span>
+                        <span className="font-mono text-sm text-ink/70">
                           {race.city}
                         </span>
                       </>
@@ -171,7 +171,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                     href={`/log/${race.postId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-mono text-ink/40 hover:text-brand transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 text-sm font-mono text-ink/60 hover:text-brand transition-colors cursor-pointer"
                   >
                     閱讀完整紀錄 <ArrowRight size={13} />
                   </Link>

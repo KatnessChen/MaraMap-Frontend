@@ -155,16 +155,16 @@ function DateRangePicker({
           className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 ${
             applied
               ? 'border-brand/60 text-brand bg-brand/5 hover:bg-brand/10'
-              : 'border-line/60 text-ink/50 hover:text-ink hover:border-ink/40'
+              : 'border-line/60 text-ink/70 hover:text-ink hover:border-ink/40'
           }`}
         >
           {applied ? formatDateFilter(applied) : '選擇期間'}
-          <span className="opacity-50 text-[9px]">▾</span>
+          <span className="opacity-70 text-[11px]">▾</span>
         </button>
         {applied && (
           <button
             onClick={e => { e.stopPropagation(); onClear(); }}
-            className="w-4 h-4 flex items-center justify-center text-ink/30 hover:text-ink transition-colors font-mono text-xs leading-none"
+            className="w-4 h-4 flex items-center justify-center text-ink/60 hover:text-ink transition-colors font-mono text-xs leading-none"
             aria-label="清除篩選"
           >
             ✕
@@ -176,7 +176,7 @@ function DateRangePicker({
         <div className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[300px]">
           <div className="grid grid-cols-2 gap-5 mb-5">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/30 mb-2">起始</p>
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 mb-2">起始</p>
               <div className="flex flex-col gap-1.5">
                 <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={selectCls}>
                   <option value="">年</option>
@@ -189,7 +189,7 @@ function DateRangePicker({
               </div>
             </div>
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/30 mb-2">結束</p>
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 mb-2">結束</p>
               <div className="flex flex-col gap-1.5">
                 <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
                   <option value="">年</option>
@@ -203,7 +203,7 @@ function DateRangePicker({
             </div>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-line/40">
-            <button onClick={handleClear} className="font-mono text-xs text-ink/40 hover:text-ink transition-colors underline underline-offset-2">
+            <button onClick={handleClear} className="font-mono text-xs text-ink/60 hover:text-ink transition-colors underline underline-offset-2">
               清空
             </button>
             <button
@@ -406,9 +406,9 @@ export default function MapView() {
                 <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
                   {totalCountryCount}
                 </span>
-                <span className="font-serif text-2xl text-ink/30 pb-1">國</span>
+                <span className="font-serif text-2xl text-ink/50 pb-1">國</span>
               </div>
-              <p className="font-mono text-xs tracking-[0.25em] text-ink/30">已到訪國家</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">已到訪國家</p>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
@@ -418,9 +418,9 @@ export default function MapView() {
                 <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
                   {overseasCount}
                 </span>
-                <span className="font-serif text-2xl text-ink/30 pb-1">場</span>
+                <span className="font-serif text-2xl text-ink/50 pb-1">場</span>
               </div>
-              <p className="font-mono text-xs tracking-[0.25em] text-ink/30">海外馬拉松</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">海外馬拉松</p>
             </button>
           </div>
         </div>
@@ -442,8 +442,8 @@ export default function MapView() {
                 全
               </span>
             </div>
-            <span className={`font-mono tracking-widest leading-tight [font-size:clamp(0.5rem,12cqh,0.75rem)] ${
-              activeCategory === null ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
+            <span className={`font-mono font-bold tracking-widest leading-tight [font-size:clamp(0.75rem,13cqh,1rem)] ${
+              activeCategory === null ? "text-brand" : "text-ink/70 group-hover:text-ink"
             }`}>
               所有
             </span>
@@ -464,12 +464,12 @@ export default function MapView() {
                   <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${isActive ? "text-brand" : "text-ink"}`}>
                     {value}
                   </span>
-                  <span className={`font-serif [font-size:clamp(0.6rem,16cqh,1rem)] ${isActive ? "text-brand/50" : "text-ink/30"}`}>
+                  <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${isActive ? "text-brand/70" : "text-ink/50"}`}>
                     {unit}
                   </span>
                 </div>
-                <span className={`font-mono tracking-widest leading-tight [font-size:clamp(0.5rem,12cqh,0.75rem)] ${
-                  isActive ? "text-brand/70" : "text-ink/40 group-hover:text-ink/60"
+                <span className={`font-mono font-bold tracking-widest leading-tight [font-size:clamp(0.75rem,13cqh,1rem)] ${
+                  isActive ? "text-brand" : "text-ink/70 group-hover:text-ink"
                 }`}>
                   {label}
                 </span>
@@ -496,13 +496,13 @@ export default function MapView() {
           <div className="shrink-0 flex items-center border border-line/60 rounded-full">
             <button
               onClick={() => setViewMode('map')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60'}`}
             >
               地圖
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40'}`}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60'}`}
             >
               清單
             </button>
@@ -523,13 +523,13 @@ export default function MapView() {
           <div className="shrink-0 flex items-center bg-paper border border-line/60 rounded-full">
             <button
               onClick={() => setViewMode('map')}
-              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
               地圖
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/40 hover:text-ink'}`}
+              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
               清單
             </button>
@@ -548,15 +548,8 @@ export default function MapView() {
               />
             </div>
           )}
-          {viewMode !== 'list' && (
-            <div className="absolute bottom-4 right-4 z-[1000] pointer-events-none">
-              <span className="font-mono text-xs text-ink/50 tracking-widest">
-                Powered by Mara<span className="text-brand">Map</span>
-              </span>
-            </div>
-          )}
           {isLoading && allPoints.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/40">
+            <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/60">
               Generating Spatial Log...
             </div>
           )}
@@ -603,7 +596,7 @@ export default function MapView() {
               >
                 <Popup className="custom-popup">
                   <div className="p-2 max-w-[200px]">
-                    <div className="font-mono text-[10px] text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
+                    <div className="font-mono text-xs text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
                     <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2">{pt.title}</h3>
                     {pt.uri && (
                       /* eslint-disable-next-line @next/next/no-img-element */
@@ -634,14 +627,14 @@ export default function MapView() {
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{totalCountryCount}</span>
-              <span className="font-serif text-base text-ink/40">國</span>
+              <span className="font-serif text-base text-ink/60">國</span>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{overseasCount}</span>
-              <span className="font-serif text-base text-ink/40">場海外馬</span>
+              <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
           </div>
           {/* Category chips */}

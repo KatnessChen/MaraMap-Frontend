@@ -108,7 +108,7 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
 
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-line">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-ink/50">
+        <p className="font-mono text-sm font-bold uppercase tracking-[0.3em] text-ink/70">
           {!category ? '已到訪國家' : subCategory ?? category}
           <span className="ml-3 text-brand tabular-nums">
             {!category ? distinctCountryCount : points.length}
@@ -117,24 +117,24 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setOpenCountries(new Set(allCountryKeys))}
-            className="p-1 text-ink/25 hover:text-ink/60 transition-colors"
+            className="p-1 text-ink/50 hover:text-ink transition-colors"
             aria-label="全部展開"
           >
-            <ChevronsDown size={14} />
+            <ChevronsDown size={16} />
           </button>
           <button
             onClick={() => setOpenCountries(new Set())}
-            className="p-1 text-ink/25 hover:text-ink/60 transition-colors"
+            className="p-1 text-ink/50 hover:text-ink transition-colors"
             aria-label="全部收合"
           >
-            <ChevronsUp size={14} />
+            <ChevronsUp size={16} />
           </button>
         </div>
       </div>
 
       {/* Body */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center font-mono text-xs uppercase tracking-widest text-ink/30 animate-pulse">
+        <div className="flex-1 flex items-center justify-center font-mono text-sm uppercase tracking-widest text-ink/60 animate-pulse">
           Loading...
         </div>
       ) : (
@@ -151,12 +151,12 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                 >
                   <div className="flex items-center gap-3">
                     {continentOpen
-                      ? <ChevronDown size={13} className="text-ink/30 shrink-0" />
-                      : <ChevronRight size={13} className="text-ink/30 shrink-0" />
+                      ? <ChevronDown size={14} className="text-ink/50 shrink-0" />
+                      : <ChevronRight size={14} className="text-ink/50 shrink-0" />
                     }
-                    <span className="font-serif font-bold text-sm text-ink">{continent}</span>
+                    <span className="font-serif font-bold text-base text-ink">{continent}</span>
                   </div>
-                  <span className="font-mono text-xs text-ink/30 tabular-nums">
+                  <span className="font-mono text-sm text-ink/60 tabular-nums">
                     {totalCount(countries)}
                   </span>
                 </button>
@@ -178,12 +178,12 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                             >
                               <div className="flex items-center gap-2.5">
                                 {countryOpen
-                                  ? <ChevronDown size={11} className="text-ink/20 shrink-0" />
-                                  : <ChevronRight size={11} className="text-ink/20 shrink-0" />
+                                  ? <ChevronDown size={13} className="text-ink/50 shrink-0" />
+                                  : <ChevronRight size={13} className="text-ink/50 shrink-0" />
                                 }
-                                <span className="font-mono text-sm text-ink/70">{country}</span>
+                                <span className="font-mono text-base text-ink/80">{country}</span>
                               </div>
-                              <span className="font-mono text-xs text-ink/25 tabular-nums">
+                              <span className="font-mono text-sm text-ink/60 tabular-nums">
                                 {events.length}
                               </span>
                             </button>
@@ -200,13 +200,13 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                                   >
                                     <div className="flex items-baseline gap-1.5 min-w-0 mr-4">
                                       {evt.city && (
-                                        <span className="font-mono text-xs text-ink/30 shrink-0">{evt.city}</span>
+                                        <span className="font-mono text-xs text-ink/60 shrink-0">{evt.city}</span>
                                       )}
-                                      <span className="font-serif text-sm text-ink group-hover:text-brand transition-colors line-clamp-1">
+                                      <span className="font-serif text-base text-ink group-hover:text-brand transition-colors line-clamp-1">
                                         {evt.title}
                                       </span>
                                     </div>
-                                    <span className="font-mono text-xs text-ink/30 tabular-nums shrink-0">
+                                    <span className="font-mono text-sm text-ink/60 tabular-nums shrink-0">
                                       {evt.date}
                                     </span>
                                   </Link>

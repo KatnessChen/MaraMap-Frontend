@@ -52,7 +52,7 @@ export default function StatisticsBlock({ participant }: StatisticsBlockProps) {
   if (loading) {
     return (
       <div className="flex flex-col">
-        <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 mb-2">
+        <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/80 mb-2">
           {participant}&apos;s Records
         </span>
         <div className="font-mono text-6xl md:text-7xl font-bold leading-none text-white tracking-tighter">
@@ -65,7 +65,7 @@ export default function StatisticsBlock({ participant }: StatisticsBlockProps) {
   if (error || !stats) {
     return (
       <div className="flex flex-col">
-        <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 mb-2">
+        <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/80 mb-2">
           {participant}&apos;s Records
         </span>
         <div className="font-mono text-sm text-brand">
@@ -81,14 +81,14 @@ export default function StatisticsBlock({ participant }: StatisticsBlockProps) {
 
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 mb-2">
+      <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/80 mb-2">
         {stats.participant_name}&apos;s Records
       </span>
       <div className="flex items-end gap-2">
         <div className="font-mono text-6xl md:text-8xl font-bold leading-none text-white tracking-tighter">
           {displayCount}
         </div>
-        <div className="flex flex-col font-mono text-[10px] md:text-xs uppercase tracking-widest text-brand leading-tight mb-1">
+        <div className="flex flex-col font-mono text-xs uppercase tracking-widest text-brand leading-tight mb-1">
           <span className="font-black">{firstWord}</span>
           <span className="opacity-70">Marathons</span>
         </div>

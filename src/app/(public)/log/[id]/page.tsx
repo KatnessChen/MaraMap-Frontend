@@ -346,7 +346,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
     return () => el.removeEventListener("scroll", toggleVisibility);
   }, [params]);
 
-  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/40">正在載入紀錄...</div>;
+  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/60">正在載入紀錄...</div>;
   if (!post) notFound();
 
   const title = getDisplayTitle(post);
@@ -386,7 +386,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
 
       <div className="max-w-4xl mx-auto -mt-16 relative z-10">
         <div className="bg-paper p-8 md:p-16 shadow-[0_-20px_60px_rgba(0,0,0,0.08)] border-t border-line">
-          <Link href="/" scroll={false} className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-base font-black mb-10 transition-colors">
+          <Link href="/" scroll={false} className="inline-flex items-center gap-2 text-ink/60 hover:text-brand font-sans text-base font-black mb-10 transition-colors">
             <ArrowLeft size={18} /> 返回日誌列表
           </Link>
           
@@ -487,7 +487,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
 
           {tripPosts.length > 0 && (
             <div className="mt-20 mb-12">
-              <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+              <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
                 同行足跡 <span className="font-mono text-sm font-normal">({tripPosts.length})</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -503,13 +503,13 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                       {tp.coverImage
                         ? /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={tp.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        : <div className="w-full h-full flex items-center justify-center text-ink/20 font-mono text-xs">{tp.category}</div>
+                        : <div className="w-full h-full flex items-center justify-center text-ink/50 font-mono text-xs">{tp.category}</div>
                       }
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
                       <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{tp.category} · {tp.date}</span>
                       <span className="font-serif font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{tp.title}</span>
-                      {tp.city && <span className="font-mono text-xs text-ink/40 mt-1">{tp.city}</span>}
+                      {tp.city && <span className="font-mono text-xs text-ink/60 mt-1">{tp.city}</span>}
                     </div>
                   </Link>
                 ))}
@@ -519,7 +519,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
 
           {post.media && post.media.length > 0 && (
             <div className="mt-20 mb-12">
-              <h3 className="font-sans text-base text-ink/40 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+              <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
                 精彩照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
               </h3>
               <MediaCarousel items={post.media} onOpen={i => setLightboxIdx(i)} />
@@ -534,7 +534,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       </div>
 
       <button onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed bottom-10 right-10 z-[1000] p-5 bg-ink text-paper rounded-full shadow-2xl transition-all duration-500 hover:bg-brand hover:-translate-y-2 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}>
-        <div className="flex flex-col items-center gap-1 font-sans text-[10px] font-black uppercase tracking-widest"><ArrowUp size={20} /><span>置頂</span></div>
+        <div className="flex flex-col items-center gap-1 font-sans text-xs font-black uppercase tracking-widest"><ArrowUp size={20} /><span>置頂</span></div>
       </button>
     </main>
   );

@@ -20,7 +20,7 @@ export default function SiteHeader() {
         <Link
           href="/"
           className={`font-mono text-xs uppercase tracking-[0.2em] transition-colors ${
-            pathname === "/" ? "text-brand" : "text-ink/40 hover:text-ink"
+            pathname === "/" ? "text-brand" : "text-ink/60 hover:text-ink"
           }`}
         >
           地圖
@@ -28,7 +28,7 @@ export default function SiteHeader() {
         <Link
           href="/personal-best"
           className={`font-mono text-xs uppercase tracking-[0.2em] flex items-center gap-1.5 transition-colors ${
-            pathname === "/personal-best" ? "text-brand" : "text-ink/40 hover:text-ink"
+            pathname === "/personal-best" ? "text-brand" : "text-ink/60 hover:text-ink"
           }`}
         >
           <Trophy size={12} />
