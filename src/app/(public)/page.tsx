@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 const MapView = dynamic(() => import("@/components/MapView"), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-paper">
+    <div className="flex-1 min-h-0 flex items-center justify-center bg-paper">
       <div className="font-mono text-sm uppercase tracking-[0.4em] animate-pulse text-ink/40">
         Initializing Spatial Data...
       </div>
@@ -14,9 +14,5 @@ const MapView = dynamic(() => import("@/components/MapView"), {
 });
 
 export default function Home() {
-  return (
-    <div className="flex-1 min-h-0 overflow-hidden">
-      <MapView />
-    </div>
-  );
+  return <MapView />;
 }

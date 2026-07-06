@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -76,11 +76,152 @@ interface RaceStats {
 }
 
 const TOTAL_COUNTRIES = 195;
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+const selectCls = "font-mono text-xs bg-paper border border-line/60 px-2 py-1 text-ink focus:outline-none focus:border-brand/60 cursor-pointer";
+
+interface DateFilter {
+  startYear: number;
+  startMonth: number | null;
+  endYear: number | null;
+  endMonth: number | null;
+}
+
+function formatDateFilter(f: DateFilter): string {
+  const start = f.startMonth ? `${f.startYear}年${f.startMonth}月` : `${f.startYear}年`;
+  const end = f.endYear ? (f.endMonth ? `${f.endYear}年${f.endMonth}月` : `${f.endYear}年`) : null;
+  return end && end !== start ? `${start} → ${end}` : start;
+}
+
+function DateRangePicker({
+  availableYears,
+  applied,
+  onApply,
+  onClear,
+}: {
+  availableYears: number[];
+  applied: DateFilter | null;
+  onApply: (f: DateFilter) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [sy, setSy] = useState<number | null>(null);
+  const [sm, setSm] = useState<number | null>(null);
+  const [ey, setEy] = useState<number | null>(null);
+  const [em, setEm] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const openPanel = () => {
+    setSy(applied?.startYear ?? null);
+    setSm(applied?.startMonth ?? null);
+    setEy(applied?.endYear ?? null);
+    setEm(applied?.endMonth ?? null);
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const endYears = sy ? availableYears.filter(y => y >= sy) : availableYears;
+  const endMonths = (ey && sy && ey === sy && sm) ? MONTHS.filter(m => m >= sm) : MONTHS;
+
+  const handleSyChange = (v: number | null) => {
+    setSy(v); setSm(null);
+    if (v && ey && ey < v) { setEy(null); setEm(null); }
+  };
+  const handleSmChange = (v: number | null) => {
+    setSm(v);
+    if (v && ey === sy && em && em < v) setEm(null);
+  };
+  const handleEyChange = (v: number | null) => { setEy(v); setEm(null); };
+
+  const handleApply = () => {
+    if (sy) { onApply({ startYear: sy, startMonth: sm, endYear: ey, endMonth: em }); }
+    else { onClear(); }
+    setOpen(false);
+  };
+  const handleClear = () => { setSy(null); setSm(null); setEy(null); setEm(null); };
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={openPanel}
+          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 ${
+            applied
+              ? 'border-brand/60 text-brand bg-brand/5 hover:bg-brand/10'
+              : 'border-line/60 text-ink/50 hover:text-ink hover:border-ink/40'
+          }`}
+        >
+          {applied ? formatDateFilter(applied) : '選擇期間'}
+          <span className="opacity-50 text-[9px]">▾</span>
+        </button>
+        {applied && (
+          <button
+            onClick={e => { e.stopPropagation(); onClear(); }}
+            className="w-4 h-4 flex items-center justify-center text-ink/30 hover:text-ink transition-colors font-mono text-xs leading-none"
+            aria-label="清除篩選"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[300px]">
+          <div className="grid grid-cols-2 gap-5 mb-5">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/30 mb-2">起始</p>
+              <div className="flex flex-col gap-1.5">
+                <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={selectCls}>
+                  <option value="">年</option>
+                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select value={sm ?? ''} onChange={e => handleSmChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
+                  <option value="">月</option>
+                  {MONTHS.map(m => <option key={m} value={m}>{m}月</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/30 mb-2">結束</p>
+              <div className="flex flex-col gap-1.5">
+                <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
+                  <option value="">年</option>
+                  {endYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select value={em ?? ''} onChange={e => setEm(e.target.value ? Number(e.target.value) : null)} disabled={!ey} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
+                  <option value="">月</option>
+                  {endMonths.map(m => <option key={m} value={m}>{m}月</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-4 border-t border-line/40">
+            <button onClick={handleClear} className="font-mono text-xs text-ink/40 hover:text-ink transition-colors underline underline-offset-2">
+              清空
+            </button>
+            <button
+              onClick={handleApply}
+              disabled={!sy}
+              className="font-mono text-xs px-5 py-1.5 bg-ink text-paper hover:bg-ink/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              套用
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MapView() {
   const [allPoints, setAllPoints] = useState<FlattenedPoint[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>("馬拉松");
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
@@ -90,6 +231,7 @@ export default function MapView() {
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   const [totalCountryCount, setTotalCountryCount] = useState(0);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -117,36 +259,36 @@ export default function MapView() {
   ], [raceStats, overseasCount, sevenMajorsCount, travelCount, hikingCount]);
 
   const points = useMemo(() => {
-    let filtered = allPoints;
-    if (selectedYear !== null)
-      filtered = filtered.filter(p => new Date(p.date).getFullYear() === selectedYear);
-    if (selectedMonth !== null)
-      filtered = filtered.filter(p => new Date(p.date).getMonth() + 1 === selectedMonth);
-    return filtered;
-  }, [allPoints, selectedYear, selectedMonth]);
+    if (!dateFilter) return allPoints;
+    const { startYear, startMonth, endYear, endMonth } = dateFilter;
+    const startVal = startYear * 100 + (startMonth ?? 1);
+    const ey = endYear ?? startYear;
+    const em = endMonth ?? 12;
+    const endVal = ey * 100 + em;
+    return allPoints.filter(p => {
+      const d = new Date(p.date);
+      const val = d.getFullYear() * 100 + (d.getMonth() + 1);
+      return val >= startVal && val <= endVal;
+    });
+  }, [allPoints, dateFilter]);
 
   const availableYears = useMemo(() => {
     const years = new Set(allPoints.map(p => new Date(p.date).getFullYear()));
     return [...years].sort((a, b) => b - a);
   }, [allPoints]);
 
-  const availableMonths = useMemo(() => {
-    if (selectedYear === null) return [];
-    const months = new Set(
-      allPoints
-        .filter(p => new Date(p.date).getFullYear() === selectedYear)
-        .map(p => new Date(p.date).getMonth() + 1)
-    );
-    return [...months].sort((a, b) => a - b);
-  }, [allPoints, selectedYear]);
-
   const { startDate, endDate } = useMemo(() => {
-    if (selectedYear === null) return { startDate: undefined, endDate: undefined };
-    const mm = selectedMonth !== null ? String(selectedMonth).padStart(2, '0') : null;
-    if (!mm) return { startDate: `${selectedYear}-01-01`, endDate: `${selectedYear}-12-31` };
-    const lastDay = new Date(selectedYear, selectedMonth!, 0).getDate();
-    return { startDate: `${selectedYear}-${mm}-01`, endDate: `${selectedYear}-${mm}-${lastDay}` };
-  }, [selectedYear, selectedMonth]);
+    if (!dateFilter) return { startDate: undefined, endDate: undefined };
+    const { startYear, startMonth, endYear, endMonth } = dateFilter;
+    const sm = startMonth ?? 1;
+    const ey = endYear ?? startYear;
+    const em = endMonth ?? 12;
+    const lastDay = new Date(ey, em, 0).getDate();
+    return {
+      startDate: `${startYear}-${String(sm).padStart(2, '0')}-01`,
+      endDate: `${ey}-${String(em).padStart(2, '0')}-${lastDay}`,
+    };
+  }, [dateFilter]);
 
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
@@ -249,7 +391,7 @@ export default function MapView() {
   const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   return (
-    <div className="relative flex flex-col md:flex-row w-full h-full overflow-hidden">
+    <div className="relative flex flex-col md:flex-row flex-1 min-h-0 w-full overflow-hidden">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
       <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
@@ -354,105 +496,25 @@ export default function MapView() {
 
         {/* ── Mobile Time Filter ── */}
         <div className="md:hidden shrink-0 px-3 py-2 bg-paper border-b border-line/40">
-          <div className="time-chip-scroll flex items-center gap-1.5 overflow-x-auto">
-            <button
-              onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
-              className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                selectedYear === null ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
-              }`}
-            >
-              全部
-            </button>
-            {availableYears.map(year => (
-              <button
-                key={year}
-                onClick={() => { setSelectedYear(year); setSelectedMonth(null); }}
-                className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                  selectedYear === year ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
-                }`}
-              >
-                {year}
-              </button>
-            ))}
-            {selectedYear !== null && availableMonths.length > 0 && (
-              <>
-                <span className="shrink-0 text-ink/20 text-xs px-0.5">·</span>
-                <button
-                  onClick={() => setSelectedMonth(null)}
-                  className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                    selectedMonth === null ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40'
-                  }`}
-                >
-                  全月
-                </button>
-                {availableMonths.map(month => (
-                  <button
-                    key={month}
-                    onClick={() => setSelectedMonth(month)}
-                    className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                      selectedMonth === month ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40'
-                    }`}
-                  >
-                    {month}月
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
+          <DateRangePicker
+            availableYears={availableYears}
+            applied={dateFilter}
+            onApply={setDateFilter}
+            onClear={() => setDateFilter(null)}
+          />
         </div>
 
 
         {/* ── Time filter + View toggle bar (desktop) ── */}
         <div className="hidden md:flex shrink-0 items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
-
-          {/* Time chips */}
-          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto time-chip-scroll">
-            <button
-              onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
-              className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                selectedYear === null ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
-              }`}
-            >
-              全部
-            </button>
-            {availableYears.map(year => (
-              <button
-                key={year}
-                onClick={() => { setSelectedYear(year); setSelectedMonth(null); }}
-                className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                  selectedYear === year ? 'bg-ink text-paper border-ink' : 'border-line/60 text-ink/40 hover:text-ink/70'
-                }`}
-              >
-                {year}
-              </button>
-            ))}
-            {selectedYear !== null && availableMonths.length > 0 && (
-              <>
-                <span className="shrink-0 text-ink/20 text-xs px-0.5">·</span>
-                <button
-                  onClick={() => setSelectedMonth(null)}
-                  className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                    selectedMonth === null ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40 hover:text-ink/70'
-                  }`}
-                >
-                  全月
-                </button>
-                {availableMonths.map(month => (
-                  <button
-                    key={month}
-                    onClick={() => setSelectedMonth(month)}
-                    className={`shrink-0 px-3 py-1 rounded-full font-mono text-xs border transition-colors ${
-                      selectedMonth === month ? 'bg-brand text-paper border-brand' : 'border-line/60 text-ink/40 hover:text-ink/70'
-                    }`}
-                  >
-                    {month}月
-                  </button>
-                ))}
-              </>
-            )}
+          <div className="flex-1">
+            <DateRangePicker
+              availableYears={availableYears}
+              applied={dateFilter}
+              onApply={setDateFilter}
+              onClear={() => setDateFilter(null)}
+            />
           </div>
-
-          {/* Map/List toggle */}
           <div className="shrink-0 flex items-center bg-paper border border-line/60 rounded-full">
             <button
               onClick={() => setViewMode('map')}
