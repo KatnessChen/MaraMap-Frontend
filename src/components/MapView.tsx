@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight, Trophy } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -426,7 +426,7 @@ export default function MapView() {
         </div>
 
         <div
-          className="flex-1 min-h-0 p-5 grid grid-cols-2 gap-5 overflow-y-auto"
+          className="flex-1 min-h-0 max-h-[22rem] p-5 grid grid-cols-2 gap-5 overflow-y-auto"
           style={{ gridTemplateRows: 'repeat(3, minmax(5rem, 1fr))' }}
         >
           <button
@@ -476,20 +476,6 @@ export default function MapView() {
               </button>
             );
           })}
-        </div>
-
-        {/* Personal Best link */}
-        <div className="mt-auto px-5 py-4 border-t border-line">
-          <Link
-            href="/personal-best"
-            className="flex items-center justify-between px-4 py-4 border border-line/60 hover:border-brand/40 hover:bg-brand/5 transition-all group"
-          >
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/30 mb-1">Personal Best</p>
-              <p className="font-serif text-sm font-bold text-ink group-hover:text-brand transition-colors">歷年最佳成績</p>
-            </div>
-            <Trophy size={16} className="text-ink/20 group-hover:text-brand transition-colors shrink-0" />
-          </Link>
         </div>
 
       </aside>

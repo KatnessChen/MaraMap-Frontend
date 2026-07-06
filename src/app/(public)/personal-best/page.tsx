@@ -94,7 +94,7 @@ export default function PersonalBestPage() {
     <div className="flex-1 min-h-0 overflow-y-auto bg-paper">
       <main className="max-w-4xl mx-auto px-6 py-10">
         <h1 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/30 mb-10">
-          <Trophy size={13} className="text-brand" /> Personal Best
+          <Trophy size={13} className="text-brand" /> 個人最佳成績
         </h1>
 
         {isLoading ? (
@@ -126,7 +126,6 @@ export default function PersonalBestPage() {
             )}
 
             <section>
-              <h2 className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink/30 mb-5">當前最佳成績</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {DISTANCE_ORDER.map((distance) => (
                   <BestCard key={distance} distance={distance} entry={current?.bests[distance]} />
