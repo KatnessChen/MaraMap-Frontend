@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { Trophy, ArrowLeft } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
@@ -93,6 +93,9 @@ export default function PersonalBestPage() {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-paper">
       <main className="max-w-4xl mx-auto px-6 py-10">
+        <Link href="/" className="inline-flex items-center gap-2 text-ink/60 hover:text-brand font-sans text-base font-black mb-10 transition-colors">
+          <ArrowLeft size={18} /> 回到首頁
+        </Link>
         <h1 className="flex items-center gap-3 font-mono text-xs uppercase tracking-[0.3em] text-ink/60 mb-10">
           <Trophy size={13} className="text-brand" /> 個人最佳成績
         </h1>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
+import { ChevronDown, ChevronsDown } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 
@@ -69,11 +69,7 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
   useEffect(() => {
     if (grouped.size === 0) return;
     setOpenContinents(new Set(grouped.keys()));
-    setOpenCountries(new Set(
-      [...grouped.entries()].flatMap(([continent, countryMap]) =>
-        [...countryMap.keys()].map(country => `${continent}::${country}`)
-      )
-    ));
+    setOpenCountries(new Set());
   }, [grouped]);
 
   const toggleContinent = (c: string) =>
@@ -109,27 +105,24 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-line">
         <p className="font-mono text-sm font-bold uppercase tracking-[0.3em] text-ink/70">
-          {!category ? '已到訪國家' : subCategory ?? category}
+          {!category ? '所有文章' : subCategory ?? category}
           <span className="ml-3 text-brand tabular-nums">
-            {!category ? distinctCountryCount : points.length}
+            {points.length}
           </span>
         </p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setOpenCountries(new Set(allCountryKeys))}
-            className="p-1 text-ink/50 hover:text-ink transition-colors"
-            aria-label="全部展開"
-          >
-            <ChevronsDown size={16} />
-          </button>
-          <button
-            onClick={() => setOpenCountries(new Set())}
-            className="p-1 text-ink/50 hover:text-ink transition-colors"
-            aria-label="全部收合"
-          >
-            <ChevronsUp size={16} />
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            const allOpen = openCountries.size === allCountryKeys.length;
+            setOpenCountries(allOpen ? new Set() : new Set(allCountryKeys));
+          }}
+          className="p-1 text-ink/50 hover:text-ink transition-colors"
+          aria-label="全部展開/收合"
+        >
+          <ChevronsDown
+            size={16}
+            className={`transition-transform duration-200 ${openCountries.size === allCountryKeys.length ? "rotate-180" : "rotate-0"}`}
+          />
+        </button>
       </div>
 
       {/* Body */}
@@ -150,10 +143,7 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                   className="w-full flex items-center justify-between px-6 py-4 hover:bg-ink/[0.03] transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
-                    {continentOpen
-                      ? <ChevronDown size={14} className="text-ink/50 shrink-0" />
-                      : <ChevronRight size={14} className="text-ink/50 shrink-0" />
-                    }
+                    <ChevronDown size={14} className={`text-ink/50 shrink-0 transition-transform duration-200 ${continentOpen ? "rotate-0" : "-rotate-90"}`} />
                     <span className="font-serif font-bold text-base text-ink">{continent}</span>
                   </div>
                   <span className="font-mono text-sm text-ink/60 tabular-nums">
@@ -164,7 +154,13 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                 {continentOpen && (
                   <div className="border-t border-line/40">
                     {[...countries.entries()]
-                      .sort((a, b) => a[0].localeCompare(b[0]))
+                      .sort((a, b) => {
+                        if (continent === '亞洲') {
+                          if (a[0] === '台灣') return -1;
+                          if (b[0] === '台灣') return 1;
+                        }
+                        return a[0].localeCompare(b[0]);
+                      })
                       .map(([country, events]) => {
                         const countryKey = `${continent}::${country}`;
                         const countryOpen = openCountries.has(countryKey);
@@ -177,10 +173,7 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
                               className="w-full flex items-center justify-between pl-14 pr-6 py-3 hover:bg-ink/[0.03] transition-colors text-left border-b border-line/30"
                             >
                               <div className="flex items-center gap-2.5">
-                                {countryOpen
-                                  ? <ChevronDown size={13} className="text-ink/50 shrink-0" />
-                                  : <ChevronRight size={13} className="text-ink/50 shrink-0" />
-                                }
+                                <ChevronDown size={13} className={`text-ink/50 shrink-0 transition-transform duration-200 ${countryOpen ? "rotate-0" : "-rotate-90"}`} />
                                 <span className="font-mono text-base text-ink/80">{country}</span>
                               </div>
                               <span className="font-mono text-sm text-ink/60 tabular-nums">

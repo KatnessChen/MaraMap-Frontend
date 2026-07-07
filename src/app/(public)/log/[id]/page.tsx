@@ -258,7 +258,7 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
   }, [onClose, prev, next]);
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/95" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] bg-black" onClick={onClose}>
       {/* Sliding strip wrapper */}
       <div
         className="relative w-full h-full overflow-hidden"
@@ -269,11 +269,11 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
       >
         <div className="flex h-full items-center" style={drag.stripStyle}>
           {items.map((item, i) => (
-            <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center p-4 md:p-16">
+            <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center">
               {item.type === 'video'
-                ? <video src={item.uri} controls autoPlay={i === idx} className="max-w-full max-h-full outline-none" />
+                ? <video src={item.uri} controls autoPlay={i === idx} className="w-full h-full outline-none" />
                 : /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.uri} alt={`Media ${i + 1}`} className="max-w-full max-h-full object-contain select-none" draggable={false} />}
+                  <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" draggable={false} />}
             </div>
           ))}
         </div>
@@ -387,7 +387,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       <div className="max-w-4xl mx-auto -mt-16 relative z-10">
         <div className="bg-paper p-8 md:p-16 shadow-[0_-20px_60px_rgba(0,0,0,0.08)] border-t border-line">
           <Link href="/" scroll={false} className="inline-flex items-center gap-2 text-ink/60 hover:text-brand font-sans text-base font-black mb-10 transition-colors">
-            <ArrowLeft size={18} /> 返回日誌列表
+            <ArrowLeft size={18} /> 回到首頁
           </Link>
           
           <header className="mb-16">

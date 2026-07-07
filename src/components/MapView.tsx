@@ -250,6 +250,10 @@ export default function MapView() {
     return categories.find(c => c.name === "登山")?.count ?? 0;
   }, [categories]);
 
+  const totalPostCount = useMemo(() =>
+    categories.reduce((sum, c) => sum + c.count, 0),
+  [categories]);
+
   const statItems = useMemo<Array<{ label: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
     { label: "全馬",  unit: "場", value: raceStats?.totalFM ?? 0, cat: "馬拉松", sub: null      },
     { label: "海外馬", unit: "場", value: overseasCount,           cat: "馬拉松", sub: "海外馬"  },
@@ -400,25 +404,25 @@ export default function MapView() {
           <div className="grid grid-cols-2 gap-5">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
-              className="text-left group transition-all hover:opacity-80"
+              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5"
             >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
+                <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
                   {totalCountryCount}
                 </span>
-                <span className="font-serif text-2xl text-ink/50 pb-1">國</span>
+                <span className="font-serif text-lg text-ink/40 pb-0.5">國</span>
               </div>
               <p className="font-mono text-xs tracking-[0.25em] text-ink/60">已到訪國家</p>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
-              className="text-left group transition-all hover:opacity-80"
+              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5"
             >
               <div className="flex items-end gap-1.5 mb-2">
-                <span className="font-mono font-bold text-7xl tabular-nums leading-none text-brand">
+                <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
                   {overseasCount}
                 </span>
-                <span className="font-serif text-2xl text-ink/50 pb-1">場</span>
+                <span className="font-serif text-lg text-ink/40 pb-0.5">場</span>
               </div>
               <p className="font-mono text-xs tracking-[0.25em] text-ink/60">海外馬拉松</p>
             </button>
@@ -431,21 +435,24 @@ export default function MapView() {
         >
           <button
             onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
-            className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 ${
+            className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 cursor-pointer ${
               activeCategory === null
-                ? "border-brand bg-brand/8"
-                : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
+                ? "border-brand bg-brand/8 -translate-y-0.5"
+                : "border-line/60 hover:border-ink/30 hover:bg-ink/4 hover:-translate-y-0.5"
             }`}
           >
             <div className="flex items-baseline gap-1 leading-none">
               <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${activeCategory === null ? "text-brand" : "text-ink"}`}>
-                全
+                {totalPostCount}
+              </span>
+              <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${activeCategory === null ? "text-brand/70" : "text-ink/50"}`}>
+                篇
               </span>
             </div>
             <span className={`font-mono font-bold tracking-widest leading-tight [font-size:clamp(0.75rem,13cqh,1rem)] ${
               activeCategory === null ? "text-brand" : "text-ink/70 group-hover:text-ink"
             }`}>
-              所有
+              所有文章
             </span>
           </button>
           {statItems.map(({ label, unit, value, cat, sub }) => {
@@ -454,10 +461,10 @@ export default function MapView() {
               <button
                 key={label}
                 onClick={() => handleFilterClick(cat, sub)}
-                className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 ${
+                className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 cursor-pointer ${
                   isActive
-                    ? "border-brand bg-brand/8"
-                    : "border-line/60 hover:border-ink/30 hover:bg-ink/4"
+                    ? "border-brand bg-brand/8 -translate-y-0.5"
+                    : "border-line/60 hover:border-ink/30 hover:bg-ink/4 hover:-translate-y-0.5"
                 }`}
               >
                 <div className="flex items-baseline gap-1 leading-none">
@@ -504,7 +511,7 @@ export default function MapView() {
               onClick={() => setViewMode('list')}
               className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60'}`}
             >
-              清單
+              列表
             </button>
           </div>
         </div>
@@ -531,7 +538,7 @@ export default function MapView() {
               onClick={() => setViewMode('list')}
               className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
-              清單
+              列表
             </button>
           </div>
         </div>
@@ -595,22 +602,22 @@ export default function MapView() {
                 icon={createEventIcon()}
               >
                 <Popup className="custom-popup">
-                  <div className="p-2 max-w-[200px]">
+                  <Link
+                    href={`/log/${pt.postId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 max-w-[200px] group"
+                  >
                     <div className="font-mono text-xs text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
-                    <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2">{pt.title}</h3>
+                    <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{pt.title}</h3>
                     {pt.uri && (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />
                     )}
-                    <Link
-                      href={`/log/${pt.postId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink hover:text-brand transition-colors"
-                    >
+                    <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink group-hover:text-brand transition-colors">
                       VIEW LOG <ArrowRight size={12} />
-                    </Link>
-                  </div>
+                    </span>
+                  </Link>
                 </Popup>
               </Marker>
             ))}
@@ -641,13 +648,14 @@ export default function MapView() {
           <div className="chip-scroll flex gap-2 overflow-x-auto px-3 py-2.5 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
-              className={`shrink-0 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
                 activeCategory === null
                   ? "border-brand bg-brand text-white"
                   : "border-line bg-paper text-ink/60 active:bg-ink/5"
               }`}
             >
-              所有
+              <span>所有文章</span>
+              <span className="font-bold tabular-nums">{totalPostCount}</span>
             </button>
             {statItems.map(({ label, value, cat, sub }) => {
               const isActive = activeCategory === cat && activeSubCategory === sub;
