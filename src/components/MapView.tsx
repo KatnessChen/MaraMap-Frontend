@@ -487,17 +487,17 @@ export default function MapView() {
         <div className="shrink-0 flex items-center border border-line/60 rounded-full">
           <button
             onClick={() => setViewMode('map')}
-            className={`px-3 py-1.5 md:px-4 rounded-full transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
             <Map size={14} className="md:hidden" />
-            <span className="hidden md:inline font-mono text-xs uppercase tracking-[0.15em]">地圖</span>
+            <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">地圖</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`px-3 py-1.5 md:px-4 rounded-full transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
             <List size={14} className="md:hidden" />
-            <span className="hidden md:inline font-mono text-xs uppercase tracking-[0.15em]">列表</span>
+            <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">列表</span>
           </button>
         </div>
       </div>
