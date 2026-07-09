@@ -131,9 +131,8 @@ export default function ListView({ category, subCategory, startDate, endDate }: 
           Loading...
         </div>
       ) : points.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-          <p className="font-serif font-bold text-2xl text-ink/20">—</p>
-          <p className="font-mono text-xs uppercase tracking-[0.25em] text-ink/40">此期間無紀錄</p>
+        <div className="flex-1 flex items-center justify-center font-mono text-sm uppercase tracking-widest text-ink/60">
+          No Records Found
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto divide-y divide-line">
