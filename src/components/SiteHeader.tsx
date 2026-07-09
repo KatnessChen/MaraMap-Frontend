@@ -7,13 +7,20 @@ import { Trophy } from "lucide-react";
 export default function SiteHeader() {
   const pathname = usePathname();
   return (
-    <header className="shrink-0 h-14 bg-ink flex items-center justify-between px-4 md:px-6 z-10 relative">
-      <Link
-        href="/"
-        className="flex items-baseline gap-2.5 group"
-      >
-        <span className="font-serif font-black italic text-xl text-brand group-hover:opacity-80 transition-opacity">Davis & Rose</span>
-        <span className="font-serif font-black text-base text-white/80 group-hover:text-white transition-colors">環球跑旅</span>
+    <header
+      className="shrink-0 h-14 flex items-center justify-between px-4 md:px-6 z-10 relative"
+      style={{
+        backgroundColor: '#1c1c1c',
+        backgroundImage: [
+          'repeating-linear-gradient(0deg, transparent, transparent 13px, rgba(255,255,255,0.035) 13px, rgba(255,255,255,0.035) 14px)',
+          'repeating-linear-gradient(90deg, transparent, transparent 13px, rgba(255,255,255,0.025) 13px, rgba(255,255,255,0.025) 14px)',
+        ].join(', '),
+      }}
+    >
+      <Link href="/" className="site-header-logo flex items-center gap-2.5">
+        <span className="site-header-english font-serif font-black italic text-xl text-brand">Davis &amp; Rose</span>
+        <span className="text-white/25 text-xl font-thin" style={{ transform: 'rotate(12deg)', display: 'inline-block' }}>/</span>
+        <span className="site-header-chinese font-serif font-black text-xl text-white/65 tracking-[0.15em]">環球跑旅</span>
       </Link>
       <nav className="flex items-center gap-5">
         <Link

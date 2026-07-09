@@ -28,3 +28,18 @@
     font-size: 18px;
   }
 }
+
+
+/* SiteHeader logo hover glow */
+.site-header-logo:hover .site-header-english {
+  text-shadow: 0 0 14px rgba(230, 57, 70, 0.6), 0 0 30px rgba(230, 57, 70, 0.25);
+  transition: text-shadow 0.3s ease;
+}
+.site-header-logo:hover .site-header-chinese {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+  transition: text-shadow 0.3s ease;
+}
+.site-header-english,
+.site-header-chinese {
+  transition: text-shadow 0.3s ease;
+}

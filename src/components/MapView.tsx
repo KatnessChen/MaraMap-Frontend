@@ -536,8 +536,9 @@ export default function MapView() {
           </div>
         </div>
 
+        <div className="flex-1 min-h-0 max-h-[22rem] overflow-y-auto flex flex-col">
         <div
-          className="flex-1 min-h-0 max-h-[22rem] p-5 grid grid-cols-2 gap-5 overflow-y-auto"
+          className="p-5 grid grid-cols-2 gap-5"
           style={{ gridTemplateRows: 'repeat(3, minmax(5rem, 1fr))' }}
         >
           <button
@@ -593,12 +594,13 @@ export default function MapView() {
         </div>
 
         {humanViews !== null && (
-          <div className="shrink-0 px-5 py-3 border-t border-line/40">
+          <div className="px-5 pt-1 pb-4">
             <p className="font-mono text-xs text-ink/35 tracking-widest">
               網站累計 {humanViews.toLocaleString()} 人次造訪
             </p>
           </div>
         )}
+        </div>
 
       </aside>
 
