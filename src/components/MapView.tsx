@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Map, List } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -487,15 +487,17 @@ export default function MapView() {
         <div className="shrink-0 flex items-center border border-line/60 rounded-full">
           <button
             onClick={() => setViewMode('map')}
-            className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`px-3 py-1.5 md:px-4 rounded-full transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
-            地圖
+            <Map size={14} className="md:hidden" />
+            <span className="hidden md:inline font-mono text-xs uppercase tracking-[0.15em]">地圖</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`px-3 py-1.5 md:px-4 rounded-full transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
-            列表
+            <List size={14} className="md:hidden" />
+            <span className="hidden md:inline font-mono text-xs uppercase tracking-[0.15em]">列表</span>
           </button>
         </div>
       </div>
@@ -689,7 +691,7 @@ export default function MapView() {
         {/* ── Mobile Bottom Panel ── */}
         <div className="md:hidden shrink-0 bg-paper border-t border-line">
           {/* Hero stats */}
-          <div className="flex items-center gap-4 px-4 py-3 border-b border-line/30">
+          <div className="flex items-center gap-4 px-4 py-3">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
@@ -706,7 +708,7 @@ export default function MapView() {
             </button>
           </div>
           {/* Category chips */}
-          <div className="chip-scroll flex gap-2 overflow-x-auto px-3 py-2.5 pb-safe">
+          <div className="chip-scroll flex gap-2 overflow-x-auto px-3 pb-2.5 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
               className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
