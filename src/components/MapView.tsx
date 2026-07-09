@@ -120,9 +120,10 @@ function DateRangePicker({
   const [sm, setSm] = useState<number | null>(null);
   const [ey, setEy] = useState<number | null>(null);
   const [em, setEm] = useState<number | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  const openPanel = () => {
+  const togglePanel = () => {
+    if (open) { setOpen(false); return; }
     setSy(applied?.startYear ?? null);
     setSm(applied?.startMonth ?? null);
     setEy(applied?.endYear ?? null);
@@ -133,7 +134,7 @@ function DateRangePicker({
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -160,10 +161,10 @@ function DateRangePicker({
   const handleClear = () => { setSy(null); setSm(null); setEy(null); setEm(null); };
 
   return (
-    <div className="relative min-w-0" ref={ref}>
+    <div className="relative min-w-0">
       <div className="flex items-center gap-1.5">
         <button
-          onClick={openPanel}
+          onClick={togglePanel}
           className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             applied
               ? 'border-brand/60 text-brand bg-brand/5 hover:bg-brand/10'
@@ -184,7 +185,7 @@ function DateRangePicker({
       </div>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[300px]">
+        <div ref={panelRef} className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[300px]">
           <div className="grid grid-cols-2 gap-5 mb-5">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 mb-2">起始</p>
