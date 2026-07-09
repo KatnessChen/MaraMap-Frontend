@@ -232,6 +232,7 @@ export default function MapView() {
   const [totalCountryCount, setTotalCountryCount] = useState(0);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
+  const [humanViews, setHumanViews] = useState<number | null>(null);
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -354,6 +355,13 @@ export default function MapView() {
       }
     };
     fetchRaceStats();
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/v1/stats/visits`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setHumanViews(d.total_human); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -484,6 +492,14 @@ export default function MapView() {
             );
           })}
         </div>
+
+        {humanViews !== null && (
+          <div className="shrink-0 px-5 py-3 border-t border-line/40">
+            <p className="font-mono text-xs text-ink/35 tracking-widest">
+              網站累計 {humanViews.toLocaleString()} 人次造訪
+            </p>
+          </div>
+        )}
 
       </aside>
 
