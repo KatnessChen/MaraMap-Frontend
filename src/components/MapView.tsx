@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight, Map, List } from "lucide-react";
+import { ArrowRight, Map, List, ChevronLeft } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -165,10 +165,10 @@ function DateRangePicker({
       <div className="flex items-center gap-1.5">
         <button
           onClick={togglePanel}
-          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             applied
-              ? 'border-brand/60 text-brand bg-brand/5 hover:bg-brand/10'
-              : 'border-line/60 text-ink/70 hover:text-ink hover:border-ink/40'
+              ? 'border-brand/60 text-brand bg-white hover:bg-brand/5'
+              : 'border-line/60 text-ink/70 bg-white hover:text-ink hover:border-ink/40'
           }`}
         >
           {applied ? formatDateFilter(applied, compact) : '選擇期間'}
@@ -185,7 +185,7 @@ function DateRangePicker({
       </div>
 
       {open && (
-        <div ref={panelRef} className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
+        <div ref={panelRef} className="absolute top-full left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
           <div className="flex flex-col gap-3 mb-5">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">起始</span>
@@ -228,6 +228,15 @@ function DateRangePicker({
   );
 }
 
+function MapResizer({ trigger }: { trigger: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 310);
+    return () => clearTimeout(t);
+  }, [trigger, map]);
+  return null;
+}
+
 export default function MapView() {
   const [allPoints, setAllPoints] = useState<FlattenedPoint[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -242,6 +251,7 @@ export default function MapView() {
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
   const [humanViews, setHumanViews] = useState<number | null>(null);
   const [basePoints, setBasePoints] = useState<FlattenedPoint[]>([]);
+  const [asideOpen, setAsideOpen] = useState(true);
 
   // API-derived counts (no date filter)
   const overseasCount = useMemo(() => {
@@ -475,7 +485,16 @@ export default function MapView() {
     <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
 
       {/* ── Full-width Date Picker + View Toggle ── */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
+      <div
+        className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-line/40 z-[600]"
+        style={{
+          backgroundColor: '#e8e4de',
+          backgroundImage: [
+            'repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(0,0,0,0.05) 23px, rgba(0,0,0,0.05) 24px)',
+            'repeating-linear-gradient(0deg, transparent, transparent 11px, rgba(0,0,0,0.03) 11px, rgba(0,0,0,0.03) 12px)',
+          ].join(', '),
+        }}
+      >
         <div className="flex-1">
           <DateRangePicker
             availableYears={availableYears}
@@ -484,17 +503,17 @@ export default function MapView() {
             onClear={() => setDateFilter(null)}
           />
         </div>
-        <div className="shrink-0 flex items-center border border-line/60 rounded-full">
+        <div className="shrink-0 flex items-center border border-line/60 rounded-full bg-white">
           <button
             onClick={() => setViewMode('map')}
-            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
             <Map size={14} className="md:hidden" />
             <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">地圖</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
             <List size={14} className="md:hidden" />
             <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">列表</span>
@@ -505,13 +524,25 @@ export default function MapView() {
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
-      <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
+      <aside className={`hidden md:flex shrink-0 flex-col bg-white border-r border-line z-10 overflow-visible transition-all duration-300 relative ${asideOpen ? 'md:w-80' : 'md:w-8'}`}>
+
+        {/* Collapse / Expand toggle — absolutely on the right border, vertically centered */}
+        <button
+          onClick={() => setAsideOpen(o => !o)}
+          className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-20 w-7 h-7 bg-paper border border-line rounded-full flex items-center justify-center shadow-sm hover:bg-ink/5 transition-colors cursor-pointer"
+          aria-label={asideOpen ? '收合側欄' : '展開側欄'}
+        >
+          <ChevronLeft size={13} className={`text-ink/50 transition-transform duration-300 ${asideOpen ? '' : 'rotate-180'}`} />
+        </button>
+
+        {/* Aside content — hidden when collapsed */}
+        <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${asideOpen ? 'w-80' : 'w-0'}`}>
 
         <div className="px-7 pt-8 pb-6 border-b border-line">
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 divide-x divide-line/40">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
-              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5"
+              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5 pr-5"
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
@@ -523,7 +554,7 @@ export default function MapView() {
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
-              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5"
+              className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5 pl-5"
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
@@ -594,13 +625,14 @@ export default function MapView() {
         </div>
 
         {humanViews !== null && (
-          <div className="px-5 pt-1 pb-4">
+          <div className="px-5 pt-3 pb-4 border-t border-line/30">
             <p className="font-mono text-xs text-ink/35 tracking-widest">
               網站累計 {humanViews.toLocaleString()} 人次造訪
             </p>
           </div>
         )}
         </div>
+        </div>{/* end aside content */}
 
       </aside>
 
@@ -650,6 +682,7 @@ export default function MapView() {
             />
           )}
 
+          <MapResizer trigger={asideOpen} />
           <FitBounds points={points} />
           <ZoomControl position="bottomright" />
 

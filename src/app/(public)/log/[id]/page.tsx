@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2 } from "lucide-react";
+import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
 import { notFound } from "next/navigation";
 
 
@@ -178,9 +178,9 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
   const drag = useSliderDrag(idx, items.length, prev, next);
 
   return (
-    <div>
+    <div className="border border-line/40">
       <div
-        className="relative aspect-[4/3] overflow-hidden bg-ink group cursor-zoom-in select-none"
+        className="relative aspect-[4/3] overflow-hidden bg-ink/8 group cursor-zoom-in select-none"
         onClick={() => { if (!drag.didDrag.current) onOpen(idx); }}
         onTouchStart={drag.onTouchStart}
         onTouchMove={drag.onTouchMove}
@@ -191,11 +191,20 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
           {items.map((item, i) => (
             <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 relative">
               {item.type === 'video'
-                ? <video src={item.uri} playsInline muted className="w-full h-full object-cover pointer-events-none" />
+                ? <video src={item.uri} playsInline muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
                 : <Image src={item.uri} alt={`Media ${i + 1}`} fill className="object-cover pointer-events-none" />}
             </div>
           ))}
         </div>
+
+        {/* Play icon overlay for videos */}
+        {items[idx]?.type === 'video' && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center">
+              <Play size={22} className="text-white ml-1" fill="white" />
+            </div>
+          </div>
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-ink/30 pointer-events-none" />
 
@@ -226,7 +235,14 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
           {items.map((m, i) => (
             <button key={i} onClick={() => setIdx(i)} className={`shrink-0 w-14 h-14 relative overflow-hidden border-2 transition-all ${i === idx ? 'border-brand' : 'border-transparent opacity-50 hover:opacity-80'}`}>
               {m.type === 'video'
-                ? <video src={m.uri} muted className="w-full h-full object-cover pointer-events-none" />
+                ? (
+                  <div className="relative w-full h-full">
+                    <video src={m.uri} muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Play size={12} className="text-white drop-shadow" fill="white" />
+                    </div>
+                  </div>
+                )
                 : <Image src={m.uri} alt="" fill className="object-cover" />}
             </button>
           ))}
@@ -241,6 +257,7 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
   const prev = useCallback(() => setIdx(i => (i - 1 + items.length) % items.length), [items.length]);
   const next = useCallback(() => setIdx(i => (i + 1) % items.length), [items.length]);
   const drag = useSliderDrag(idx, items.length, prev, next);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -257,21 +274,26 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
     return () => document.removeEventListener('keydown', handler);
   }, [onClose, prev, next]);
 
+  // Pause all videos when switching slides
+  useEffect(() => {
+    stripRef.current?.querySelectorAll('video').forEach(v => v.pause());
+  }, [idx]);
+
   return (
-    <div className="fixed inset-0 z-[9999] bg-black" onClick={onClose}>
-      {/* Sliding strip wrapper */}
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
+      {/* Main viewing area */}
       <div
-        className="relative w-full h-full overflow-hidden"
+        className="relative flex-1 overflow-hidden"
         onClick={e => e.stopPropagation()}
         onTouchStart={drag.onTouchStart}
         onTouchMove={drag.onTouchMove}
         onTouchEnd={drag.onTouchEnd}
       >
-        <div className="flex h-full items-center" style={drag.stripStyle}>
+        <div ref={stripRef} className="flex h-full items-center" style={drag.stripStyle}>
           {items.map((item, i) => (
             <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center">
               {item.type === 'video'
-                ? <video src={item.uri} controls autoPlay={i === idx} className="w-full h-full outline-none" />
+                ? <video src={item.uri} controls className="w-full h-full outline-none" />
                 : /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" draggable={false} />}
             </div>
@@ -281,12 +303,6 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
         <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full z-10">
           <X size={18} />
         </button>
-
-        {items.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 font-mono text-xs text-white/40 z-10">
-            {idx + 1} / {items.length}
-          </div>
-        )}
 
         {items.length > 1 && (
           <>
@@ -299,6 +315,31 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
           </>
         )}
       </div>
+
+      {/* Thumbnail strip */}
+      {items.length > 1 && (
+        <div className="shrink-0 flex gap-1.5 px-4 py-3 bg-black/80 overflow-x-auto justify-center" onClick={e => e.stopPropagation()}>
+          {items.map((m, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={`shrink-0 w-14 h-14 relative overflow-hidden border-2 transition-all ${i === idx ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-70'}`}
+            >
+              {m.type === 'video'
+                ? (
+                  <div className="relative w-full h-full bg-white/10">
+                    <video src={m.uri} muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Play size={12} className="text-white drop-shadow" fill="white" />
+                    </div>
+                  </div>
+                )
+                : /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={m.uri} alt="" className="w-full h-full object-cover" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -309,7 +350,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<{ items: Media[]; idx: number } | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -339,12 +380,16 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       }
     };
     fetchPostAndNav();
+  }, [params]);
+
+  useEffect(() => {
+    if (isLoading) return;
     const el = mainRef.current;
     if (!el) return;
     const toggleVisibility = () => setIsVisible(el.scrollTop > 500);
     el.addEventListener("scroll", toggleVisibility);
     return () => el.removeEventListener("scroll", toggleVisibility);
-  }, [params]);
+  }, [isLoading]);
 
   if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/60">正在載入紀錄...</div>;
   if (!post) notFound();
@@ -517,24 +562,40 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             </div>
           )}
 
-          {post.media && post.media.length > 0 && (
-            <div className="mt-20 mb-12">
-              <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                精彩照片 <span className="font-mono text-sm font-normal">({post.media.length})</span>
-              </h3>
-              <MediaCarousel items={post.media} onOpen={i => setLightboxIdx(i)} />
-            </div>
-          )}
+          {post.media && post.media.length > 0 && (() => {
+            const images = post.media!.filter(m => m.type !== 'video');
+            const videos = post.media!.filter(m => m.type === 'video');
+            return (
+              <>
+                {images.length > 0 && (
+                  <div className="mt-20 mb-12">
+                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                      精彩照片 <span className="font-mono text-sm font-normal">({images.length})</span>
+                    </h3>
+                    <MediaCarousel items={images} onOpen={i => setLightbox({ items: images, idx: i })} />
+                  </div>
+                )}
+                {videos.length > 0 && (
+                  <div className="mt-12 mb-12">
+                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                      影片 <span className="font-mono text-sm font-normal">({videos.length})</span>
+                    </h3>
+                    <MediaCarousel items={videos} onOpen={i => setLightbox({ items: videos, idx: i })} />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
-          {lightboxIdx !== null && post.media && (
-            <Lightbox items={post.media} initialIdx={lightboxIdx} onClose={() => setLightboxIdx(null)} />
+          {lightbox && (
+            <Lightbox items={lightbox.items} initialIdx={lightbox.idx} onClose={() => setLightbox(null)} />
           )}
 
         </div>
       </div>
 
-      <button onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed bottom-10 right-10 z-[1000] p-5 bg-ink text-paper rounded-full shadow-2xl transition-all duration-500 hover:bg-brand hover:-translate-y-2 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}>
-        <div className="flex flex-col items-center gap-1 font-sans text-xs font-black uppercase tracking-widest"><ArrowUp size={20} /><span>置頂</span></div>
+      <button onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed bottom-10 right-10 z-[1000] p-5 bg-ink text-paper rounded-full shadow-2xl transition-all duration-500 hover:bg-brand hover:-translate-y-2 cursor-pointer ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"}`}>
+        <div className="flex flex-col items-center gap-1 font-sans text-xs font-black uppercase tracking-widest"><ArrowUp size={20} /><span>TOP</span></div>
       </button>
     </main>
   );
