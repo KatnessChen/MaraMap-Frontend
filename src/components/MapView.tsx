@@ -476,7 +476,19 @@ export default function MapView() {
   const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   return (
-    <div className="relative flex flex-col md:flex-row flex-1 min-h-0 w-full overflow-hidden">
+    <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
+
+      {/* ── Full-width Date Picker ── */}
+      <div className="shrink-0 flex items-center px-4 py-2 border-b border-line/40 bg-paper z-[600]">
+        <DateRangePicker
+          availableYears={availableYears}
+          applied={dateFilter}
+          onApply={setDateFilter}
+          onClear={() => setDateFilter(null)}
+        />
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
       <aside className="hidden md:flex md:w-80 shrink-0 flex-col bg-paper border-r border-line z-10">
@@ -579,54 +591,18 @@ export default function MapView() {
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="flex-1 flex flex-col min-h-0">
 
-        {/* ── Mobile Time Filter + View Toggle ── */}
-        <div className="md:hidden shrink-0 flex items-center gap-2 px-3 py-2 bg-paper border-b border-line/40">
-          <div className="flex-1 min-w-0">
-            <DateRangePicker
-              availableYears={availableYears}
-              applied={dateFilter}
-              onApply={setDateFilter}
-              onClear={() => setDateFilter(null)}
-              compact
-            />
-          </div>
-          <div className="shrink-0 flex items-center border border-line/60 rounded-full">
+        {/* ── View Toggle ── */}
+        <div className="shrink-0 flex items-center justify-end px-3 py-2 bg-paper border-b border-line/40">
+          <div className="flex items-center border border-line/60 rounded-full">
             <button
               onClick={() => setViewMode('map')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60'}`}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
               地圖
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60'}`}
-            >
-              列表
-            </button>
-          </div>
-        </div>
-
-
-        {/* ── Time filter + View toggle bar (desktop) ── */}
-        <div className="hidden md:flex shrink-0 items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
-          <div className="flex-1">
-            <DateRangePicker
-              availableYears={availableYears}
-              applied={dateFilter}
-              onApply={setDateFilter}
-              onClear={() => setDateFilter(null)}
-            />
-          </div>
-          <div className="shrink-0 flex items-center bg-paper border border-line/60 rounded-full">
-            <button
-              onClick={() => setViewMode('map')}
-              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
-            >
-              地圖
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-4 py-1 rounded-full font-mono text-xs uppercase tracking-[0.2em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+              className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
               列表
             </button>
@@ -768,6 +744,8 @@ export default function MapView() {
         </div>
 
       </main>
+
+      </div>{/* end aside+main row */}
 
       {/* Country Modal */}
       {selectedCountry && (
