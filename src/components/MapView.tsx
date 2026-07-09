@@ -176,10 +176,9 @@ function DateRangePicker({
         {applied && (
           <button
             onClick={e => { e.stopPropagation(); onClear(); }}
-            className="w-4 h-4 flex items-center justify-center text-ink/60 hover:text-ink transition-colors font-mono text-xs leading-none"
-            aria-label="清除篩選"
+            className="font-mono text-xs text-ink/50 hover:text-ink transition-colors whitespace-nowrap"
           >
-            ✕
+            清除
           </button>
         )}
       </div>
