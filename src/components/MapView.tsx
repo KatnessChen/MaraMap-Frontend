@@ -478,14 +478,30 @@ export default function MapView() {
   return (
     <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
 
-      {/* ── Full-width Date Picker ── */}
-      <div className="shrink-0 flex items-center px-4 py-2 border-b border-line/40 bg-paper z-[600]">
-        <DateRangePicker
-          availableYears={availableYears}
-          applied={dateFilter}
-          onApply={setDateFilter}
-          onClear={() => setDateFilter(null)}
-        />
+      {/* ── Full-width Date Picker + View Toggle ── */}
+      <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-line/40 bg-paper z-[600]">
+        <div className="flex-1">
+          <DateRangePicker
+            availableYears={availableYears}
+            applied={dateFilter}
+            onApply={setDateFilter}
+            onClear={() => setDateFilter(null)}
+          />
+        </div>
+        <div className="shrink-0 flex items-center border border-line/60 rounded-full">
+          <button
+            onClick={() => setViewMode('map')}
+            className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+          >
+            地圖
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+          >
+            列表
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
@@ -591,23 +607,6 @@ export default function MapView() {
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="flex-1 flex flex-col min-h-0">
 
-        {/* ── View Toggle ── */}
-        <div className="shrink-0 flex items-center justify-end px-3 py-2 bg-paper border-b border-line/40">
-          <div className="flex items-center border border-line/60 rounded-full">
-            <button
-              onClick={() => setViewMode('map')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
-            >
-              地圖
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-4 py-1.5 rounded-full font-mono text-xs uppercase tracking-[0.15em] transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
-            >
-              列表
-            </button>
-          </div>
-        </div>
 
         {/* ── Map / List area ── */}
         <div className="flex-1 relative overflow-hidden min-h-0">
