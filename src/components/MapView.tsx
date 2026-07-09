@@ -185,33 +185,29 @@ function DateRangePicker({
       </div>
 
       {open && (
-        <div ref={panelRef} className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[300px]">
-          <div className="grid grid-cols-2 gap-5 mb-5">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 mb-2">起始</p>
-              <div className="flex flex-col gap-1.5">
-                <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={selectCls}>
-                  <option value="">年</option>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <select value={sm ?? ''} onChange={e => handleSmChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
-                  <option value="">月</option>
-                  {MONTHS.map(m => <option key={m} value={m}>{m}月</option>)}
-                </select>
-              </div>
+        <div ref={panelRef} className="absolute top-full mt-2 left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
+          <div className="flex flex-col gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">起始</span>
+              <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={`${selectCls} flex-1`}>
+                <option value="">年</option>
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={sm ?? ''} onChange={e => handleSmChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
+                <option value="">月</option>
+                {MONTHS.map(m => <option key={m} value={m}>{m}月</option>)}
+              </select>
             </div>
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 mb-2">結束</p>
-              <div className="flex flex-col gap-1.5">
-                <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
-                  <option value="">年</option>
-                  {endYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <select value={em ?? ''} onChange={e => setEm(e.target.value ? Number(e.target.value) : null)} disabled={!ey} className={`${selectCls} disabled:opacity-30 disabled:cursor-not-allowed`}>
-                  <option value="">月</option>
-                  {endMonths.map(m => <option key={m} value={m}>{m}月</option>)}
-                </select>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">結束</span>
+              <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
+                <option value="">年</option>
+                {endYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={em ?? ''} onChange={e => setEm(e.target.value ? Number(e.target.value) : null)} disabled={!ey} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
+                <option value="">月</option>
+                {endMonths.map(m => <option key={m} value={m}>{m}月</option>)}
+              </select>
             </div>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-line/40">
