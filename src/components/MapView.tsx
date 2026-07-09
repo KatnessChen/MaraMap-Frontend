@@ -21,6 +21,7 @@ interface FlattenedPoint {
   title: string;
   date: string;
   cat: string;
+  sub_cats: string[];
   uri: string;
   country?: string;
   country_en?: string;
@@ -86,7 +87,16 @@ interface DateFilter {
   endMonth: number | null;
 }
 
-function formatDateFilter(f: DateFilter): string {
+function formatDateFilter(f: DateFilter, compact = false): string {
+  if (compact) {
+    const sy = String(f.startYear).slice(-2);
+    const sm = f.startMonth ? `/${f.startMonth}` : '';
+    const ey = f.endYear ? String(f.endYear).slice(-2) : null;
+    const em = f.endMonth ? `/${f.endMonth}` : '';
+    const start = `${sy}${sm}`;
+    const end = ey ? `${ey}${em}` : null;
+    return end && end !== start ? `${start}→${end}` : start;
+  }
   const start = f.startMonth ? `${f.startYear}年${f.startMonth}月` : `${f.startYear}年`;
   const end = f.endYear ? (f.endMonth ? `${f.endYear}年${f.endMonth}月` : `${f.endYear}年`) : null;
   return end && end !== start ? `${start} → ${end}` : start;
@@ -97,11 +107,13 @@ function DateRangePicker({
   applied,
   onApply,
   onClear,
+  compact = false,
 }: {
   availableYears: number[];
   applied: DateFilter | null;
   onApply: (f: DateFilter) => void;
   onClear: () => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [sy, setSy] = useState<number | null>(null);
@@ -148,17 +160,17 @@ function DateRangePicker({
   const handleClear = () => { setSy(null); setSm(null); setEy(null); setEm(null); };
 
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <div className="flex items-center gap-1.5">
         <button
           onClick={openPanel}
-          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 ${
+          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             applied
               ? 'border-brand/60 text-brand bg-brand/5 hover:bg-brand/10'
               : 'border-line/60 text-ink/70 hover:text-ink hover:border-ink/40'
           }`}
         >
-          {applied ? formatDateFilter(applied) : '選擇期間'}
+          {applied ? formatDateFilter(applied, compact) : '選擇期間'}
           <span className="opacity-70 text-[11px]">▾</span>
         </button>
         {applied && (
@@ -233,6 +245,9 @@ export default function MapView() {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
   const [humanViews, setHumanViews] = useState<number | null>(null);
+  const [basePoints, setBasePoints] = useState<FlattenedPoint[]>([]);
+
+  // API-derived counts (no date filter)
   const overseasCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
@@ -255,13 +270,64 @@ export default function MapView() {
     categories.reduce((sum, c) => sum + c.count, 0),
   [categories]);
 
+  // Date-filtered base (all categories, no geo filter)
+  const filteredBase = useMemo(() => {
+    if (!dateFilter) return basePoints;
+    const { startYear, startMonth, endYear, endMonth } = dateFilter;
+    const startVal = startYear * 100 + (startMonth ?? 1);
+    const ey = endYear ?? startYear;
+    const em = endMonth ?? 12;
+    const endVal = ey * 100 + em;
+    return basePoints.filter(p => {
+      const d = new Date(p.date);
+      const val = d.getFullYear() * 100 + (d.getMonth() + 1);
+      return val >= startVal && val <= endVal;
+    });
+  }, [basePoints, dateFilter]);
+
+  // Display values: fall back to API when no date filter, compute from filteredBase when active
+  const displayCountryCount = useMemo(() => {
+    if (!dateFilter) return totalCountryCount;
+    return new Set(filteredBase.map(p => p.country_en).filter(Boolean)).size;
+  }, [dateFilter, totalCountryCount, filteredBase]);
+
+  const displayTotalPostCount = useMemo(() => {
+    if (!dateFilter) return totalPostCount;
+    return filteredBase.length;
+  }, [dateFilter, totalPostCount, filteredBase]);
+
+  const displayFMCount = useMemo(() => {
+    if (!dateFilter) return raceStats?.totalFM ?? 0;
+    return filteredBase.filter(p => p.cat === '馬拉松').length;
+  }, [dateFilter, raceStats, filteredBase]);
+
+  const displayOverseasCount = useMemo(() => {
+    if (!dateFilter) return overseasCount;
+    return filteredBase.filter(p => p.cat === '馬拉松' && p.sub_cats.includes('海外馬')).length;
+  }, [dateFilter, overseasCount, filteredBase]);
+
+  const displaySevenMajorsCount = useMemo(() => {
+    if (!dateFilter) return sevenMajorsCount;
+    return filteredBase.filter(p => p.cat === '馬拉松' && p.sub_cats.includes('七大馬')).length;
+  }, [dateFilter, sevenMajorsCount, filteredBase]);
+
+  const displayTravelCount = useMemo(() => {
+    if (!dateFilter) return travelCount;
+    return filteredBase.filter(p => p.cat === '旅遊').length;
+  }, [dateFilter, travelCount, filteredBase]);
+
+  const displayHikingCount = useMemo(() => {
+    if (!dateFilter) return hikingCount;
+    return filteredBase.filter(p => p.cat === '登山').length;
+  }, [dateFilter, hikingCount, filteredBase]);
+
   const statItems = useMemo<Array<{ label: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
-    { label: "全馬",  unit: "場", value: raceStats?.totalFM ?? 0, cat: "馬拉松", sub: null      },
-    { label: "海外馬", unit: "場", value: overseasCount,           cat: "馬拉松", sub: "海外馬"  },
-    { label: "七大馬", unit: "場", value: sevenMajorsCount,        cat: "馬拉松", sub: "七大馬"  },
-    { label: "旅遊",  unit: "篇", value: travelCount,              cat: "旅遊",   sub: null      },
-    { label: "百岳",  unit: "座", value: hikingCount,              cat: "登山",   sub: null      },
-  ], [raceStats, overseasCount, sevenMajorsCount, travelCount, hikingCount]);
+    { label: "全馬",  unit: "場", value: displayFMCount,          cat: "馬拉松", sub: null      },
+    { label: "海外馬", unit: "場", value: displayOverseasCount,   cat: "馬拉松", sub: "海外馬"  },
+    { label: "七大馬", unit: "場", value: displaySevenMajorsCount, cat: "馬拉松", sub: "七大馬"  },
+    { label: "旅遊",  unit: "篇", value: displayTravelCount,      cat: "旅遊",   sub: null      },
+    { label: "百岳",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
+  ], [displayFMCount, displayOverseasCount, displaySevenMajorsCount, displayTravelCount, displayHikingCount]);
 
   const points = useMemo(() => {
     if (!dateFilter) return allPoints;
@@ -278,9 +344,9 @@ export default function MapView() {
   }, [allPoints, dateFilter]);
 
   const availableYears = useMemo(() => {
-    const years = new Set(allPoints.map(p => new Date(p.date).getFullYear()));
+    const years = new Set(basePoints.map(p => new Date(p.date).getFullYear()));
     return [...years].sort((a, b) => b - a);
-  }, [allPoints]);
+  }, [basePoints]);
 
   const { startDate, endDate } = useMemo(() => {
     if (!dateFilter) return { startDate: undefined, endDate: undefined };
@@ -365,6 +431,13 @@ export default function MapView() {
   }, []);
 
   useEffect(() => {
+    fetch(`${API_URL}/api/v1/locations?geoOnly=false`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: FlattenedPoint[]) => setBasePoints(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await fetch(`${API_URL}/api/v1/categories`);
@@ -416,7 +489,7 @@ export default function MapView() {
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
-                  {totalCountryCount}
+                  {displayCountryCount}
                 </span>
                 <span className="font-serif text-lg text-ink/40 pb-0.5">國</span>
               </div>
@@ -428,7 +501,7 @@ export default function MapView() {
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
-                  {overseasCount}
+                  {displayOverseasCount}
                 </span>
                 <span className="font-serif text-lg text-ink/40 pb-0.5">場</span>
               </div>
@@ -451,7 +524,7 @@ export default function MapView() {
           >
             <div className="flex items-baseline gap-1 leading-none">
               <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${activeCategory === null ? "text-brand" : "text-ink"}`}>
-                {totalPostCount}
+                {displayTotalPostCount}
               </span>
               <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${activeCategory === null ? "text-brand/70" : "text-ink/50"}`}>
                 篇
@@ -514,6 +587,7 @@ export default function MapView() {
               applied={dateFilter}
               onApply={setDateFilter}
               onClear={() => setDateFilter(null)}
+              compact
             />
           </div>
           <div className="shrink-0 flex items-center border border-line/60 rounded-full">
@@ -649,14 +723,14 @@ export default function MapView() {
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
-              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{totalCountryCount}</span>
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayCountryCount}</span>
               <span className="font-serif text-base text-ink/60">國</span>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
-              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{overseasCount}</span>
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayOverseasCount}</span>
               <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
           </div>
@@ -671,7 +745,7 @@ export default function MapView() {
               }`}
             >
               <span>所有文章</span>
-              <span className="font-bold tabular-nums">{totalPostCount}</span>
+              <span className="font-bold tabular-nums">{displayTotalPostCount}</span>
             </button>
             {statItems.map(({ label, value, cat, sub }) => {
               const isActive = activeCategory === cat && activeSubCategory === sub;
