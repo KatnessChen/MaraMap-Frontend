@@ -27,6 +27,8 @@ interface MarathonMetadata {
   trip_id: string | null;
   mountains: string[];
   participants: Participant[];
+  fallback_lat: number | null;
+  fallback_lng: number | null;
 }
 
 interface Media {
@@ -87,6 +89,8 @@ interface FormData {
     country: string | null;
     city: string | null;
     participants: Participant[];
+    fallback_lat: number | null;
+    fallback_lng: number | null;
   };
 }
 
@@ -362,7 +366,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     is_personal_best: false,
     is_ai_editing_locked: false,
     cover_image: "",
-    metadata: { race_name: "", continent: "", country: "", city: "", participants: [] },
+    metadata: { race_name: "", continent: "", country: "", city: "", participants: [], fallback_lat: null, fallback_lng: null },
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -376,6 +380,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const [tripSearchQuery, setTripSearchQuery] = useState("");
   const [tripSearchResults, setTripSearchResults] = useState<PostSummary[]>([]);
   const [isTripSearching, setIsTripSearching] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState("");
 
   const checkAuth = () => {
     const token = localStorage.getItem("maramap_admin_token");
@@ -421,6 +427,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               country: data.metadata?.country || "",
               city: data.metadata?.city || "",
               participants: data.metadata?.participants || [],
+              fallback_lat: data.metadata?.fallback_lat ?? null,
+              fallback_lng: data.metadata?.fallback_lng ?? null,
             },
           });
 
@@ -538,6 +546,46 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       setFeedback({ type: "error", msg: "連線失敗，請檢查網路狀態。" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // ── Geocode ──────────────────────────────────────────────────
+  const handleGeocode = async () => {
+    const { country, city } = formData.metadata;
+    if (!country?.trim() && !city?.trim()) {
+      setGeocodeError("請先填寫國家或城市");
+      return;
+    }
+    const token = checkAuth();
+    if (!token) { router.push("/admin/login"); return; }
+
+    setIsGeocoding(true);
+    setGeocodeError("");
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+      const params = new URLSearchParams();
+      if (country?.trim()) params.set("country", country.trim());
+      if (city?.trim()) params.set("city", city.trim());
+      const res = await fetch(`${apiUrl}/api/v1/geocode?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data: { lat: number | null; lng: number | null } = await res.json();
+        if (data.lat != null && data.lng != null) {
+          setFormData(f => ({ ...f, metadata: { ...f.metadata, fallback_lat: data.lat, fallback_lng: data.lng } }));
+        } else {
+          setGeocodeError("查無經緯度結果，請手動輸入");
+        }
+      } else if (res.status === 401) {
+        setGeocodeError("登入已過期，請重新登入。");
+        router.push("/admin/login");
+      } else {
+        setGeocodeError("查詢失敗，請稍後再試");
+      }
+    } catch {
+      setGeocodeError("連線失敗，請檢查網路狀態。");
+    } finally {
+      setIsGeocoding(false);
     }
   };
 
@@ -682,22 +730,24 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto p-6 md:p-12">
-        <header className="flex items-center justify-between mb-12 border-b-2 border-ink pb-8">
-          <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-base font-black transition-colors">
-            <ArrowLeft size={20} /> 回文章列表
+      <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b-2 border-ink">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 md:px-12 py-3 md:py-6">
+          <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
+            <ArrowLeft size={18} /> 回文章列表
           </Link>
-          <div className="flex flex-col items-end gap-2">
-            <button onClick={handleSave} disabled={isSaving || (!!post.is_ai_editing_locked && formData.is_ai_editing_locked)} className="bg-ink text-paper px-12 py-4 rounded-full font-sans text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-3 disabled:opacity-50 shadow-2xl">
-              {isSaving ? <Loader2 className="animate-spin" size={24} /> : feedback.type === "success" ? <Check size={24} /> : <Save size={24} />}
+          <div className="flex flex-col items-end gap-1 md:gap-2">
+            <button onClick={handleSave} disabled={isSaving || (!!post.is_ai_editing_locked && formData.is_ai_editing_locked)} className="bg-ink text-paper px-4 py-2 md:px-12 md:py-4 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
+              {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}
               {isSaving ? "儲存中..." : "儲存變更"}
             </button>
             {post.is_ai_editing_locked && formData.is_ai_editing_locked && (
-              <p className="font-sans text-xs text-amber-600 font-bold">請先解除鎖定再儲存</p>
+              <p className="font-sans text-[10px] md:text-xs text-amber-600 font-bold">請先解除鎖定再儲存</p>
             )}
           </div>
-        </header>
+        </div>
+      </header>
 
+      <div className="max-w-7xl mx-auto p-6 md:p-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           {/* ── Left column ── */}
           <div className="lg:col-span-8 space-y-16">
@@ -852,6 +902,39 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                     hasError={!!errors.city}
                   />
                   {errors.city && <p className="text-brand text-xs font-sans font-bold flex items-center gap-1 mt-1"><AlertCircle size={12} />{errors.city}</p>}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-sans text-xs font-black text-ink/40 uppercase tracking-widest">經緯度（選填）</label>
+                    <button
+                      type="button"
+                      onClick={handleGeocode}
+                      disabled={isGeocoding}
+                      className="flex items-center gap-1 font-sans text-xs font-bold text-brand hover:opacity-70 disabled:opacity-40 transition-opacity"
+                    >
+                      {isGeocoding ? <Loader2 className="animate-spin" size={12} /> : <MapPin size={12} />}
+                      {isGeocoding ? "定位中…" : "自動定位"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      step="any"
+                      value={formData.metadata.fallback_lat ?? ""}
+                      onChange={e => setFormData({ ...formData, metadata: { ...formData.metadata, fallback_lat: e.target.value === "" ? null : parseFloat(e.target.value) } })}
+                      className="w-full bg-white border border-line p-3 font-mono text-sm focus:outline-none focus:border-brand shadow-sm"
+                      placeholder="緯度 Lat"
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      value={formData.metadata.fallback_lng ?? ""}
+                      onChange={e => setFormData({ ...formData, metadata: { ...formData.metadata, fallback_lng: e.target.value === "" ? null : parseFloat(e.target.value) } })}
+                      className="w-full bg-white border border-line p-3 font-mono text-sm focus:outline-none focus:border-brand shadow-sm"
+                      placeholder="經度 Lng"
+                    />
+                  </div>
+                  {geocodeError && <p className="text-brand text-xs font-sans font-bold flex items-center gap-1 mt-1"><AlertCircle size={12} />{geocodeError}</p>}
                 </div>
                 <div>
                   <label className="block font-sans text-xs font-black text-ink/40 uppercase tracking-widest mb-2">賽事名稱（選填）</label>
