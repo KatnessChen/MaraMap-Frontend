@@ -4,8 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronsDown } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
-
 interface ListPoint {
   id: string;
   postId: string;
@@ -19,38 +17,15 @@ interface ListPoint {
 }
 
 interface ListViewProps {
+  points: ListPoint[];
+  isLoading: boolean;
   category: string | null;
   subCategory: string | null;
-  startDate?: string;
-  endDate?: string;
 }
 
-export default function ListView({ category, subCategory, startDate, endDate }: ListViewProps) {
-  const [points, setPoints] = useState<ListPoint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function ListView({ points, isLoading, category, subCategory }: ListViewProps) {
   const [openContinents, setOpenContinents] = useState<Set<string>>(new Set());
   const [openCountries, setOpenCountries] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (category) params.set('category', category);
-        if (subCategory) params.set('sub_category', subCategory);
-        if (startDate) params.set('start_date', startDate);
-        if (endDate) params.set('end_date', endDate);
-        params.set('geoOnly', 'false');
-        const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
-        if (res.ok) setPoints(await res.json());
-      } catch (err) {
-        console.error("Failed to fetch list data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [category, subCategory, startDate, endDate]);
 
   const grouped = useMemo(() => {
     // continent → country → events

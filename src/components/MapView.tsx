@@ -16,8 +16,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 interface FlattenedPoint {
   id: string;
   postId: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   title: string;
   date: string;
   cat: string;
@@ -29,7 +29,10 @@ interface FlattenedPoint {
   city?: string;
 }
 
-function FitBounds({ points }: { points: FlattenedPoint[] }) {
+// Points guaranteed to carry real coordinates (used for map markers/bounds).
+type GeoPoint = FlattenedPoint & { lat: number; lng: number };
+
+function FitBounds({ points }: { points: GeoPoint[] }) {
   const map = useMap();
   useEffect(() => {
     if (points.length === 0) return;
@@ -238,7 +241,6 @@ function MapResizer({ trigger }: { trigger: boolean }) {
 }
 
 export default function MapView() {
-  const [allPoints, setAllPoints] = useState<FlattenedPoint[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>("馬拉松");
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
@@ -335,37 +337,45 @@ export default function MapView() {
     { label: "百岳",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
   ], [displayFMCount, displayOverseasCount, displaySevenMajorsCount, displayTravelCount, displayHikingCount]);
 
+  // Points for the map layer: category/sub-category filtered, geo-required.
+  // Derived client-side from basePoints instead of a separate network call —
+  // basePoints already holds the full unfiltered dataset (geoOnly=false).
+  const categoryFilteredPoints = useMemo(() => {
+    return basePoints.filter(
+      (p): p is GeoPoint =>
+        p.lat != null &&
+        p.lng != null &&
+        (!activeCategory || p.cat === activeCategory) &&
+        (!activeSubCategory || p.sub_cats.includes(activeSubCategory)),
+    );
+  }, [basePoints, activeCategory, activeSubCategory]);
+
   const points = useMemo(() => {
-    if (!dateFilter) return allPoints;
+    if (!dateFilter) return categoryFilteredPoints;
     const { startYear, startMonth, endYear, endMonth } = dateFilter;
     const startVal = startYear * 100 + (startMonth ?? 1);
     const ey = endYear ?? startYear;
     const em = endMonth ?? 12;
     const endVal = ey * 100 + em;
-    return allPoints.filter(p => {
+    return categoryFilteredPoints.filter(p => {
       const d = new Date(p.date);
       const val = d.getFullYear() * 100 + (d.getMonth() + 1);
       return val >= startVal && val <= endVal;
     });
-  }, [allPoints, dateFilter]);
+  }, [categoryFilteredPoints, dateFilter]);
+
+  // Points for ListView: category/sub-category + date filtered, geo not required.
+  const listPoints = useMemo(() => {
+    return filteredBase.filter(p =>
+      (!activeCategory || p.cat === activeCategory) &&
+      (!activeSubCategory || p.sub_cats.includes(activeSubCategory)),
+    );
+  }, [filteredBase, activeCategory, activeSubCategory]);
 
   const availableYears = useMemo(() => {
     const years = new Set(basePoints.map(p => new Date(p.date).getFullYear()));
     return [...years].sort((a, b) => b - a);
   }, [basePoints]);
-
-  const { startDate, endDate } = useMemo(() => {
-    if (!dateFilter) return { startDate: undefined, endDate: undefined };
-    const { startYear, startMonth, endYear, endMonth } = dateFilter;
-    const sm = startMonth ?? 1;
-    const ey = endYear ?? startYear;
-    const em = endMonth ?? 12;
-    const lastDay = new Date(ey, em, 0).getDate();
-    return {
-      startDate: `${startYear}-${String(sm).padStart(2, '0')}-01`,
-      endDate: `${ey}-${String(em).padStart(2, '0')}-${lastDay}`,
-    };
-  }, [dateFilter]);
 
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
@@ -437,10 +447,21 @@ export default function MapView() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/locations?geoOnly=false`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: FlattenedPoint[]) => setBasePoints(data))
-      .catch(() => {});
+    const fetchBasePoints = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`${API_URL}/api/v1/locations?geoOnly=false`);
+        if (res.ok) {
+          const data: FlattenedPoint[] = await res.json();
+          setBasePoints(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch locations:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchBasePoints();
   }, []);
 
   useEffect(() => {
@@ -457,27 +478,6 @@ export default function MapView() {
     };
     fetchCategories();
   }, []);
-
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        setIsLoading(true);
-        const params = new URLSearchParams();
-        if (activeCategory) params.set('category', activeCategory);
-        if (activeSubCategory) params.set('sub_category', activeSubCategory);
-        const res = await fetch(`${API_URL}/api/v1/locations?${params}`);
-        if (res.ok) {
-          const data: FlattenedPoint[] = await res.json();
-          setAllPoints(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch locations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchLocations();
-  }, [activeCategory, activeSubCategory]);
 
   const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
@@ -645,14 +645,14 @@ export default function MapView() {
           {viewMode === 'list' && (
             <div className="absolute inset-0 z-20 bg-paper">
               <ListView
+                points={listPoints}
+                isLoading={isLoading}
                 category={activeCategory}
                 subCategory={activeSubCategory}
-                startDate={startDate}
-                endDate={endDate}
               />
             </div>
           )}
-          {isLoading && allPoints.length === 0 && (
+          {isLoading && points.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/60">
               Generating Spatial Log...
             </div>
