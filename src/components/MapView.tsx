@@ -377,10 +377,13 @@ export default function MapView() {
     return [...years].sort((a, b) => b - a);
   }, [basePoints]);
 
+  // country_en → number of posts, drives choropleth intensity on the map
   const visitedCountries = useMemo(() => {
-    const set = new Set<string>();
-    points.forEach(p => { if (p.country_en) set.add(p.country_en); });
-    return set;
+    const map = new globalThis.Map<string, number>();
+    points.forEach(p => {
+      if (p.country_en) map.set(p.country_en, (map.get(p.country_en) ?? 0) + 1);
+    });
+    return map;
   }, [points]);
 
   const handleFilterClick = useCallback((cat: string, sub: string | null) => {
@@ -401,16 +404,38 @@ export default function MapView() {
       .catch(err => console.error("Failed to fetch GeoJSON:", err));
   }, []);
 
+  // Sequential scale: near-white pink (1 visit) → deep vivid red (VISIT_CAP+
+  // visits). Saturation ramps up alongside darkness so the deep end reads as
+  // more vivid, not muddier, than the brand red it's built around.
+  const COUNTRY_HUE = 356;
+  const countryFillColor = (intensity: number) => {
+    const saturation = 65 + intensity * 25; // 65% (light) → 90% (deep, vivid)
+    const lightness = 95 - intensity * 53; // 95% (near-white pink) → 42% (deep red)
+    return `hsl(${COUNTRY_HUE}, ${saturation}%, ${lightness}%)`;
+  };
+
   const geoStyle = (feature?: { properties: { name: string; "ISO3166-1-Alpha-3": string } }) => {
     const name = feature?.properties?.name ?? "";
     const isoA3 = feature?.properties?.["ISO3166-1-Alpha-3"] ?? "";
-    const isVisited = visitedCountries.has(name) || visitedCountries.has(isoA3);
+    const count = visitedCountries.get(name) ?? visitedCountries.get(isoA3) ?? 0;
+    const isVisited = count > 0;
+    // Scale against a fixed cap rather than the dataset max — the home base
+    // (e.g. Taiwan) has an order of magnitude more posts than anywhere else,
+    // so normalizing against it would flatten every other country into the
+    // same near-minimum shade. Countries at/above the cap render at full
+    // intensity; everything below spreads across the gradient on a log curve.
+    // Cap is well above the typical "visited a handful of times" range so
+    // the #2 country (e.g. China) still reads visibly lighter than the #1
+    // outlier (e.g. Taiwan) instead of both clipping to the same max shade.
+    const VISIT_CAP = 50;
+    const cappedCount = Math.min(count, VISIT_CAP);
+    const intensity = isVisited ? Math.log(cappedCount + 1) / Math.log(VISIT_CAP + 1) : 0;
     return {
-      fillColor: isVisited ? "#e63946" : "transparent",
+      fillColor: isVisited ? countryFillColor(intensity) : "transparent",
       weight: isVisited ? 1.5 : 0,
       opacity: isVisited ? 0.7 : 0,
       color: "#e63946",
-      fillOpacity: isVisited ? 0.35 : 0,
+      fillOpacity: isVisited ? 1 : 0,
     };
   };
 
@@ -664,18 +689,19 @@ export default function MapView() {
           maxBounds={[[-85, -180], [85, 180]]}
           maxBoundsViscosity={1.0}
           scrollWheelZoom={true}
-          className="w-full h-full grayscale-[0.8] contrast-[1.1]"
+          className="w-full h-full grayscale-[0.3] contrast-[1.1]"
           zoomControl={false}
           worldCopyJump={false}
         >
           <TileLayer
+            className="grayscale-[0.8] contrast-[1.1]"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
 
           {geoData && (
             <GeoJSON
-              key={`geojson-${[...visitedCountries].sort().join(',')}`}
+              key={`geojson-${[...visitedCountries.entries()].sort().join(',')}`}
               data={geoData}
               style={geoStyle}
               onEachFeature={onEachCountry}
