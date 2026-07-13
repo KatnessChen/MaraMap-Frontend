@@ -334,7 +334,7 @@ export default function MapView() {
     { label: "海外馬", unit: "場", value: displayOverseasCount,   cat: "馬拉松", sub: "海外馬"  },
     { label: "七大馬", unit: "場", value: displaySevenMajorsCount, cat: "馬拉松", sub: "七大馬"  },
     { label: "旅遊",  unit: "篇", value: displayTravelCount,      cat: "旅遊",   sub: null      },
-    { label: "百岳",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
+    { label: "登山",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
   ], [displayFMCount, displayOverseasCount, displaySevenMajorsCount, displayTravelCount, displayHikingCount]);
 
   // Points for the map layer: category/sub-category filtered, geo-required.
@@ -772,7 +772,7 @@ export default function MapView() {
           <div className="chip-scroll flex gap-2 overflow-x-auto px-3 pb-2.5 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
-              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-5 py-3 min-h-[44px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
                 activeCategory === null
                   ? "border-brand bg-brand text-white"
                   : "border-line bg-paper text-ink/60 active:bg-ink/5"
@@ -787,7 +787,7 @@ export default function MapView() {
                 <button
                   key={label}
                   onClick={() => handleFilterClick(cat, sub)}
-                  className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border font-mono text-xs whitespace-nowrap transition-all ${
+                  className={`shrink-0 flex items-center gap-1.5 px-5 py-3 min-h-[44px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
                     isActive
                       ? "border-brand bg-brand text-white"
                       : "border-line bg-paper text-ink/60 active:bg-ink/5"

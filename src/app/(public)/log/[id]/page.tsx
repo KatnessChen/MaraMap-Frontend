@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
@@ -279,7 +280,7 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
     stripRef.current?.querySelectorAll('video').forEach(v => v.pause());
   }, [idx]);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
       {/* Main viewing area */}
       <div
@@ -315,32 +316,8 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
           </>
         )}
       </div>
-
-      {/* Thumbnail strip */}
-      {items.length > 1 && (
-        <div className="shrink-0 flex gap-1.5 px-4 py-3 bg-black/80 overflow-x-auto justify-center" onClick={e => e.stopPropagation()}>
-          {items.map((m, i) => (
-            <button
-              key={i}
-              onClick={() => setIdx(i)}
-              className={`shrink-0 w-14 h-14 relative overflow-hidden border-2 transition-all ${i === idx ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-70'}`}
-            >
-              {m.type === 'video'
-                ? (
-                  <div className="relative w-full h-full bg-white/10">
-                    <video src={m.uri} muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={12} className="text-white drop-shadow" fill="white" />
-                    </div>
-                  </div>
-                )
-                : /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={m.uri} alt="" className="w-full h-full object-cover" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
