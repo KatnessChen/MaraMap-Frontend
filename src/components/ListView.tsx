@@ -21,9 +21,10 @@ interface ListViewProps {
   isLoading: boolean;
   category: string | null;
   subCategory: string | null;
+  titleMode?: 'countries' | null;
 }
 
-export default function ListView({ points, isLoading, category, subCategory }: ListViewProps) {
+export default function ListView({ points, isLoading, category, subCategory, titleMode }: ListViewProps) {
   const [openContinents, setOpenContinents] = useState<Set<string>>(new Set());
   const [openCountries, setOpenCountries] = useState<Set<string>>(new Set());
 
@@ -80,9 +81,9 @@ export default function ListView({ points, isLoading, category, subCategory }: L
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-line">
         <p className="font-mono text-sm font-bold uppercase tracking-[0.3em] text-ink/70">
-          {!category ? '所有文章' : subCategory ?? category}
+          {!category ? (titleMode === 'countries' ? '到訪國家' : '所有文章') : subCategory ?? category}
           <span className="ml-3 text-brand tabular-nums">
-            {points.length}
+            {!category && titleMode === 'countries' ? distinctCountryCount : points.length}
           </span>
         </p>
         <button

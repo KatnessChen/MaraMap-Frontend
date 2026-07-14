@@ -250,6 +250,7 @@ export default function MapView() {
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   const [totalCountryCount, setTotalCountryCount] = useState(0);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [listTitleMode, setListTitleMode] = useState<'countries' | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
   const [humanViews, setHumanViews] = useState<number | null>(null);
   const [basePoints, setBasePoints] = useState<FlattenedPoint[]>([]);
@@ -387,6 +388,7 @@ export default function MapView() {
   }, [points]);
 
   const handleFilterClick = useCallback((cat: string, sub: string | null) => {
+    setListTitleMode(null);
     const isActive = activeCategory === cat && activeSubCategory === sub;
     if (isActive) {
       setActiveCategory("馬拉松");
@@ -520,6 +522,14 @@ export default function MapView() {
           ].join(', '),
         }}
       >
+        {humanViews !== null && (
+          <p className="shrink-0 font-mono text-[10px] sm:text-xs text-ink/40 tracking-widest whitespace-nowrap">
+            <span className="hidden sm:inline">網站累計 </span>
+            {humanViews.toLocaleString()}
+            <span className="hidden sm:inline"> 人次造訪</span>
+            <span className="sm:hidden"> 人次</span>
+          </p>
+        )}
         <div className="flex-1">
           <DateRangePicker
             availableYears={availableYears}
@@ -566,7 +576,7 @@ export default function MapView() {
         <div className="px-7 pt-8 pb-6 border-b border-line">
           <div className="grid grid-cols-2 divide-x divide-line/40">
             <button
-              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
               className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5 pr-5"
             >
               <div className="flex items-end gap-1.5 mb-2">
@@ -578,7 +588,7 @@ export default function MapView() {
               <p className="font-mono text-xs tracking-[0.25em] text-ink/60">已到訪國家</p>
             </button>
             <button
-              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
+              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
               className="text-left group cursor-pointer transition-all hover:opacity-80 hover:-translate-y-0.5 pl-5"
             >
               <div className="flex items-end gap-1.5 mb-2">
@@ -598,7 +608,7 @@ export default function MapView() {
           style={{ gridTemplateRows: 'repeat(3, minmax(5rem, 1fr))' }}
         >
           <button
-            onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
+            onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setListTitleMode(null); }}
             className={`group [container-type:size] flex flex-col items-start justify-between px-4 py-3 h-full transition-all duration-200 text-left border-2 cursor-pointer ${
               activeCategory === null
                 ? "border-brand bg-brand/8 -translate-y-0.5"
@@ -648,14 +658,6 @@ export default function MapView() {
             );
           })}
         </div>
-
-        {humanViews !== null && (
-          <div className="px-5 pt-3 pb-4 border-t border-line/30">
-            <p className="font-mono text-xs text-ink/35 tracking-widest">
-              網站累計 {humanViews.toLocaleString()} 人次造訪
-            </p>
-          </div>
-        )}
         </div>
         </div>{/* end aside content */}
 
@@ -674,6 +676,7 @@ export default function MapView() {
                 isLoading={isLoading}
                 category={activeCategory}
                 subCategory={activeSubCategory}
+                titleMode={listTitleMode}
               />
             </div>
           )}
@@ -754,14 +757,14 @@ export default function MapView() {
           {/* Hero stats */}
           <div className="flex items-center gap-4 px-4 py-3">
             <button
-              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); }}
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayCountryCount}</span>
               <span className="font-serif text-base text-ink/60">國</span>
             </button>
             <button
-              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); }}
+              onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayOverseasCount}</span>
@@ -771,7 +774,7 @@ export default function MapView() {
           {/* Category chips */}
           <div className="chip-scroll flex gap-2 overflow-x-auto px-3 pb-2.5 pb-safe">
             <button
-              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); }}
+              onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setListTitleMode(null); }}
               className={`shrink-0 flex items-center gap-1.5 px-5 py-3 min-h-[44px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
                 activeCategory === null
                   ? "border-brand bg-brand text-white"
