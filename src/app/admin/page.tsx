@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Edit2, Eye, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, Tag, X } from "lucide-react";
+import { Edit2, Eye, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, Tag, X, Trash2, UploadCloud } from "lucide-react";
 
 interface ParticipantStats {
   distance_km: number | null;
@@ -118,7 +118,9 @@ export default function AdminDashboard() {
           url = `${apiUrl}/api/v1/posts?${params.toString()}&showHidden=true`;
         }
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (res.ok) {
           const json: ApiResponse = await res.json();
           setPosts(json.data);
@@ -164,6 +166,27 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeletePost = async (id: string, title: string) => {
+    if (!window.confirm(`確定要刪除「${title || "此文章"}」嗎？此操作無法復原。`)) return;
+    const token = localStorage.getItem("maramap_admin_token");
+    if (!token) { router.push("/admin/login"); return; }
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+      const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setPosts(prev => prev.filter(p => p.id !== id));
+        setMeta(prev => prev ? { ...prev, total: Math.max(0, prev.total - 1) } : prev);
+      } else if (res.status === 401) {
+        router.push("/admin/login");
+      }
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("maramap_admin_token");
     router.push("/admin/login");
@@ -197,6 +220,9 @@ export default function AdminDashboard() {
                 文章<span className="text-brand">管理</span>
               </h1>
             </div>
+            <Link href="/admin/import" className="p-3 bg-ink/5 text-ink/40 hover:text-brand transition-all rounded-full" title="匯入 Facebook 資料">
+              <UploadCloud size={24} />
+            </Link>
             <button onClick={handleLogout} className="p-3 bg-ink/5 text-ink/40 hover:text-brand transition-all rounded-full" title="登出系統">
               <LogOut size={24} />
             </button>
@@ -351,7 +377,7 @@ export default function AdminDashboard() {
                       )}
                     </td>
                     <td className="px-6 py-6">
-                      <div className="font-serif font-black text-xl text-ink leading-tight mb-2">{post.title || "未命名文章"}</div>
+                      <Link href={`/admin/edit/${post.id}`} target="_blank" rel="noopener noreferrer" className="block font-serif font-black text-xl text-ink leading-tight mb-2 hover:text-brand transition-colors">{post.title || "未命名文章"}</Link>
                       {post.category === "馬拉松" && davis && (
                         <div className="flex items-center gap-3 mb-2">
                           <span className="font-sans text-xs font-bold text-ink/40 uppercase tracking-wider">{davis.distance || "—"}</span>
@@ -385,13 +411,24 @@ export default function AdminDashboard() {
                       </button>
                     </td>
                     <td className="px-6 py-6 text-right">
-                      <Link 
-                        href={`/admin/edit/${post.id}`}
-                        className="inline-flex items-center justify-center w-12 h-12 rounded-full text-ink hover:bg-brand hover:text-white transition-all border border-ink/10 hover:border-brand shadow-sm"
-                        title="編輯文章"
-                      >
-                        <Edit2 size={20} />
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/admin/edit/${post.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-12 h-12 rounded-full text-ink hover:bg-brand hover:text-white transition-all border border-ink/10 hover:border-brand shadow-sm"
+                          title="編輯文章"
+                        >
+                          <Edit2 size={20} />
+                        </Link>
+                        <button
+                          onClick={() => handleDeletePost(post.id, post.title)}
+                          className="inline-flex items-center justify-center w-12 h-12 rounded-full text-ink/40 hover:bg-brand hover:text-white transition-all border border-ink/10 hover:border-brand shadow-sm"
+                          title="刪除文章"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ); })
