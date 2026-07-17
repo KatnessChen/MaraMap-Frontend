@@ -507,6 +507,31 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             })}
           </article>
 
+          {post.media && post.media.length > 0 && (() => {
+            const images = post.media!.filter(m => m.type !== 'video');
+            const videos = post.media!.filter(m => m.type === 'video');
+            return (
+              <>
+                {images.length > 0 && (
+                  <div className="mt-20 mb-12">
+                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                      精彩照片 <span className="font-mono text-sm font-normal">({images.length})</span>
+                    </h3>
+                    <MediaCarousel items={images} onOpen={i => setLightbox({ items: images, idx: i })} />
+                  </div>
+                )}
+                {videos.length > 0 && (
+                  <div className="mt-12 mb-12">
+                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
+                      影片 <span className="font-mono text-sm font-normal">({videos.length})</span>
+                    </h3>
+                    <MediaCarousel items={videos} onOpen={i => setLightbox({ items: videos, idx: i })} />
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
           {tripPosts.length > 0 && (
             <div className="mt-20 mb-12">
               <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
@@ -538,31 +563,6 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
               </div>
             </div>
           )}
-
-          {post.media && post.media.length > 0 && (() => {
-            const images = post.media!.filter(m => m.type !== 'video');
-            const videos = post.media!.filter(m => m.type === 'video');
-            return (
-              <>
-                {images.length > 0 && (
-                  <div className="mt-20 mb-12">
-                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                      精彩照片 <span className="font-mono text-sm font-normal">({images.length})</span>
-                    </h3>
-                    <MediaCarousel items={images} onOpen={i => setLightbox({ items: images, idx: i })} />
-                  </div>
-                )}
-                {videos.length > 0 && (
-                  <div className="mt-12 mb-12">
-                    <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                      影片 <span className="font-mono text-sm font-normal">({videos.length})</span>
-                    </h3>
-                    <MediaCarousel items={videos} onOpen={i => setLightbox({ items: videos, idx: i })} />
-                  </div>
-                )}
-              </>
-            );
-          })()}
 
           {lightbox && (
             <Lightbox items={lightbox.items} initialIdx={lightbox.idx} onClose={() => setLightbox(null)} />
