@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, ArrowRight } from "lucide-react";
+import { getApiBase } from "@/utils/apiBase";
 
 interface Participant {
   name: string;
@@ -43,7 +44,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
     const fetchRaces = async () => {
       try {
         setIsLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+        const apiUrl = getApiBase();
         const res = await fetch(
           `${apiUrl}/api/v1/locations/by-country?country=${encodeURIComponent(country)}`
         );

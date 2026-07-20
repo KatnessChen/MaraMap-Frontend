@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Edit2, Eye, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, Trash2, UploadCloud } from "lucide-react";
+import { Edit2, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, Trash2, UploadCloud, PlusCircle } from "lucide-react";
+import { getApiBase } from "@/utils/apiBase";
 
 interface ParticipantStats {
   distance_km: number | null;
@@ -23,6 +24,7 @@ interface Post {
   category: string;
   sub_categories: string[];
   is_hidden: boolean;
+  source?: "facebook" | "manual";
   tags: string[];
   metadata?: {
     race_name: string | null;
@@ -85,6 +87,22 @@ export default function AdminDashboard() {
     return { davis, hasTime };
   };
 
+  // Provenance chip: 手動 (manual admin entry) vs FB (Facebook import).
+  const sourceBadge = (source?: "facebook" | "manual") =>
+    source === "manual" ? (
+      <span className="font-sans text-xs font-bold bg-brand/10 text-brand px-2 py-1 rounded-sm">手動</span>
+    ) : (
+      <span className="font-sans text-xs font-bold bg-ink/5 text-ink/50 px-2 py-1 rounded-sm">FB</span>
+    );
+
+  // Read-only "hidden" marker (visibility is now toggled only on the edit page).
+  const hiddenBadge = (isHidden: boolean) =>
+    isHidden ? (
+      <span className="font-sans text-xs font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-sm inline-flex items-center gap-1">
+        <EyeOff size={12} /> 隱藏
+      </span>
+    ) : null;
+
   const applyFilters = () => {
     setApplied({ search: searchQuery, category, status, order, tag, startDate, endDate, subCategory, continent, country, city });
     setPage(1);
@@ -137,7 +155,7 @@ export default function AdminDashboard() {
     const fetchPosts = async () => {
       setIsLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         const limit = pageSize;
         let url = "";
 
@@ -199,33 +217,12 @@ export default function AdminDashboard() {
     fetchPosts();
   }, [page, pageSize, applied, router]);
 
-  const toggleHidden = async (id: string, currentHidden: boolean) => {
-    const token = localStorage.getItem("maramap_admin_token");
-    if (!token) { router.push("/admin/login"); return; }
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
-      const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_hidden: !currentHidden }),
-      });
-      if (res.ok) {
-        setPosts(prev => prev.map(p => p.id === id ? { ...p, is_hidden: !currentHidden } : p));
-      }
-    } catch (error) {
-      console.error("Failed to toggle visibility:", error);
-    }
-  };
-
   const handleDeletePost = async (id: string, title: string) => {
     if (!window.confirm(`確定要刪除「${title || "此文章"}」嗎？此操作無法復原。`)) return;
     const token = localStorage.getItem("maramap_admin_token");
     if (!token) { router.push("/admin/login"); return; }
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+      const apiUrl = getApiBase();
       const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -270,6 +267,9 @@ export default function AdminDashboard() {
               <ArrowLeft size={16} /> 回網站首頁
             </Link>
             <div className="flex items-center gap-2 sm:gap-3">
+              <Link href="/admin/new" className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand text-white hover:bg-brand/80 font-sans text-sm font-bold rounded-full transition-all shadow-sm" title="手動新增單篇文章">
+                <PlusCircle size={18} /> <span className="hidden sm:inline">新增文章</span>
+              </Link>
               <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
                 <UploadCloud size={18} /> <span className="hidden sm:inline">匯入資料</span>
               </Link>
@@ -425,14 +425,10 @@ export default function AdminDashboard() {
                       <span className="font-mono text-sm text-ink/60 whitespace-nowrap">{post.event_date}</span>
                       <span className="font-sans text-xs font-bold bg-ink/5 text-ink/60 px-2.5 py-1 rounded-sm uppercase">{post.category}</span>
                     </div>
-                    <button
-                      onClick={() => toggleHidden(post.id, post.is_hidden)}
-                      className={`shrink-0 flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full transition-colors ${post.is_hidden ? "bg-ink/5 text-ink/40" : "bg-brand/10 text-brand"}`}
-                      title={post.is_hidden ? "目前隱藏，點擊公開" : "目前公開，點擊隱藏"}
-                    >
-                      {post.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                      {post.is_hidden ? "隱藏" : "公開"}
-                    </button>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {hiddenBadge(post.is_hidden)}
+                      {sourceBadge(post.source)}
+                    </div>
                   </div>
 
                   {post.sub_categories?.length > 0 && (
@@ -501,7 +497,7 @@ export default function AdminDashboard() {
                 <th className="px-6 py-5 font-bold w-40">日期</th>
                 <th className="px-6 py-5 font-bold w-32">類別</th>
                 <th className="px-6 py-5 font-bold">文章標題</th>
-                <th className="px-6 py-5 font-bold text-center w-32">狀態</th>
+                <th className="px-6 py-5 font-bold text-center w-32">來源</th>
                 <th className="px-6 py-5 font-bold text-right w-32">編輯</th>
               </tr>
             </thead>
@@ -560,14 +556,11 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-6 text-center">
-                      <button 
-                        onClick={() => toggleHidden(post.id, post.is_hidden)}
-                        className={`transition-colors p-3 rounded-full hover:bg-paper ${post.is_hidden ? "text-ink/20 hover:text-ink/40" : "text-brand hover:text-brand/80"}`}
-                        title={post.is_hidden ? "隱藏" : "公開"}
-                      >
-                        {post.is_hidden ? <EyeOff size={24} /> : <Eye size={24} />}
-                      </button>
+                    <td className="px-6 py-6">
+                      <div className="flex flex-col items-center gap-1.5">
+                        {sourceBadge(post.source)}
+                        {hiddenBadge(post.is_hidden)}
+                      </div>
                     </td>
                     <td className="px-6 py-6 text-right">
                       <div className="flex items-center justify-end gap-2">

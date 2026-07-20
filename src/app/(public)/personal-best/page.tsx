@@ -3,8 +3,9 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Trophy, ArrowLeft } from "lucide-react";
+import { getApiBase } from "@/utils/apiBase";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+const API_URL = getApiBase();
 
 const DISTANCE_ORDER = ["超馬", "全馬", "半馬"];
 

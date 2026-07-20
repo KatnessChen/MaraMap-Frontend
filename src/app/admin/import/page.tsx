@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UploadCloud, Loader2 } from "lucide-react";
+import { getApiBase } from "@/utils/apiBase";
 
 interface SkippedPost {
   timestamp: number;
@@ -126,7 +127,7 @@ export default function AdminImportPage() {
     setSkipped([]);
     setRescueChoices({});
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+    const apiUrl = getApiBase();
     const formData = new FormData();
     formData.append("file", file); // don't set Content-Type manually — browser sets the multipart boundary
 
@@ -151,7 +152,7 @@ export default function AdminImportPage() {
     setPhase("finalizing");
     setLines([]);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3000";
+    const apiUrl = getApiBase();
     try {
       await streamPipeline(
         `${apiUrl}/api/v1/admin/fb-import/${targetBatch}/confirm`,

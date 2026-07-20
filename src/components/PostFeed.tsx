@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ArrowRight, Loader2, Search, X } from "lucide-react";
+import { getApiBase } from "@/utils/apiBase";
 
 interface Post {
   id: string;
@@ -93,7 +94,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         const res = await fetch(`${apiUrl}/api/v1/categories`);
         if (res.ok) {
           const data: Category[] = await res.json();
@@ -168,7 +169,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
     const resetAndFetch = async () => {
       setIsLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         let url = "";
         
         if (debouncedSearch) {
@@ -212,7 +213,7 @@ export default function PostFeed({ initialPosts, initialMeta }: PostFeedProps) {
     const fetchMorePosts = async () => {
       setIsLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         const categoryParam = activeCategory === "全部" ? "" : `&category=${encodeURIComponent(activeCategory)}`;
         const res = await fetch(`${apiUrl}/api/v1/posts?page=${page}&limit=10${categoryParam}`);
         if (res.ok) {

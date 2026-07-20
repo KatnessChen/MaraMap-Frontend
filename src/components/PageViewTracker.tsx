@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { getApiBase } from "@/utils/apiBase";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+const API_URL = getApiBase();
 
 export default function PageViewTracker() {
   const pathname = usePathname();

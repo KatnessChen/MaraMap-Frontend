@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Search, X, Star, Sparkles } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle } from "lucide-react";
 import Combobox from "@/components/admin/Combobox";
 import MediaManager from "@/components/admin/MediaManager";
 import { getApiBase } from "@/utils/apiBase";
@@ -26,69 +26,9 @@ interface Participant {
   stats: ParticipantStats;
 }
 
-interface MarathonMetadata {
-  race_name: string | null;
-  country: string | null;
-  city: string | null;
-  continent: string | null;
-  trip_id: string | null;
-  mountains: string[];
-  participants: Participant[];
-  fallback_lat: number | null;
-  fallback_lng: number | null;
-}
-
 interface Media {
   uri: string;
   type: string;
-}
-
-interface TripPost {
-  postId: string;
-  title: string;
-  date: string;
-  category: string;
-  country: string | null;
-  city: string | null;
-  coverImage: string | null;
-  isPrimary: boolean;
-}
-
-interface PostSummary {
-  id: string;
-  title: string;
-  event_date: string;
-  cover_image?: string;
-  category: string;
-}
-
-interface TripSuggestion {
-  postId: string;
-  title: string;
-  date: string;
-  category: string;
-  country: string | null;
-  city: string | null;
-  coverImage: string | null;
-  daysDiff: number;
-  alreadyInOtherTrip: boolean;
-  reason: string;
-}
-
-interface Post {
-  id: string;
-  title: string;
-  event_date: string;
-  content: string;
-  category: string;
-  sub_categories: string[];
-  tags: string[];
-  is_hidden: boolean;
-  is_personal_best: boolean;
-  cover_image?: string;
-  trip_id?: string | null;
-  media: Media[];
-  metadata?: MarathonMetadata | null;
 }
 
 interface FormData {
@@ -114,10 +54,16 @@ interface FormData {
 
 type FieldErrors = Partial<Record<string, string>>;
 
-export default function EditPost({ params }: { params: Promise<{ id: string }> }) {
+const CATEGORIES = ["馬拉松", "旅遊", "登山"];
+const DISTANCES = ["超馬", "全馬", "半馬"];
+const SUB_CATEGORY_MAP: Record<string, string[]> = {
+  馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查"],
+  旅遊: [],
+  登山: ["大百岳", "小百岳", "海外登山"],
+};
+
+export default function NewPost() {
   const router = useRouter();
-  const [post, setPost] = useState<Post | null>(null);
-  const [media, setMedia] = useState<Media[]>([]);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     event_date: "",
@@ -125,24 +71,17 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     category: "",
     sub_categories: [],
     tags: "",
-    is_hidden: false,
+    is_hidden: true, // Default hidden: newly-created posts stay private until reviewed.
     is_personal_best: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [], fallback_lat: null, fallback_lng: null },
   });
+  const [media, setMedia] = useState<Media[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error" | null; msg: string }>({ type: null, msg: "" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
-  const [showTripSearch, setShowTripSearch] = useState(false);
-  const [tripSearchQuery, setTripSearchQuery] = useState("");
-  const [tripSearchResults, setTripSearchResults] = useState<PostSummary[]>([]);
-  const [isTripSearching, setIsTripSearching] = useState(false);
-  const [tripSuggestions, setTripSuggestions] = useState<TripSuggestion[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
 
@@ -157,72 +96,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
     return token;
   };
-
-  useEffect(() => {
-    const token = checkAuth();
-    if (!token) {
-      router.push(`/admin/login?redirect=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
-
-    const fetchPost = async () => {
-      try {
-        const { id } = await (params as Promise<{ id: string }>);
-        const apiUrl = getApiBase();
-        // Send the admin token so hidden posts load — findOne filters out
-        // is_hidden posts for unauthenticated (public) requests, which would
-        // otherwise 404 the editor for any hidden post.
-        const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, {
-          cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data: Post = await res.json();
-          setPost(data);
-          setMedia(Array.isArray(data.media) ? data.media : []);
-          setFormData({
-            title: data.title || "",
-            event_date: data.event_date || "",
-            content: data.content || "",
-            category: data.category || "",
-            sub_categories: data.sub_categories || [],
-            tags: (data.tags || []).join(", "),
-            is_hidden: data.is_hidden || false,
-            is_personal_best: data.is_personal_best === true,
-            cover_image: data.cover_image || "",
-            metadata: {
-              race_name: data.metadata?.race_name || "",
-              continent: data.metadata?.continent || "",
-              country: data.metadata?.country || "",
-              city: data.metadata?.city || "",
-              participants: data.metadata?.participants || [],
-              fallback_lat: data.metadata?.fallback_lat ?? null,
-              fallback_lng: data.metadata?.fallback_lng ?? null,
-            },
-          });
-
-          // Fetch sibling posts in the same trip
-          const tripId = data.trip_id;
-          if (tripId) {
-            try {
-              const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${tripId}`, { cache: "no-store" });
-              if (tripRes.ok) {
-                const all: TripPost[] = await tripRes.json();
-                setTripPosts(all.filter(p => p.postId !== data.id));
-              }
-            } catch {
-              // non-critical, ignore
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch post:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPost();
-  }, [params, router]);
 
   // ── Validation ──────────────────────────────────────────────
   const validate = (): { errors: FieldErrors; warnings: string[] } => {
@@ -263,70 +136,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  // ── Save ─────────────────────────────────────────────────────
-  const handleSave = async (skipWarnings = false) => {
-    const { errors: errs, warnings: warns } = validate();
-    setErrors(errs);
-
-    if (Object.keys(errs).length > 0) {
-      setWarnings([]);
-      scrollToFirstError(errs);
-      return;
-    }
-
-    if (warns.length > 0 && !skipWarnings) {
-      // Show warning banner and wait for the user to confirm (which calls
-      // handleSave(true)).
-      setWarnings(warns);
-      return;
-    }
-    setWarnings([]);
-
-    const token = checkAuth();
-    if (!token) { router.push("/admin/login"); return; }
-    if (!post) return;
-
-    setIsSaving(true);
-    setFeedback({ type: null, msg: "" });
-
-    try {
-      const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          ...formData,
-          tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
-          media,
-        }),
-      });
-
-      if (res.ok) {
-        // Sync local state from the response: the backend promotes freshly
-        // uploaded media out of tmp/ (and deletes the tmp copies), so the
-        // returned post carries the permanent URIs. Without this, a second
-        // save would resend now-deleted tmp URIs.
-        const updated: Post = await res.json();
-        setPost(updated);
-        setMedia(Array.isArray(updated.media) ? updated.media : []);
-        setFormData(f => ({ ...f, cover_image: updated.cover_image || "" }));
-        setFeedback({ type: "success", msg: "文章已成功儲存！" });
-        setWarnings([]);
-        setTimeout(() => setFeedback({ type: null, msg: "" }), 5000);
-      } else if (res.status === 401) {
-        setFeedback({ type: "error", msg: "登入已過期，請重新登入。" });
-        router.push("/admin/login");
-      } else {
-        const errorData = await res.json();
-        setFeedback({ type: "error", msg: `儲存失敗：${errorData.message || "發生錯誤"}` });
-      }
-    } catch {
-      setFeedback({ type: "error", msg: "連線失敗，請檢查網路狀態。" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   // ── Geocode ──────────────────────────────────────────────────
   const handleGeocode = async () => {
     const { country, city } = formData.metadata;
@@ -335,7 +144,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       return;
     }
     const token = checkAuth();
-    if (!token) { router.push("/admin/login"); return; }
+    if (!token) { router.push("/admin/login?redirect=/admin/new"); return; }
 
     setIsGeocoding(true);
     setGeocodeError("");
@@ -356,7 +165,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
         }
       } else if (res.status === 401) {
         setGeocodeError("登入已過期，請重新登入。");
-        router.push("/admin/login");
+        router.push("/admin/login?redirect=/admin/new");
       } else {
         setGeocodeError("查詢失敗，請稍後再試");
       }
@@ -367,109 +176,64 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  // ── Trip helpers ──────────────────────────────────────────────
-  const searchForTripAdd = async (q: string) => {
-    if (!q.trim()) { setTripSearchResults([]); return; }
-    setIsTripSearching(true);
-    try {
-      const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts/search?q=${encodeURIComponent(q)}&limit=8`);
-      if (res.ok) {
-        const json = await res.json();
-        const results: PostSummary[] = json.data || json;
-        const existingIds = new Set([post?.id, ...tripPosts.map(tp => tp.postId)]);
-        setTripSearchResults(results.filter(p => !existingIds.has(p.id)));
-      }
-    } catch { /* non-critical */ }
-    finally { setIsTripSearching(false); }
-  };
+  // ── Save ─────────────────────────────────────────────────────
+  const handleSave = async (skipWarnings = false) => {
+    const { errors: errs, warnings: warns } = validate();
+    setErrors(errs);
 
-  // Smart recommendations — same country + within ±14 days, not already in this trip.
-  const fetchTripSuggestions = async () => {
-    if (!post) return;
+    if (Object.keys(errs).length > 0) {
+      setWarnings([]);
+      scrollToFirstError(errs);
+      return;
+    }
+    if (warns.length > 0 && !skipWarnings) {
+      setWarnings(warns);
+      return;
+    }
+    setWarnings([]);
+
     const token = checkAuth();
-    if (!token) return;
-    setIsLoadingSuggestions(true);
+    if (!token) { router.push("/admin/login?redirect=/admin/new"); return; }
+
+    setIsSaving(true);
+    setFeedback({ type: null, msg: "" });
+
     try {
       const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}/trip-suggestions`, {
-        headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+      const res = await fetch(`${apiUrl}/api/v1/posts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: formData.title,
+          event_date: formData.event_date,
+          content: formData.content,
+          category: formData.category,
+          sub_categories: formData.sub_categories,
+          tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
+          is_hidden: formData.is_hidden,
+          is_personal_best: formData.is_personal_best,
+          cover_image: formData.cover_image,
+          media,
+          metadata: formData.metadata,
+        }),
       });
+
       if (res.ok) {
-        const data: TripSuggestion[] = await res.json();
-        const existing = new Set([post.id, ...tripPosts.map(tp => tp.postId)]);
-        setTripSuggestions(data.filter(s => !existing.has(s.postId)));
-      }
-    } catch { /* non-critical */ }
-    finally { setIsLoadingSuggestions(false); }
-  };
-
-  const openTripAdd = () => {
-    setShowTripSearch(true);
-    fetchTripSuggestions();
-  };
-
-  const handleAddToTrip = async (targetPostId: string) => {
-    const token = checkAuth();
-    if (!token || !post) return;
-    const apiUrl = getApiBase();
-    const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}/trip/add`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ postId: targetPostId }),
-    });
-    if (res.ok) {
-      const tripArr: TripPost[] = await res.json();
-      const newTripId = post.trip_id ?? post.id; // trip auto-created with this post as primary
-      setPost(prev => prev ? { ...prev, trip_id: newTripId } : prev);
-      setTripPosts(tripArr.filter(p => p.postId !== post.id));
-      setTripSuggestions(prev => prev.filter(s => s.postId !== targetPostId));
-      setTripSearchResults(prev => prev.filter(p => p.id !== targetPostId));
-      setFeedback({ type: "success", msg: "已加入同行文章" });
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setFeedback({ type: "error", msg: err.message || "加入失敗" });
-    }
-  };
-
-  const handleRemoveFromTrip = async (targetPostId: string) => {
-    const token = checkAuth();
-    if (!token) return;
-    const apiUrl = getApiBase();
-    const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}/trip/remove`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const tripArr: TripPost[] = await res.json();
-      if (targetPostId === post?.id) {
-        setPost(prev => prev ? { ...prev, trip_id: null } : prev);
-        setTripPosts([]);
+        const created: { id: string } = await res.json();
+        setFeedback({ type: "success", msg: "文章已建立！正在開啟編輯頁…" });
+        setWarnings([]);
+        setTimeout(() => router.push(`/admin/edit/${created.id}`), 800);
+      } else if (res.status === 401) {
+        setFeedback({ type: "error", msg: "登入已過期，請重新登入。" });
+        router.push("/admin/login?redirect=/admin/new");
       } else {
-        setTripPosts(tripArr.filter(p => p.postId !== post?.id));
+        const errorData = await res.json().catch(() => ({}));
+        setFeedback({ type: "error", msg: `建立失敗：${errorData.message || "發生錯誤"}` });
       }
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setFeedback({ type: "error", msg: err.message || "移除失敗" });
-    }
-  };
-
-  const handleMakePrimary = async (targetPostId: string) => {
-    const token = checkAuth();
-    if (!token || !post) return;
-    const apiUrl = getApiBase();
-    const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}/make-primary`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const tripArr: TripPost[] = await res.json();
-      setPost(prev => prev ? { ...prev, trip_id: targetPostId } : prev);
-      setTripPosts(tripArr.filter(p => p.postId !== post.id));
-      setFeedback({ type: "success", msg: "已設為主文" });
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setFeedback({ type: "error", msg: err.message || "設定主文失敗" });
+    } catch {
+      setFeedback({ type: "error", msg: "連線失敗，請檢查網路狀態。" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -481,7 +245,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       newParticipants[index][parent] = { ...(newParticipants[index][parent] as Record<string, unknown>), [child]: value === "" ? null : value };
     } else {
       newParticipants[index][field] = value;
-      // Auto-fill distance_km when distance changes
       if (field === "distance" && typeof value === "string") {
         const km = DISTANCE_KM_MAP[value];
         if (km !== undefined) {
@@ -501,16 +264,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     setFormData({ ...formData, metadata: { ...formData.metadata, participants: formData.metadata.participants.filter((_, i) => i !== index) } });
   };
 
-  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/40">正在載入文章...</div>;
-  if (!post) return <div className="p-12 text-center font-sans text-xl font-bold text-ink">找不到該文章。</div>;
-
-  const categories = ["馬拉松", "旅遊", "登山"];
-  const distances = ["超馬", "全馬", "半馬"];
-  const SUB_CATEGORY_MAP: Record<string, string[]> = {
-    馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查"],
-    旅遊: [],
-    登山: ["大百岳", "小百岳", "海外登山"],
-  };
   const availableSubs = SUB_CATEGORY_MAP[formData.category] || [];
 
   const toggleSubCategory = (sub: string) => {
@@ -534,13 +287,13 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
-      {/* Warning banner — shown when there are soft warnings and save was attempted */}
+      {/* Warning banner */}
       {hasWarnings && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[2000] w-full max-w-xl px-8 py-5 bg-amber-50 border-2 border-amber-400 shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start gap-3 mb-4">
             <AlertTriangle size={20} className="text-amber-500 mt-0.5 shrink-0" />
             <div>
-              <p className="font-sans font-black text-base text-amber-900 mb-1">儲存前請確認</p>
+              <p className="font-sans font-black text-base text-amber-900 mb-1">建立前請確認</p>
               <ul className="space-y-1">
                 {warnings.map((w, i) => <li key={i} className="font-sans text-sm text-amber-800">· {w}</li>)}
               </ul>
@@ -551,7 +304,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               取消
             </button>
             <button onClick={() => handleSave(true)} className="font-sans text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 px-6 py-2 transition-colors">
-              確認儲存
+              確認建立
             </button>
           </div>
         </div>
@@ -562,10 +315,10 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
           <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
             <ArrowLeft size={18} /> 回文章列表
           </Link>
-          <div className="flex flex-col items-end gap-1 md:gap-2">
+          <div className="flex items-center gap-3">
             <button onClick={() => handleSave()} disabled={isSaving} className="bg-ink text-paper px-4 py-2 md:px-12 md:py-4 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
               {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}
-              {isSaving ? "儲存中..." : "儲存變更"}
+              {isSaving ? "建立中..." : "建立文章"}
             </button>
           </div>
         </div>
@@ -585,6 +338,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 type="text"
                 value={formData.title}
                 onChange={e => { setFormData({ ...formData, title: e.target.value }); setErrors(v => ({ ...v, title: undefined })); }}
+                placeholder="輸入文章標題…"
                 className={`w-full bg-white border-2 ${errBorder("title")} p-6 font-serif font-black text-4xl focus:outline-none focus:border-brand shadow-sm rounded-sm`}
               />
               {errors.title && <p className="text-brand text-sm font-sans font-bold flex items-center gap-1"><AlertCircle size={14} />{errors.title}</p>}
@@ -604,7 +358,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               {errors.event_date && <p className="text-brand text-sm font-sans font-bold flex items-center gap-1"><AlertCircle size={14} />{errors.event_date}</p>}
             </div>
 
-            {/* Media & cover */}
+            {/* Cover image / upload */}
             <div className="space-y-6">
               <label className="flex items-center gap-3 font-serif font-black text-3xl border-b border-line pb-4">
                 <ImageIcon size={28} className="text-brand" /> 圖片與封面
@@ -615,7 +369,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 coverImage={formData.cover_image}
                 onCoverChange={(uri) => setFormData((f) => ({ ...f, cover_image: uri }))}
                 getToken={checkAuth}
-                onAuthFail={() => router.push("/admin/login")}
+                onAuthFail={() => router.push("/admin/login?redirect=/admin/new")}
               />
             </div>
 
@@ -628,6 +382,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 value={formData.content}
                 onChange={e => { setFormData({ ...formData, content: e.target.value }); setErrors(v => ({ ...v, content: undefined })); }}
                 rows={20}
+                placeholder="輸入文章內容…"
                 className={`w-full bg-white border-2 ${errBorder("content")} p-10 font-sans text-2xl leading-relaxed focus:outline-none focus:border-brand whitespace-pre-wrap shadow-sm rounded-sm`}
               />
               {errors.content && <p className="text-brand text-sm font-sans font-bold flex items-center gap-1"><AlertCircle size={14} />{errors.content}</p>}
@@ -649,7 +404,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                   className={`w-full bg-white border-2 ${errBorder("category")} p-5 font-sans text-lg font-black appearance-none cursor-pointer focus:border-brand outline-none shadow-sm`}
                 >
                   <option value="">請選擇類別</option>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-xl">▼</div>
               </div>
@@ -808,7 +563,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                       <div className="space-y-2">
                         <label className="block font-sans text-[10px] font-black text-ink/40 uppercase tracking-widest">賽事距離</label>
                         <select value={p.distance ?? ""} onChange={e => updateParticipant(idx, "distance", e.target.value)} className="w-full bg-paper p-2 font-sans text-sm font-bold border border-line">
-                          {distances.map(d => <option key={d} value={d}>{d}</option>)}
+                          {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       </div>
                       <div id={`field-participant_time_${idx}`} className="space-y-2">
@@ -861,199 +616,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               </label>
               <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
                 <input type="checkbox" id="is_hidden" checked={formData.is_hidden} onChange={e => setFormData({ ...formData, is_hidden: e.target.checked })} className="w-7 h-7 accent-brand cursor-pointer" />
-                <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">隱藏此文章</label>
+                <label htmlFor="is_hidden" className="font-sans text-lg font-black cursor-pointer select-none">建立後先隱藏此文章</label>
               </div>
-            </div>
-
-            {/* Trip siblings panel */}
-            <div className="space-y-6">
-              <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                <List size={24} className="text-brand" /> 同行程文章
-              </label>
-
-              <>
-                  {/* Current post row */}
-                  <div className="flex items-center gap-3 px-4 py-3 bg-ink/5 border border-line">
-                    {post.cover_image ? (
-                      <div className="w-12 h-12 shrink-0 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={post.cover_image} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 shrink-0 bg-ink/10 flex items-center justify-center">
-                        <MapPin size={16} className="text-ink/20" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-sans text-sm font-black text-ink leading-tight truncate">{post.title || "（無標題）"}</p>
-                      <p className="font-mono text-xs text-ink/30 mt-0.5">{post.event_date}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-ink/10 text-ink/50">本文</span>
-                      {!post.trip_id
-                        ? <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border border-dashed border-line text-ink/30">尚未組行程</span>
-                        : post.id === post.trip_id
-                          ? <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-brand text-white">主文</span>
-                          : <>
-                              <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border border-line text-ink/40">次文</span>
-                              <button onClick={() => handleMakePrimary(post.id)} title="設為主文" className="p-1 text-ink/30 hover:text-brand transition-colors"><Star size={14} /></button>
-                              <button onClick={() => handleRemoveFromTrip(post.id)} title="移出行程" className="p-1 text-ink/20 hover:text-brand transition-colors"><X size={14} /></button>
-                            </>
-                      }
-                    </div>
-                  </div>
-
-                  {/* Other trip posts */}
-                  {tripPosts.length > 0 && (
-                    <ul className="divide-y divide-line border border-line">
-                      {tripPosts.map(tp => (
-                        <li key={tp.postId} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/5 transition-colors group">
-                          <Link href={`/admin/edit/${tp.postId}`} className="flex items-center gap-3 flex-1 min-w-0">
-                            {tp.coverImage ? (
-                              <div className="w-12 h-12 shrink-0 overflow-hidden">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={tp.coverImage} alt="" className="w-full h-full object-cover" />
-                              </div>
-                            ) : (
-                              <div className="w-12 h-12 shrink-0 bg-ink/5 flex items-center justify-center">
-                                <MapPin size={16} className="text-ink/20" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="font-sans text-sm font-black text-ink leading-tight truncate group-hover:text-brand transition-colors">
-                                {tp.title || "（無標題）"}
-                              </p>
-                              <p className="font-mono text-xs text-ink/30 mt-0.5">{tp.date}</p>
-                            </div>
-                          </Link>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {tp.isPrimary
-                              ? <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-brand text-white">主文</span>
-                              : <>
-                                  <span className="font-mono text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border border-line text-ink/40">次文</span>
-                                  <button onClick={() => handleMakePrimary(tp.postId)} title="設為主文" className="p-1 text-ink/30 hover:text-brand transition-colors"><Star size={14} /></button>
-                                </>
-                            }
-                            <button
-                              onClick={() => handleRemoveFromTrip(tp.postId)}
-                              title="從行程移除"
-                              className="p-1 text-ink/20 hover:text-brand transition-colors"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {/* Add / recommend panel */}
-                  {showTripSearch ? (
-                    <div className="space-y-3 border border-line p-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" size={14} />
-                        <input
-                          type="text"
-                          autoFocus
-                          value={tripSearchQuery}
-                          onChange={e => { setTripSearchQuery(e.target.value); searchForTripAdd(e.target.value); }}
-                          placeholder="輸入關鍵字模糊搜尋…"
-                          className="w-full pl-8 pr-8 py-2 border border-line font-sans text-sm focus:border-brand outline-none bg-white"
-                        />
-                        {tripSearchQuery && (
-                          <button onClick={() => { setTripSearchQuery(""); setTripSearchResults([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink">
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Keyword search results (when typing) */}
-                      {tripSearchQuery ? (
-                        <>
-                          {isTripSearching && <p className="font-sans text-xs text-ink/30 text-center py-2">搜尋中…</p>}
-                          {!isTripSearching && tripSearchResults.length === 0 && (
-                            <p className="font-sans text-xs text-ink/30 text-center py-2">找不到結果</p>
-                          )}
-                          {tripSearchResults.length > 0 && (
-                            <ul className="divide-y divide-line border border-line max-h-64 overflow-y-auto">
-                              {tripSearchResults.map(p => (
-                                <li key={p.id}>
-                                  <button onClick={() => handleAddToTrip(p.id)} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-ink/5 transition-colors text-left">
-                                    {p.cover_image ? (
-                                      <div className="w-10 h-10 shrink-0 overflow-hidden">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={p.cover_image} alt="" className="w-full h-full object-cover" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-10 h-10 shrink-0 bg-ink/5 flex items-center justify-center"><MapPin size={12} className="text-ink/20" /></div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-sans text-xs font-black text-ink truncate">{p.title || "（無標題）"}</p>
-                                      <p className="font-mono text-[10px] text-ink/30 mt-0.5">{p.event_date}</p>
-                                    </div>
-                                    <PlusCircle size={14} className="shrink-0 text-brand ml-auto" />
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </>
-                      ) : (
-                        /* Smart recommendations (when not typing) */
-                        <div>
-                          <p className="flex items-center gap-1.5 font-sans text-xs font-bold text-ink/40 mb-2">
-                            <Sparkles size={12} className="text-brand" /> 推薦（同國・鄰近日期）
-                          </p>
-                          {isLoadingSuggestions && <p className="font-sans text-xs text-ink/30 text-center py-2">載入推薦中…</p>}
-                          {!isLoadingSuggestions && tripSuggestions.length === 0 && (
-                            <p className="font-sans text-xs text-ink/30 text-center py-2">沒有符合同國・鄰近日期的推薦，可用上方關鍵字搜尋。</p>
-                          )}
-                          {tripSuggestions.length > 0 && (
-                            <ul className="divide-y divide-line border border-line max-h-64 overflow-y-auto">
-                              {tripSuggestions.map(s => (
-                                <li key={s.postId}>
-                                  <button onClick={() => handleAddToTrip(s.postId)} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-ink/5 transition-colors text-left">
-                                    {s.coverImage ? (
-                                      <div className="w-10 h-10 shrink-0 overflow-hidden">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={s.coverImage} alt="" className="w-full h-full object-cover" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-10 h-10 shrink-0 bg-ink/5 flex items-center justify-center"><MapPin size={12} className="text-ink/20" /></div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-sans text-xs font-black text-ink truncate">{s.title || "（無標題）"}</p>
-                                      <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="font-mono text-[10px] text-ink/30">{s.date}</span>
-                                        <span className="font-sans text-[10px] font-bold text-brand bg-brand/10 px-1.5 py-0.5 rounded-sm">{s.reason}</span>
-                                        {s.alreadyInOtherTrip && <span className="font-sans text-[10px] text-ink/30">已屬其他行程</span>}
-                                      </div>
-                                    </div>
-                                    <PlusCircle size={14} className="shrink-0 text-brand ml-auto" />
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => { setShowTripSearch(false); setTripSearchQuery(""); setTripSearchResults([]); setTripSuggestions([]); }}
-                        className="font-sans text-xs text-ink/30 hover:text-ink transition-colors"
-                      >
-                        取消
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={openTripAdd}
-                      className="flex items-center gap-2 font-sans text-sm font-bold text-ink/40 hover:text-brand transition-colors"
-                    >
-                      <PlusCircle size={16} /> 增加同行文章
-                    </button>
-                  )}
-                </>
             </div>
           </div>
         </div>

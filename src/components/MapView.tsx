@@ -10,8 +10,9 @@ import { ArrowRight, Map, List, ChevronLeft } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
+import { getApiBase } from "@/utils/apiBase";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+const API_URL = getApiBase();
 
 interface FlattenedPoint {
   id: string;

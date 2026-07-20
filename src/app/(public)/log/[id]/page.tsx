@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getApiBase } from "@/utils/apiBase";
 
 
 // --- API Data Interfaces ---
@@ -338,7 +339,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
     const fetchPostAndNav = async () => {
       try {
         const { id } = await (params as Promise<{ id: string }>);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, { cache: 'no-store' });
         if (!res.ok) { setIsLoading(false); return; }
         const data = await res.json();

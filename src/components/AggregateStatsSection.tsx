@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Activity, MapPin, Award, Zap } from 'lucide-react';
+import { getApiBase } from "@/utils/apiBase";
 
 interface StatsData {
   participant_name: string;
@@ -30,7 +31,7 @@ export default function AggregateStatsSection() {
         setLoading(true);
         setError(null);
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
 
         // Fetch stats for all participants
         const davisRes = await fetch(`${apiUrl}/api/v1/stats?participant=Davis`, {

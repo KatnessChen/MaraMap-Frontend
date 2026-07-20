@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getApiBase } from "@/utils/apiBase";
 
 interface StatsData {
   participant_name: string;
@@ -26,7 +27,7 @@ export default function StatisticsBlock({ participant }: StatisticsBlockProps) {
         setLoading(true);
         setError(null);
         
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3000';
+        const apiUrl = getApiBase();
         const res = await fetch(
           `${apiUrl}/api/v1/stats?participant=${encodeURIComponent(participant)}`,
           { cache: 'no-store' }
