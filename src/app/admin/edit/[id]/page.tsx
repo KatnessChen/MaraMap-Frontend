@@ -327,6 +327,31 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  // ── Delete ───────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!post) return;
+    if (!window.confirm(`確定要刪除「${post.title || "此文章"}」嗎？此操作無法復原。`)) return;
+    const token = checkAuth();
+    if (!token) { router.push("/admin/login"); return; }
+    try {
+      const apiUrl = getApiBase();
+      const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        router.push("/admin");
+      } else if (res.status === 401) {
+        router.push("/admin/login");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setFeedback({ type: "error", msg: `刪除失敗：${errorData.message || "發生錯誤"}` });
+      }
+    } catch {
+      setFeedback({ type: "error", msg: "連線失敗，請檢查網路狀態。" });
+    }
+  };
+
   // ── Geocode ──────────────────────────────────────────────────
   const handleGeocode = async () => {
     const { country, city } = formData.metadata;
@@ -559,9 +584,21 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
 
       <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b-2 border-ink">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 md:px-12 py-3 md:py-6">
-          <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
-            <ArrowLeft size={18} /> 回文章列表
-          </Link>
+          <div className="flex items-center gap-3 md:gap-5">
+            <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
+              <ArrowLeft size={18} /> 回文章列表
+            </Link>
+            {post && (
+              <button
+                onClick={handleDelete}
+                disabled={isSaving}
+                title="刪除此文章"
+                className="inline-flex items-center gap-1.5 text-ink/30 hover:text-brand font-sans text-sm md:text-base font-black transition-colors disabled:opacity-40"
+              >
+                <Trash2 size={18} /> <span className="hidden sm:inline">刪除文章</span>
+              </button>
+            )}
+          </div>
           <div className="flex flex-col items-end gap-1 md:gap-2">
             <button onClick={() => handleSave()} disabled={isSaving} className="bg-ink text-paper px-4 py-2 md:px-12 md:py-4 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
               {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}

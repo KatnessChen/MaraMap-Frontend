@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight, Map, List, ChevronLeft } from "lucide-react";
+import { ArrowRight, ChevronLeft } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -82,7 +82,7 @@ interface RaceStats {
 
 const TOTAL_COUNTRIES = 195;
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-const selectCls = "font-mono text-xs bg-paper border border-line/60 px-2 py-1 text-ink focus:outline-none focus:border-brand/60 cursor-pointer";
+const selectCls = "font-mono text-sm bg-paper border border-line/60 px-2 py-1 text-ink focus:outline-none focus:border-brand/60 cursor-pointer";
 
 interface DateFilter {
   startYear: number;
@@ -166,22 +166,23 @@ function DateRangePicker({
 
   return (
     <div className="relative min-w-0">
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 min-w-0">
         <button
           onClick={togglePanel}
-          className={`font-mono text-xs px-3 py-1 border transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`font-mono text-base md:text-sm px-3 py-1.5 border transition-colors flex items-center gap-1.5 min-w-0 cursor-pointer ${
             applied
               ? 'border-brand/60 text-brand bg-white hover:bg-brand/5'
               : 'border-line/60 text-ink/70 bg-white hover:text-ink hover:border-ink/40'
           }`}
         >
-          {applied ? formatDateFilter(applied, compact) : '選擇期間'}
-          <span className="opacity-70 text-[11px]">▾</span>
+          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true) : '選擇期間'}</span>
+          <span className="hidden md:block truncate">{applied ? formatDateFilter(applied, compact) : '選擇期間'}</span>
+          <span className="opacity-70 text-xs shrink-0">▾</span>
         </button>
         {applied && (
           <button
             onClick={e => { e.stopPropagation(); onClear(); }}
-            className="font-mono text-xs text-ink/50 hover:text-ink transition-colors whitespace-nowrap"
+            className="font-mono text-sm text-ink/50 hover:text-ink transition-colors whitespace-nowrap shrink-0"
           >
             清除
           </button>
@@ -192,7 +193,7 @@ function DateRangePicker({
         <div ref={panelRef} className="absolute top-full left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
           <div className="flex flex-col gap-3 mb-5">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">起始</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">起始</span>
               <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={`${selectCls} flex-1`}>
                 <option value="">年</option>
                 {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -203,7 +204,7 @@ function DateRangePicker({
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">結束</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">結束</span>
               <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
                 <option value="">年</option>
                 {endYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -215,13 +216,13 @@ function DateRangePicker({
             </div>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-line/40">
-            <button onClick={handleClear} className="font-mono text-xs text-ink/60 hover:text-ink transition-colors underline underline-offset-2">
+            <button onClick={handleClear} className="font-mono text-sm text-ink/60 hover:text-ink transition-colors underline underline-offset-2">
               清空
             </button>
             <button
               onClick={handleApply}
               disabled={!sy}
-              className="font-mono text-xs px-5 py-1.5 bg-ink text-paper hover:bg-ink/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="font-mono text-sm px-5 py-1.5 bg-ink text-paper hover:bg-ink/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               套用
             </button>
@@ -235,6 +236,10 @@ function DateRangePicker({
 function MapResizer({ trigger }: { trigger: boolean }) {
   const map = useMap();
   useEffect(() => {
+    // Re-measure immediately (so the map reflows to the new width without the
+    // aside briefly overlapping a still-full-width map) and again after the
+    // 300ms width transition settles.
+    map.invalidateSize();
     const t = setTimeout(() => map.invalidateSize(), 310);
     return () => clearTimeout(t);
   }, [trigger, map]);
@@ -412,8 +417,8 @@ export default function MapView() {
   // more vivid, not muddier, than the brand red it's built around.
   const COUNTRY_HUE = 356;
   const countryFillColor = (intensity: number) => {
-    const saturation = 65 + intensity * 25; // 65% (light) → 90% (deep, vivid)
-    const lightness = 95 - intensity * 53; // 95% (near-white pink) → 42% (deep red)
+    const saturation = 80 + intensity * 10; // 65% (light) → 90% (deep, vivid)
+    const lightness = 85 - intensity * 50; // 95% (near-white pink) → 42% (deep red)
     return `hsl(${COUNTRY_HUE}, ${saturation}%, ${lightness}%)`;
   };
 
@@ -438,7 +443,8 @@ export default function MapView() {
       weight: isVisited ? 1.5 : 0,
       opacity: isVisited ? 0.7 : 0,
       color: "#e63946",
-      fillOpacity: isVisited ? 1 : 0,
+      // 半透明遮罩：讓底圖的國家/城市地名能透出來，同時保留造訪次數的深淺漸層。
+      fillOpacity: isVisited ? 0.5 : 0,
     };
   };
 
@@ -518,20 +524,12 @@ export default function MapView() {
         style={{
           backgroundColor: '#e8e4de',
           backgroundImage: [
-            'repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(0,0,0,0.05) 23px, rgba(0,0,0,0.05) 24px)',
-            'repeating-linear-gradient(0deg, transparent, transparent 11px, rgba(0,0,0,0.03) 11px, rgba(0,0,0,0.03) 12px)',
+            'repeating-linear-gradient(0deg, transparent, transparent 13px, rgba(0,0,0,0.05) 13px, rgba(0,0,0,0.05) 14px)',
+            'repeating-linear-gradient(90deg, transparent, transparent 13px, rgba(0,0,0,0.03) 13px, rgba(0,0,0,0.03) 14px)',
           ].join(', '),
         }}
       >
-        {humanViews !== null && (
-          <p className="shrink-0 font-mono text-[10px] sm:text-xs text-ink/40 tracking-widest whitespace-nowrap">
-            <span className="hidden sm:inline">網站累計 </span>
-            {humanViews.toLocaleString()}
-            <span className="hidden sm:inline"> 人次造訪</span>
-            <span className="sm:hidden"> 人次</span>
-          </p>
-        )}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <DateRangePicker
             availableYears={availableYears}
             applied={dateFilter}
@@ -544,15 +542,13 @@ export default function MapView() {
             onClick={() => setViewMode('map')}
             className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
-            <Map size={14} className="md:hidden" />
-            <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">地圖</span>
+            <span className="font-mono text-sm md:text-[11px] uppercase tracking-[0.15em] leading-none">地圖</span>
           </button>
           <button
             onClick={() => setViewMode('list')}
             className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
           >
-            <List size={14} className="md:hidden" />
-            <span className="hidden md:inline font-mono text-[11px] uppercase tracking-[0.15em] leading-none">列表</span>
+            <span className="font-mono text-sm md:text-[11px] uppercase tracking-[0.15em] leading-none">列表</span>
           </button>
         </div>
       </div>
@@ -560,12 +556,12 @@ export default function MapView() {
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
       {/* ── Desktop Aside (hidden on mobile) ── */}
-      <aside className={`hidden md:flex shrink-0 flex-col bg-white border-r border-line z-10 overflow-visible transition-all duration-300 relative ${asideOpen ? 'md:w-80' : 'md:w-8'}`}>
+      <aside className={`hidden md:flex shrink-0 flex-col bg-white z-[500] overflow-visible transition-all duration-300 relative ${asideOpen ? 'md:w-80' : 'md:w-8'}`}>
 
         {/* Collapse / Expand toggle — absolutely on the right border, vertically centered */}
         <button
           onClick={() => setAsideOpen(o => !o)}
-          className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-20 w-7 h-7 bg-paper border border-line rounded-full flex items-center justify-center shadow-sm hover:bg-ink/5 transition-colors cursor-pointer"
+          className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-20 w-7 h-7 bg-paper border border-line rounded-full flex items-center justify-center shadow-sm transition-colors cursor-pointer"
           aria-label={asideOpen ? '收合側欄' : '展開側欄'}
         >
           <ChevronLeft size={13} className={`text-ink/50 transition-transform duration-300 ${asideOpen ? '' : 'rotate-180'}`} />
@@ -574,7 +570,7 @@ export default function MapView() {
         {/* Aside content — hidden when collapsed */}
         <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${asideOpen ? 'w-80' : 'w-0'}`}>
 
-        <div className="px-7 pt-8 pb-6 border-b border-line">
+        <div className="relative z-10 px-7 pt-8 pb-6 border-b border-r border-line/40 bg-white shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
           <div className="grid grid-cols-2 divide-x divide-line/40">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
@@ -661,6 +657,10 @@ export default function MapView() {
         </div>
         </div>
         </div>{/* end aside content */}
+
+        {/* Right divider — overlaid so the hero section's white bg can't hide it,
+            and inside the z-[500] aside so it paints above the map tiles. */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-ink/60 z-10" />
 
       </aside>
 
@@ -756,7 +756,7 @@ export default function MapView() {
         {/* ── Mobile Bottom Panel ── */}
         <div className="md:hidden shrink-0 bg-paper border-t border-line">
           {/* Hero stats */}
-          <div className="flex items-center gap-4 px-4 py-3">
+          <div className="relative z-10 flex items-center gap-4 px-4 py-3 bg-paper shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.18)]">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
@@ -771,6 +771,11 @@ export default function MapView() {
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayOverseasCount}</span>
               <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
+            {humanViews !== null && (
+              <span className="self-end pb-0.5 ml-auto shrink-0 font-mono text-[12px] text-ink/40 tracking-widest whitespace-nowrap">
+                累計 {humanViews.toLocaleString()} 人次造訪
+              </span>
+            )}
           </div>
           {/* Category chips */}
           <div className="chip-scroll flex gap-2 overflow-x-auto px-3 pb-2.5 pb-safe">

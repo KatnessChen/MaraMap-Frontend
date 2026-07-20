@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getApiBase } from "@/utils/apiBase";
+import { formatCityName } from "@/utils/formatLocation";
 
 
 // --- API Data Interfaces ---
@@ -376,7 +377,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
   const content = getDisplayContent(post);
   const coords = extractCoordinates(post.media);
   const locationLabel = post.metadata 
-    ? (post.metadata.country && post.metadata.city ? `${post.metadata.country} / ${post.metadata.city}` : (post.metadata.race_name || '探索軌跡'))
+    ? (post.metadata.country && post.metadata.city ? `${post.metadata.country} / ${formatCityName(post.metadata.city, post.metadata.country)}` : (post.metadata.race_name || '探索軌跡'))
     : null;
 
   return (
@@ -557,7 +558,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                     <div className="flex flex-col justify-center min-w-0">
                       <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{tp.category} · {tp.date}</span>
                       <span className="font-serif font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{tp.title}</span>
-                      {tp.city && <span className="font-mono text-xs text-ink/60 mt-1">{tp.city}</span>}
+                      {tp.city && <span className="font-mono text-xs text-ink/60 mt-1">{formatCityName(tp.city, tp.country)}</span>}
                     </div>
                   </Link>
                 ))}

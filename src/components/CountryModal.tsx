@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, ArrowRight } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+import { formatCityName } from "@/utils/formatLocation";
 
 interface Participant {
   name: string;
@@ -125,7 +126,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                       <>
                         <span className="text-ink/40">·</span>
                         <span className="font-mono text-sm text-ink/70">
-                          {race.city}
+                          {formatCityName(race.city, country)}
                         </span>
                       </>
                     )}

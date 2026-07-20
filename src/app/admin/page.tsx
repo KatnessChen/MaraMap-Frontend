@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Edit2, EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, Trash2, UploadCloud, PlusCircle } from "lucide-react";
+import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 
 interface ParticipantStats {
@@ -86,6 +86,16 @@ export default function AdminDashboard() {
     const hasTime = !!(davis?.time && davis.time !== '---' && davis.time !== 'N/A' && davis.time !== '0:00:00');
     return { davis, hasTime };
   };
+
+  // 類別色系：主分類用飽和色塊，子分類同色系但淺一層。未知類別退回中性灰。
+  // class 皆為靜態字串，Tailwind 才能在編譯時掃到。
+  const CATEGORY_STYLES: Record<string, { main: string; sub: string }> = {
+    馬拉松: { main: "bg-[#ff1493]/15 text-[#ff1493]", sub: "text-[#ff1493]/90 bg-[#ff1493]/8 border-[#ff1493]/30" },
+    旅遊: { main: "bg-violet-100 text-violet-700", sub: "text-violet-600/80 bg-violet-50 border-violet-200" },
+    登山: { main: "bg-emerald-100 text-emerald-700", sub: "text-emerald-600/80 bg-emerald-50 border-emerald-200" },
+  };
+  const FALLBACK_STYLE = { main: "bg-ink/5 text-ink/60", sub: "text-ink/50 bg-ink/5 border-ink/15" };
+  const categoryStyle = (category: string) => CATEGORY_STYLES[category] ?? FALLBACK_STYLE;
 
   // Provenance chip: 手動 (manual admin entry) vs FB (Facebook import).
   const sourceBadge = (source?: "facebook" | "manual") =>
@@ -217,27 +227,6 @@ export default function AdminDashboard() {
     fetchPosts();
   }, [page, pageSize, applied, router]);
 
-  const handleDeletePost = async (id: string, title: string) => {
-    if (!window.confirm(`確定要刪除「${title || "此文章"}」嗎？此操作無法復原。`)) return;
-    const token = localStorage.getItem("maramap_admin_token");
-    if (!token) { router.push("/admin/login"); return; }
-    try {
-      const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setPosts(prev => prev.filter(p => p.id !== id));
-        setMeta(prev => prev ? { ...prev, total: Math.max(0, prev.total - 1) } : prev);
-      } else if (res.status === 401) {
-        router.push("/admin/login");
-      }
-    } catch (error) {
-      console.error("Failed to delete post:", error);
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem("maramap_admin_token");
     router.push("/admin/login");
@@ -270,9 +259,10 @@ export default function AdminDashboard() {
               <Link href="/admin/new" className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand text-white hover:bg-brand/80 font-sans text-sm font-bold rounded-full transition-all shadow-sm" title="手動新增單篇文章">
                 <PlusCircle size={18} /> <span className="hidden sm:inline">新增文章</span>
               </Link>
-              <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
+              {/* 匯入資料按鈕暫時隱藏 */}
+              {/* <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
                 <UploadCloud size={18} /> <span className="hidden sm:inline">匯入資料</span>
-              </Link>
+              </Link> */}
               <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="登出系統">
                 <LogOut size={18} /> <span className="hidden sm:inline">登出</span>
               </button>
@@ -419,11 +409,11 @@ export default function AdminDashboard() {
             posts.map((post) => {
               const { davis, hasTime } = getDavis(post);
               return (
-                <div key={post.id} className="bg-white border border-line shadow-sm rounded-lg p-5">
+                <div key={post.id} className="bg-white border border-line shadow-sm rounded-lg p-4">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className="font-mono text-sm text-ink/60 whitespace-nowrap">{post.event_date}</span>
-                      <span className="font-sans text-xs font-bold bg-ink/5 text-ink/60 px-2.5 py-1 rounded-sm uppercase">{post.category}</span>
+                      <span className={`font-sans text-xs font-bold ${categoryStyle(post.category).main} px-2.5 py-1 rounded-sm uppercase`}>{post.category}</span>
                     </div>
                     <div className="shrink-0 flex items-center gap-2">
                       {hiddenBadge(post.is_hidden)}
@@ -434,7 +424,7 @@ export default function AdminDashboard() {
                   {post.sub_categories?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
                       {post.sub_categories.map((s, i) => (
-                        <span key={i} className="font-sans text-xs font-bold text-brand/70 bg-brand/5 border border-brand/15 px-2 py-0.5">{s}</span>
+                        <span key={i} className={`font-sans text-xs font-bold ${categoryStyle(post.category).sub} border px-2 py-0.5 rounded-sm`}>{s}</span>
                       ))}
                     </div>
                   )}
@@ -460,29 +450,12 @@ export default function AdminDashboard() {
                   )}
 
                   {post.tags && post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex flex-wrap gap-2">
                       {post.tags.map((t, idx) => (
                         <span key={idx} className="font-sans text-sm text-ink/40 bg-paper px-2 py-0.5 rounded-xs border border-line/50">#{t}</span>
                       ))}
                     </div>
                   )}
-
-                  <div className="flex items-center gap-3 pt-3 border-t border-line/50">
-                    <Link
-                      href={`/admin/edit/${post.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-full text-ink font-sans text-sm font-bold border border-ink/10 hover:bg-brand hover:text-white hover:border-brand transition-all"
-                    >
-                      <Edit2 size={16} /> 編輯
-                    </Link>
-                    <button
-                      onClick={() => handleDeletePost(post.id, post.title)}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-ink/50 font-sans text-sm font-bold border border-ink/10 hover:bg-brand hover:text-white hover:border-brand transition-all"
-                    >
-                      <Trash2 size={16} /> 刪除
-                    </button>
-                  </div>
                 </div>
               );
             })
@@ -494,24 +467,23 @@ export default function AdminDashboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-ink text-paper font-sans text-sm uppercase tracking-widest">
-                <th className="px-6 py-5 font-bold w-40">日期</th>
-                <th className="px-6 py-5 font-bold w-32">類別</th>
-                <th className="px-6 py-5 font-bold">文章標題</th>
-                <th className="px-6 py-5 font-bold text-center w-32">來源</th>
-                <th className="px-6 py-5 font-bold text-right w-32">編輯</th>
+                <th className="px-4 py-3 font-bold w-40">日期</th>
+                <th className="px-4 py-3 font-bold w-32">類別</th>
+                <th className="px-4 py-3 font-bold">文章標題</th>
+                <th className="px-4 py-3 font-bold text-center w-32">來源</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-24 text-center">
+                  <td colSpan={4} className="px-6 py-24 text-center">
                     <Loader2 className="animate-spin text-brand mx-auto mb-4" size={40} />
                     <span className="font-sans text-base text-ink/40">正在檢索資料...</span>
                   </td>
                 </tr>
               ) : posts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-24 text-center font-sans text-base text-ink/40">
+                  <td colSpan={4} className="px-6 py-24 text-center font-sans text-base text-ink/40">
                     找不到符合條件的文章。
                   </td>
                 </tr>
@@ -520,21 +492,21 @@ export default function AdminDashboard() {
                   const { davis, hasTime } = getDavis(post);
                   return (
                   <tr key={post.id} className="hover:bg-paper/50 transition-colors group">
-                    <td className="px-6 py-6 whitespace-nowrap font-mono text-base text-ink/60">{post.event_date}</td>
-                    <td className="px-6 py-6 align-top">
-                      <span className="font-sans text-sm font-bold bg-ink/5 text-ink/60 px-3 py-1.5 rounded-sm uppercase block w-fit mb-2">{post.category}</span>
+                    <td className="px-4 py-3 whitespace-nowrap font-mono text-sm text-ink/60 align-top">{post.event_date}</td>
+                    <td className="px-4 py-3 align-top">
+                      <span className={`font-sans text-xs font-bold ${categoryStyle(post.category).main} px-2.5 py-1 rounded-sm uppercase block w-fit`}>{post.category}</span>
                       {post.sub_categories?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 mt-1.5">
                           {post.sub_categories.map((s, i) => (
-                            <span key={i} className="font-sans text-xs font-bold text-brand/70 bg-brand/5 border border-brand/15 px-2 py-0.5">{s}</span>
+                            <span key={i} className={`font-sans text-xs font-bold ${categoryStyle(post.category).sub} border px-2 py-0.5 rounded-sm`}>{s}</span>
                           ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-6">
-                      <Link href={`/admin/edit/${post.id}`} target="_blank" rel="noopener noreferrer" className="block font-serif font-black text-xl text-ink leading-tight mb-2 hover:text-brand transition-colors">{post.title || "未命名文章"}</Link>
+                    <td className="px-4 py-3 align-top">
+                      <Link href={`/admin/edit/${post.id}`} target="_blank" rel="noopener noreferrer" className="block font-serif font-black text-lg text-ink leading-snug hover:text-brand transition-colors">{post.title || "未命名文章"}</Link>
                       {post.category === "馬拉松" && davis && (
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mt-1.5">
                           <span className="font-sans text-xs font-bold text-ink/40 uppercase tracking-wider">{davis.distance || "—"}</span>
                           {hasTime && (
                             <>
@@ -550,36 +522,18 @@ export default function AdminDashboard() {
                           )}
                         </div>
                       )}
-                      <div className="flex flex-wrap gap-2">
-                        {post.tags && post.tags.map((t, idx) => (
-                          <span key={idx} className="font-sans text-sm text-ink/40 bg-paper px-2 py-0.5 rounded-xs border border-line/50">#{t}</span>
-                        ))}
-                      </div>
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-1.5">
+                          {post.tags.map((t, idx) => (
+                            <span key={idx} className="font-sans text-sm text-ink/40 bg-paper px-2 py-0.5 rounded-xs border border-line/50">#{t}</span>
+                          ))}
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 align-top">
                       <div className="flex flex-col items-center gap-1.5">
                         {sourceBadge(post.source)}
                         {hiddenBadge(post.is_hidden)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/admin/edit/${post.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center w-12 h-12 rounded-full text-ink hover:bg-brand hover:text-white transition-all border border-ink/10 hover:border-brand shadow-sm"
-                          title="編輯文章"
-                        >
-                          <Edit2 size={20} />
-                        </Link>
-                        <button
-                          onClick={() => handleDeletePost(post.id, post.title)}
-                          className="inline-flex items-center justify-center w-12 h-12 rounded-full text-ink/40 hover:bg-brand hover:text-white transition-all border border-ink/10 hover:border-brand shadow-sm"
-                          title="刪除文章"
-                        >
-                          <Trash2 size={20} />
-                        </button>
                       </div>
                     </td>
                   </tr>
