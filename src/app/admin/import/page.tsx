@@ -37,7 +37,7 @@ type PipelineEvent =
   | { type: "ready-for-review"; batch: string; posts: ReviewPost[] }
   | { type: "done"; success: boolean; summary: string };
 
-type Phase = "idle" | "preparing" | "review" | "finalizing" | "done";
+type Phase = "idle" | "uploading" | "preparing" | "review" | "finalizing" | "done";
 
 const CATEGORIES = ["馬拉松", "登山", "旅遊"];
 const SUB_CATEGORY_MAP: Record<string, string[]> = {
@@ -45,6 +45,29 @@ const SUB_CATEGORY_MAP: Record<string, string[]> = {
   登山: ["大百岳", "小百岳", "海外登山"],
   旅遊: [],
 };
+
+// XHR instead of fetch — fetch still has no upload progress events, and an
+// 800MB direct-to-R2 PUT with no feedback looks frozen.
+function uploadToR2(
+  url: string,
+  file: File,
+  onProgress: (pct: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", "application/zip"); // must match the presigned Content-Type
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`上傳到雲端儲存失敗（HTTP ${xhr.status}）`));
+    xhr.onerror = () => reject(new Error("上傳到雲端儲存失敗（網路或 CORS 問題）"));
+    xhr.send(file);
+  });
+}
 
 async function streamPipeline(
   url: string,
@@ -153,9 +176,9 @@ export default function AdminImportPage() {
     const state = pending.find((s) => s.batch === targetBatch);
     const warning =
       state?.phase === "finalizing"
-        ? "\n\n注意：這個批次上次中斷在匯入階段，可能已有部分文章寫入資料庫。取消只會刪掉本機檔案，不會移除已匯入的文章。"
+        ? "\n\n注意：這個批次上次中斷在匯入階段，可能已有部分文章寫入資料庫。取消只會刪掉雲端暫存檔，不會移除已匯入的文章。"
         : "";
-    if (!window.confirm(`確定要取消批次 ${targetBatch}？\n解壓縮的檔案與分類結果會移到垃圾桶，需要重新上傳 zip 才能再匯入。${warning}`)) {
+    if (!window.confirm(`確定要取消批次 ${targetBatch}？\n雲端暫存檔（zip、媒體、分類結果）將被刪除，需要重新上傳 zip 才能再匯入。${warning}`)) {
       return;
     }
 
@@ -170,8 +193,8 @@ export default function AdminImportPage() {
         appendLine(`❌ 取消失敗（HTTP ${res.status}）：${body.message ?? ""}`);
         return;
       }
-      const data: { removed: string[] } = await res.json();
-      appendLine(`🗑️ 已取消批次 ${targetBatch}，${data.removed.length} 個資料夾移至垃圾桶。`);
+      const data: { removed: string[]; r2Objects: number } = await res.json();
+      appendLine(`🗑️ 已取消批次 ${targetBatch}，刪除 ${data.r2Objects} 個雲端暫存物件。`);
       await loadPending(token);
     } catch (err) {
       appendLine(`❌ 取消失敗：${(err as Error).message}`);
@@ -207,26 +230,71 @@ export default function AdminImportPage() {
     if (!token) { router.push("/admin/login"); return; }
     if (!file) return;
 
-    setPhase("preparing");
+    setPhase("uploading");
     setLines([]);
     setResult(null);
     setBatch(null);
     setPosts([]);
     setEdits({});
 
-    const formData = new FormData();
-    formData.append("file", file); // don't set Content-Type manually — browser sets the multipart boundary
-
     try {
+      // 1. Ask the backend for a presigned URL, then PUT the zip straight to
+      //    R2 — Cloud Run's request body cap (32MB) never sees the file.
+      const urlRes = await fetch(`${getApiBase()}/api/v1/admin/fb-import/upload-url`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!urlRes.ok) throw new Error(`無法取得上傳位址（HTTP ${urlRes.status}）`);
+      const { batch: newBatch, url } = (await urlRes.json()) as { batch: string; url: string };
+
+      appendLine(`⬆️ 直接上傳到雲端儲存（${(file.size / 1e6).toFixed(0)} MB）…`);
+      let lastLogged = -10;
+      await uploadToR2(url, file, (pct) => {
+        if (pct >= lastLogged + 10) {
+          lastLogged = pct;
+          appendLine(`   上傳進度 ${pct}%`);
+        }
+      });
+      appendLine("✅ 上傳完成，開始雲端解析…");
+
+      // 2. Kick off the prepare pipeline against the uploaded zip.
+      setPhase("preparing");
       await streamPipeline(
-        `${getApiBase()}/api/v1/admin/fb-import`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData },
+        `${getApiBase()}/api/v1/admin/fb-import/${newBatch}/prepare`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
         handleEvent,
         appendLine,
       );
     } catch (err) {
       appendLine(`❌ ${(err as Error).message}`);
       setResult({ success: false, summary: "連線中斷。若分類已完成，可重新整理頁面接續未完成的批次。" });
+      setPhase("done");
+    }
+  };
+
+  // A batch whose prepare half failed keeps its zip in R2 — retry the parse
+  // without re-uploading anything.
+  const retryPrepare = async (targetBatch: string) => {
+    const token = localStorage.getItem("maramap_admin_token");
+    if (!token) { router.push("/admin/login"); return; }
+
+    setPhase("preparing");
+    setLines([`🔁 重試批次 ${targetBatch} 的雲端解析（zip 已在雲端，不需重新上傳）…`]);
+    setResult(null);
+    setBatch(null);
+    setPosts([]);
+    setEdits({});
+
+    try {
+      await streamPipeline(
+        `${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/prepare`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+        handleEvent,
+        appendLine,
+      );
+    } catch (err) {
+      appendLine(`❌ ${(err as Error).message}`);
+      setResult({ success: false, summary: "連線中斷。重新整理頁面可再次重試這個批次。" });
       setPhase("done");
     }
   };
@@ -289,7 +357,7 @@ export default function AdminImportPage() {
     );
   };
 
-  const isStreaming = phase === "preparing" || phase === "finalizing";
+  const isStreaming = phase === "uploading" || phase === "preparing" || phase === "finalizing";
   const counts = CATEGORIES.map((c) => ({
     category: c,
     count: posts.filter((p) => (edits[p.timestamp]?.category ?? p.category) === c).length,
@@ -309,7 +377,7 @@ export default function AdminImportPage() {
           <div className="bg-amber-50 border border-amber-200 p-6 mb-8 rounded">
             <h2 className="font-sans font-bold text-base text-amber-900 mb-1">有未完成的匯入</h2>
             <p className="font-sans text-sm text-amber-800/80 mb-4">
-              分類結果已保存在本機，可直接接續，不需重新上傳 zip。
+              上傳的檔案與分類結果都保存在雲端，可直接接續，不需重新上傳 zip。
             </p>
             <div className="space-y-2">
               {pending.map((s) => (
@@ -319,6 +387,7 @@ export default function AdminImportPage() {
                     <p className="font-sans text-sm text-ink">
                       {s.postCount} 篇 · {new Date(s.updatedAt).toLocaleString()}
                       {s.phase === "finalizing" && " · 上次中斷於匯入階段"}
+                      {s.phase === "failed" && " · 解析失敗，可重試"}
                     </p>
                     {s.summary && <p className="font-sans text-xs text-red-700 mt-1">{s.summary}</p>}
                   </div>
@@ -331,11 +400,13 @@ export default function AdminImportPage() {
                       {cancelling === s.batch ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />} 取消
                     </button>
                     <button
-                      onClick={() => void resumeBatch(s.batch)}
+                      onClick={() =>
+                        s.phase === "failed" ? void retryPrepare(s.batch) : void resumeBatch(s.batch)
+                      }
                       disabled={cancelling === s.batch}
                       className="px-4 py-2 bg-amber-600 text-white font-sans font-bold text-sm rounded-full inline-flex items-center gap-2 hover:bg-amber-700 disabled:opacity-40 transition-colors"
                     >
-                      <RotateCcw size={14} /> 接續
+                      <RotateCcw size={14} /> {s.phase === "failed" ? "重試解析" : "接續"}
                     </button>
                   </div>
                 </div>
@@ -359,7 +430,7 @@ export default function AdminImportPage() {
               className="px-6 py-3 bg-brand text-white font-sans font-bold text-sm rounded-full disabled:opacity-40 inline-flex items-center gap-2 transition-all hover:bg-brand/80"
             >
               {isStreaming ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
-              {phase === "preparing" ? "解析中…" : phase === "finalizing" ? "匯入中…" : "開始匯入"}
+              {phase === "uploading" ? "上傳中…" : phase === "preparing" ? "解析中…" : phase === "finalizing" ? "匯入中…" : "開始匯入"}
             </button>
           </div>
         )}
@@ -435,7 +506,7 @@ export default function AdminImportPage() {
               確認分類並繼續匯入
             </button>
             <p className="font-sans text-xs text-ink/50 mt-3">
-              接下來會執行分析 → 格式化 → 合併 → 匯入資料庫 → 上傳圖片 → 行程歸戶 → 座標補齊，需要數分鐘。
+              接下來會執行分析 → 格式化 → 合併 → 匯入資料庫 → 發佈媒體 → 行程歸戶 → 座標補齊，需要數分鐘。
             </p>
           </div>
         )}
