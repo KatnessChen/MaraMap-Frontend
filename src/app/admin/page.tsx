@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, Trophy } from "lucide-react";
+import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, Trophy, UploadCloud } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 
 interface ParticipantStats {
@@ -262,10 +262,9 @@ export default function AdminDashboard() {
               <Link href="/admin/personal-best" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="重新計算個人最佳成績">
                 <Trophy size={18} /> <span className="hidden sm:inline">最佳成績</span>
               </Link>
-              {/* 匯入資料按鈕暫時隱藏 */}
-              {/* <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
+              <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
                 <UploadCloud size={18} /> <span className="hidden sm:inline">匯入資料</span>
-              </Link> */}
+              </Link>
               <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="登出系統">
                 <LogOut size={18} /> <span className="hidden sm:inline">登出</span>
               </button>

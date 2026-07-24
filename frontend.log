@@ -1,15 +1,39 @@
 
-> maramap-next@0.1.0 dev /Users/kc/Develop/100_Case/06_MaraMap/MaraMap-Frontend
+> maramap-next@0.1.0 dev
 > next dev
 
-⚠ Port 3000 is in use by an unknown process, using available port 3002 instead.
 ▲ Next.js 16.1.6 (Turbopack)
-- Local:         http://localhost:3002
-- Network:       http://192.168.18.8:3002
+- Local:         http://localhost:3000
+- Network:       http://192.168.18.8:3000
 - Environments: .env.local, .env.development
 
 ✓ Starting...
-⨯ Unable to acquire lock at /Users/kc/Develop/100_Case/06_MaraMap/MaraMap-Frontend/.next/dev/lock, is another instance of next dev running?
-  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
-[?25h
- ELIFECYCLE  Command failed with exit code 1.
+✓ Ready in 1044ms
+ GET / 200 in 546ms (compile: 432ms, render: 113ms)
+ GET /admin/import 200 in 194ms (compile: 84ms, render: 111ms)
+✓ Compiled in 612ms
+ GET /admin/import 200 in 437ms (compile: 140ms, render: 297ms)
+ GET /admin/import 200 in 168ms (compile: 51ms, render: 117ms)
+✓ Compiled in 42ms
+✓ Compiled in 113ms
+✓ Compiled in 41ms
+✓ Compiled in 59ms
+✓ Compiled in 385ms
+✓ Compiled in 173ms
+ GET /admin/import 200 in 150ms (compile: 68ms, render: 81ms)
+✓ Compiled in 168ms
+✓ Compiled in 74ms
+✓ Compiled in 92ms
+✓ Compiled in 628ms
+✓ Compiled in 43ms
+✓ Compiled in 247ms
+ GET /admin 200 in 338ms (compile: 297ms, render: 41ms)
+ GET /admin/import 200 in 110ms (compile: 77ms, render: 34ms)
+ GET /personal-best 200 in 375ms (compile: 256ms, render: 119ms)
+ GET / 200 in 65ms (compile: 34ms, render: 31ms)
+ GET /admin 200 in 83ms (compile: 13ms, render: 70ms)
+ GET /admin/login 200 in 135ms (compile: 124ms, render: 11ms)
+ GET /admin 200 in 28ms (compile: 10ms, render: 18ms)
+ GET /admin/import 200 in 34ms (compile: 13ms, render: 21ms)
+ GET /admin 200 in 23ms (compile: 5ms, render: 17ms)
+ GET / 200 in 28ms (compile: 4ms, render: 23ms)

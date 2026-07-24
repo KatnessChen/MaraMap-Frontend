@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UploadCloud, Loader2, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, UploadCloud, Loader2, RotateCcw, Trash2, ChevronDown, ChevronUp, Info, Check } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+
+interface ReviewMedia {
+  url: string;
+  type: string;
+}
 
 interface ReviewPost {
   timestamp: number;
@@ -13,6 +18,7 @@ interface ReviewPost {
   text: string | null;
   category: string;
   sub_categories: string[];
+  media?: ReviewMedia[];
 }
 
 interface CategoryEdit {
@@ -112,6 +118,11 @@ export default function AdminImportPage() {
   const [batch, setBatch] = useState<string | null>(null);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [edits, setEdits] = useState<Record<number, { category: string; sub_categories: string[] }>>({});
+  // Timestamps the admin chose to skip — dropped from the import entirely.
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  // Cards expanded to show full text + media preview.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [helpOpen, setHelpOpen] = useState(false);
   const [pending, setPending] = useState<ImportState[]>([]);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -119,6 +130,19 @@ export default function AdminImportPage() {
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [lines]);
+
+  // Any click anywhere dismisses the help tooltip. The listener is added only
+  // while it's open, and on the next tick so the click that opened it (which is
+  // still propagating) doesn't immediately close it again.
+  useEffect(() => {
+    if (!helpOpen) return;
+    const close = () => setHelpOpen(false);
+    const id = window.setTimeout(() => document.addEventListener("click", close), 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener("click", close);
+    };
+  }, [helpOpen]);
 
   const appendLine = (line: string) => setLines((prev) => [...prev, line]);
 
@@ -164,6 +188,8 @@ export default function AdminImportPage() {
     setBatch(targetBatch);
     setPosts(data.posts);
     seedEdits(data.posts);
+    setSkipped(new Set());
+    setExpanded(new Set());
     setResult(null);
     setLines([`已接續批次 ${targetBatch}（${data.posts.length} 篇，分類於 ${new Date(data.state.updatedAt).toLocaleString()} 完成）`]);
     setPhase("review");
@@ -216,6 +242,8 @@ export default function AdminImportPage() {
       setBatch(event.batch);
       setPosts(event.posts);
       seedEdits(event.posts);
+      setSkipped(new Set());
+      setExpanded(new Set());
       setPhase("review");
     } else if (event.type === "done") {
       setResult({ success: event.success, summary: event.summary });
@@ -236,6 +264,8 @@ export default function AdminImportPage() {
     setBatch(null);
     setPosts([]);
     setEdits({});
+    setSkipped(new Set());
+    setExpanded(new Set());
 
     try {
       // 1. Ask the backend for a presigned URL, then PUT the zip straight to
@@ -284,6 +314,8 @@ export default function AdminImportPage() {
     setBatch(null);
     setPosts([]);
     setEdits({});
+    setSkipped(new Set());
+    setExpanded(new Set());
 
     try {
       await streamPipeline(
@@ -299,7 +331,7 @@ export default function AdminImportPage() {
     }
   };
 
-  const confirmImport = async (targetBatch: string, categoryEdits: CategoryEdit[]) => {
+  const confirmImport = async (targetBatch: string, categoryEdits: CategoryEdit[], skippedTimestamps: number[]) => {
     const token = localStorage.getItem("maramap_admin_token");
     if (!token) { router.push("/admin/login"); return; }
 
@@ -312,7 +344,7 @@ export default function AdminImportPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ edits: categoryEdits }),
+          body: JSON.stringify({ edits: categoryEdits, skipped: skippedTimestamps }),
         },
         handleEvent,
         appendLine,
@@ -326,6 +358,22 @@ export default function AdminImportPage() {
 
   const setCategory = (timestamp: number, category: string) =>
     setEdits((prev) => ({ ...prev, [timestamp]: { category, sub_categories: [] } }));
+
+  const toggleSkip = (timestamp: number) =>
+    setSkipped((prev) => {
+      const next = new Set(prev);
+      if (next.has(timestamp)) next.delete(timestamp);
+      else next.add(timestamp);
+      return next;
+    });
+
+  const toggleExpand = (timestamp: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(timestamp)) next.delete(timestamp);
+      else next.add(timestamp);
+      return next;
+    });
 
   const toggleSubCategory = (timestamp: number, sub: string) =>
     setEdits((prev) => {
@@ -345,8 +393,8 @@ export default function AdminImportPage() {
 
   const submitReview = () => {
     if (!batch) return;
-    // Send every post, not just the changed ones — the server treats this as the
-    // authoritative classification, so there's no diff to get wrong.
+    // Send every post as the authoritative classification (no diff to get wrong)
+    // plus the explicit skip list — the server drops skipped ones from the import.
     void confirmImport(
       batch,
       posts.map((p) => ({
@@ -354,13 +402,21 @@ export default function AdminImportPage() {
         category: edits[p.timestamp]?.category ?? p.category,
         sub_categories: edits[p.timestamp]?.sub_categories ?? p.sub_categories ?? [],
       })),
+      [...skipped],
     );
   };
 
   const isStreaming = phase === "uploading" || phase === "preparing" || phase === "finalizing";
+  // An unresolved batch must be resumed or cancelled before a new one starts —
+  // one import at a time keeps the batch/state model unambiguous.
+  const hasPending = phase === "idle" && pending.length > 0;
+  // Review list shown newest-first; a copy so the submit payload keeps every post.
+  const orderedPosts = [...posts].sort((a, b) => b.timestamp - a.timestamp);
+  // Category tallies count only posts that will actually be imported.
+  const importCount = posts.filter((p) => !skipped.has(p.timestamp)).length;
   const counts = CATEGORIES.map((c) => ({
     category: c,
-    count: posts.filter((p) => (edits[p.timestamp]?.category ?? p.category) === c).length,
+    count: posts.filter((p) => !skipped.has(p.timestamp) && (edits[p.timestamp]?.category ?? p.category) === c).length,
   }));
 
   return (
@@ -369,21 +425,18 @@ export default function AdminImportPage() {
         <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm font-bold mb-6 transition-colors">
           <ArrowLeft size={16} /> 返回後台首頁
         </Link>
-        <h1 className="font-serif font-black text-4xl text-ink tracking-tight mb-2">
+        <h1 className="font-serif font-black text-4xl text-ink tracking-tight mb-8">
           匯入 <span className="text-brand">Facebook</span> 資料
         </h1>
 
-        {phase === "idle" && pending.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 p-6 mb-8 rounded">
-            <h2 className="font-sans font-bold text-base text-amber-900 mb-1">有未完成的匯入</h2>
-            <p className="font-sans text-sm text-amber-800/80 mb-4">
-              上傳的檔案與分類結果都保存在雲端，可直接接續，不需重新上傳 zip。
-            </p>
+        {hasPending && (
+          <div className="bg-amber-50 border border-amber-200 p-6 mb-4 rounded">
+            <h2 className="font-sans font-bold text-base text-amber-900 mb-3">有未完成的匯入</h2>
             <div className="space-y-2">
               {pending.map((s) => (
                 <div key={s.batch} className="flex items-center justify-between gap-4 bg-white border border-amber-200 px-4 py-3 rounded">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs text-ink/50 truncate">{s.batch}</p>
+                    <p className="font-mono text-xs text-ink/50 truncate mb-1.5">{s.batch}</p>
                     <p className="font-sans text-sm text-ink">
                       {s.postCount} 篇 · {new Date(s.updatedAt).toLocaleString()}
                       {s.phase === "finalizing" && " · 上次中斷於匯入階段"}
@@ -406,7 +459,7 @@ export default function AdminImportPage() {
                       disabled={cancelling === s.batch}
                       className="px-4 py-2 bg-amber-600 text-white font-sans font-bold text-sm rounded-full inline-flex items-center gap-2 hover:bg-amber-700 disabled:opacity-40 transition-colors"
                     >
-                      <RotateCcw size={14} /> {s.phase === "failed" ? "重試解析" : "接續"}
+                      <RotateCcw size={14} /> {s.phase === "failed" ? "重試解析" : "繼續匯入"}
                     </button>
                   </div>
                 </div>
@@ -415,15 +468,25 @@ export default function AdminImportPage() {
           </div>
         )}
 
-        {phase !== "review" && (
-          <div className="bg-white border border-line p-8 shadow-sm mb-8 flex items-center gap-4">
-            <input
-              type="file"
-              accept=".zip"
-              disabled={isStreaming}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="flex-1 font-sans text-sm"
-            />
+        {phase !== "review" && !hasPending && (
+          <div className="bg-white border border-line p-8 shadow-sm mb-4 flex flex-wrap items-center gap-4">
+            <label
+              className={`inline-flex items-center gap-2 px-5 py-3 bg-paper border border-line font-sans font-bold text-sm rounded-full transition-colors ${
+                isStreaming ? "opacity-40 pointer-events-none" : "cursor-pointer hover:border-brand/50 hover:text-brand"
+              }`}
+            >
+              選擇 zip 檔案
+              <input
+                type="file"
+                accept=".zip"
+                disabled={isStreaming}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+            </label>
+            <span className="flex-1 min-w-0 font-sans text-sm text-ink/50 truncate">
+              {file ? file.name : "尚未選擇檔案"}
+            </span>
             <button
               onClick={startImport}
               disabled={!file || isStreaming}
@@ -436,84 +499,148 @@ export default function AdminImportPage() {
         )}
 
         {phase === "review" && (
-          <div className="bg-white border border-line p-8 shadow-sm mb-8">
-            <h2 className="font-serif font-black text-2xl text-ink mb-1">確認分類</h2>
-            <p className="font-sans text-sm text-ink/60 mb-2">
-              共 {posts.length} 篇，全部都會匯入。AI 已先給每篇一個分類，不確定的一律歸為「旅遊」，請逐篇確認後再繼續。
-            </p>
+          <div className="bg-white border border-line p-8 shadow-sm mb-4">
+            <h2 className="font-serif font-black text-2xl text-ink mb-2">確認分類</h2>
             <p className="font-sans text-sm text-ink/60 mb-6">
-              {counts.map((c) => `${c.category} ${c.count}`).join(" · ")}
+              共 {posts.length} 篇 · {counts.map((c) => `${c.category} ${c.count}`).join(" · ")} · 略過 {skipped.size}
             </p>
 
-            <div className="space-y-4 mb-6">
-              {posts.map((post) => {
+            <div className="space-y-3 mb-6">
+              {orderedPosts.map((post) => {
                 const choice = edits[post.timestamp] ?? { category: post.category, sub_categories: post.sub_categories ?? [] };
                 const subOptions = SUB_CATEGORY_MAP[choice.category] ?? [];
                 const changed = choice.category !== post.category;
+                const isSkipped = skipped.has(post.timestamp);
+                const isImported = !isSkipped;
+                const isExpanded = expanded.has(post.timestamp);
+                const media = post.media ?? [];
                 return (
-                  <div key={post.timestamp} className="border border-line/60 p-4 rounded">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="min-w-0">
+                  <div
+                    key={post.timestamp}
+                    className={`relative rounded-lg border-2 p-4 transition-all ${
+                      isImported ? "border-brand bg-white" : "border-line/40 bg-ink/[0.02] opacity-60"
+                    }`}
+                  >
+                    {/* 選取＝匯入（預設選取）；取消＝略過。凸出卡片左上角的圓形徽章 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSkip(post.timestamp)}
+                      title={isImported ? "取消選取以略過此篇" : "選取以匯入此篇"}
+                      className={`absolute -top-3 -left-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm transition-all ${
+                        isImported
+                          ? "border-white bg-brand text-white hover:scale-110"
+                          : "border-line bg-white text-transparent hover:border-brand hover:text-brand/40"
+                      }`}
+                    >
+                      <Check size={16} strokeWidth={3} />
+                    </button>
+
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(post.timestamp)}
+                        className="min-w-0 flex-1 text-left"
+                      >
                         <p className="font-mono text-xs text-ink/50">{post.date}</p>
                         <p className="font-sans font-bold text-base text-ink truncate">{post.title || "（無標題）"}</p>
-                        <p className="font-sans text-sm text-ink/60 line-clamp-3 mt-1 whitespace-pre-wrap">{post.text}</p>
-                      </div>
-                      <div className="shrink-0 flex gap-1">
+                      </button>
+                      <select
+                        value={choice.category}
+                        onChange={(e) => setCategory(post.timestamp, e.target.value)}
+                        disabled={isSkipped}
+                        className="shrink-0 px-4 py-2 bg-paper border border-line font-sans font-bold text-sm rounded focus:border-brand outline-none appearance-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
                         {CATEGORIES.map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => setCategory(post.timestamp, c)}
-                            className={`px-3 py-2 font-sans font-bold text-sm rounded border transition-all ${
-                              choice.category === c
-                                ? "bg-brand text-white border-brand"
-                                : "bg-paper text-ink/70 border-line hover:border-brand/50"
-                            }`}
-                          >
-                            {c}
-                          </button>
+                          <option key={c} value={c}>{c}</option>
                         ))}
-                      </div>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(post.timestamp)}
+                        title={isExpanded ? "收合" : "展開看全文與圖片"}
+                        className="shrink-0 p-2 text-ink/40 hover:text-brand transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
                     </div>
-                    {changed && (
-                      <p className="font-sans text-xs text-amber-700 mb-2">已改為「{choice.category}」（AI 原判為「{post.category}」）</p>
-                    )}
-                    {subOptions.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {subOptions.map((sub) => (
-                          <button
-                            key={sub}
-                            onClick={() => toggleSubCategory(post.timestamp, sub)}
-                            className={`px-3 py-1.5 text-sm font-sans font-bold rounded-full border transition-all ${
-                              choice.sub_categories.includes(sub)
-                                ? "bg-brand text-white border-brand"
-                                : "bg-paper text-ink/60 border-line"
-                            }`}
-                          >
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+
+                    <div>
+                      <p className={`font-sans text-sm text-ink/60 mt-2 whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}>
+                        {post.text}
+                      </p>
+
+                      {isExpanded && media.length > 0 && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
+                          {media.map((m, i) =>
+                            m.type === "video" ? (
+                              <video key={i} src={m.url} controls preload="none" className="h-24 w-full rounded bg-ink/5 object-cover" />
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img key={i} src={m.url} loading="lazy" alt="" className="h-24 w-full rounded bg-ink/5 object-cover" />
+                            ),
+                          )}
+                        </div>
+                      )}
+
+                      {isImported && changed && (
+                        <p className="font-sans text-xs text-amber-700 mt-2">已改為「{choice.category}」（AI 原判為「{post.category}」）</p>
+                      )}
+                      {isImported && subOptions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {subOptions.map((sub) => (
+                            <button
+                              key={sub}
+                              onClick={() => toggleSubCategory(post.timestamp, sub)}
+                              className={`px-2.5 py-0.5 text-xs font-sans font-medium rounded-full border transition-all ${
+                                choice.sub_categories.includes(sub)
+                                  ? "bg-brand/10 text-brand border-brand/40"
+                                  : "bg-transparent text-ink/40 border-line hover:border-brand/40 hover:text-ink/60"
+                              }`}
+                            >
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
             </div>
 
-            <button
-              onClick={submitReview}
-              className="px-6 py-3 bg-brand text-white font-sans font-bold text-sm rounded-full inline-flex items-center gap-2 transition-all hover:bg-brand/80"
-            >
-              確認分類並繼續匯入
-            </button>
-            <p className="font-sans text-xs text-ink/50 mt-3">
-              接下來會執行分析 → 格式化 → 合併 → 匯入資料庫 → 發佈媒體 → 行程歸戶 → 座標補齊，需要數分鐘。
-            </p>
+            <div className="flex items-center justify-end gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setHelpOpen((o) => !o)}
+                  title="接下來會發生什麼"
+                  className="p-2 text-ink/40 hover:text-brand transition-colors"
+                >
+                  <Info size={18} />
+                </button>
+                {helpOpen && (
+                  <div className="absolute right-0 bottom-full mb-2 w-72 rounded bg-ink p-3 text-xs font-sans leading-relaxed text-paper shadow-lg z-10">
+                    接下來會執行分析 → 格式化 → 合併 → 匯入資料庫 → 發佈媒體 → 行程歸戶 → 座標補齊，需要數分鐘。
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={submitReview}
+                disabled={importCount === 0}
+                className="px-6 py-3 bg-brand text-white font-sans font-bold text-sm rounded-full inline-flex items-center gap-2 transition-all hover:bg-brand/80 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                確認並匯入 {importCount} 篇{skipped.size > 0 ? `（略過 ${skipped.size}）` : ""}
+              </button>
+            </div>
+            {importCount === 0 && (
+              <p className="font-sans text-xs text-red-600 mt-2 text-right">所有文章都被略過了，至少要保留一篇才能匯入。</p>
+            )}
           </div>
         )}
 
         {result && (
           <div
-            className={`p-4 mb-6 rounded font-sans font-bold text-sm ${
+            className={`p-4 mb-4 rounded font-sans font-bold text-sm ${
               result.success ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
             }`}
           >
