@@ -102,7 +102,7 @@ export default function PersonalBestPage() {
         </h1>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-48 font-mono text-xs uppercase tracking-widest text-ink/60 animate-pulse">
+          <div className="flex items-center justify-center h-48 font-mono text-sm uppercase tracking-widest text-ink">
             Loading...
           </div>
         ) : !data || participants.length === 0 ? (

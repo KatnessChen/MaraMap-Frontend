@@ -10,6 +10,7 @@ import { ArrowRight, ChevronLeft } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
+import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
 
 const API_URL = getApiBase();
@@ -79,6 +80,14 @@ interface Category {
 interface RaceStats {
   totalFM: number;
 }
+
+type ViewMode = 'map' | 'list' | 'timeline';
+
+const VIEW_MODES: Array<{ mode: ViewMode; label: string }> = [
+  { mode: 'map', label: '地圖' },
+  { mode: 'list', label: '列表' },
+  { mode: 'timeline', label: '時間軸' },
+];
 
 const TOTAL_COUNTRIES = 195;
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -169,13 +178,15 @@ function DateRangePicker({
       <div className="flex items-center gap-1.5 min-w-0">
         <button
           onClick={togglePanel}
-          className={`font-mono text-base md:text-sm px-3 py-1.5 border transition-colors flex items-center gap-1.5 min-w-0 cursor-pointer ${
+          className={`font-mono text-base md:text-[13px] px-2.5 py-1 border transition-colors flex items-center gap-1.5 min-w-0 cursor-pointer ${
             applied
               ? 'border-brand/60 text-brand bg-white hover:bg-brand/5'
               : 'border-line/60 text-ink/70 bg-white hover:text-ink hover:border-ink/40'
           }`}
         >
-          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true) : '選擇期間'}</span>
+          {/* Mobile keeps a short label — the three-way view toggle takes most
+              of the row on a 390px screen. */}
+          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true) : '期間'}</span>
           <span className="hidden md:block truncate">{applied ? formatDateFilter(applied, compact) : '選擇期間'}</span>
           <span className="opacity-70 text-xs shrink-0">▾</span>
         </button>
@@ -193,7 +204,7 @@ function DateRangePicker({
         <div ref={panelRef} className="absolute top-full left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
           <div className="flex flex-col gap-3 mb-5">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">起始</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">起始</span>
               <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={`${selectCls} flex-1`}>
                 <option value="">年</option>
                 {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -204,7 +215,7 @@ function DateRangePicker({
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-8 shrink-0">結束</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">結束</span>
               <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
                 <option value="">年</option>
                 {endYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -233,16 +244,27 @@ function DateRangePicker({
   );
 }
 
-function MapResizer({ trigger }: { trigger: boolean }) {
+function MapResizer() {
   const map = useMap();
   useEffect(() => {
-    // Re-measure immediately (so the map reflows to the new width without the
-    // aside briefly overlapping a still-full-width map) and again after the
-    // 300ms width transition settles.
-    map.invalidateSize();
-    const t = setTimeout(() => map.invalidateSize(), 310);
-    return () => clearTimeout(t);
-  }, [trigger, map]);
+    // Watch the map container's own size instead of taking `asideOpen` as a
+    // prop. Two wins: this component no longer depends on aside state (so the
+    // whole map subtree can be memoised and skip re-rendering on toggle), and
+    // invalidateSize is debounced to fire ONCE after the resize settles rather
+    // than eagerly on click. Eager invalidateSize forces the marker cluster to
+    // re-cluster synchronously (~1.5s block) right in the middle of the aside
+    // slide, which swallowed the animation. Letting leaflet's tiles visually
+    // stretch during the 300ms slide and correcting once afterwards keeps the
+    // animation on unblocked frames.
+    const el = map.getContainer();
+    let t: ReturnType<typeof setTimeout>;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(() => map.invalidateSize(), 160);
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, [map]);
   return null;
 }
 
@@ -254,8 +276,7 @@ export default function MapView() {
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
-  const [totalCountryCount, setTotalCountryCount] = useState(0);
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [listTitleMode, setListTitleMode] = useState<'countries' | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
   const [humanViews, setHumanViews] = useState<number | null>(null);
@@ -268,9 +289,9 @@ export default function MapView() {
     return marathon?.sub_categories.find(s => s.name === "海外馬")?.count ?? 0;
   }, [categories]);
 
-  const sevenMajorsCount = useMemo(() => {
+  const nineMajorsCount = useMemo(() => {
     const marathon = categories.find(c => c.name === "馬拉松");
-    return marathon?.sub_categories.find(s => s.name === "七大馬")?.count ?? 0;
+    return marathon?.sub_categories.find(s => s.name === "九大馬")?.count ?? 0;
   }, [categories]);
 
   const travelCount = useMemo(() => {
@@ -300,11 +321,16 @@ export default function MapView() {
     });
   }, [basePoints, dateFilter]);
 
-  // Display values: fall back to API when no date filter, compute from filteredBase when active
+  // Distinct visited countries across ALL posts (every category, geo not
+  // required) — not the marathon-scoped `stats?participant=Davis` count, which
+  // only saw countries with a race and so undercounted travel-/hike-only ones.
+  // With a date filter active this narrows to `filteredBase`; otherwise it's
+  // the whole dataset. Driven off `basePoints`/`filteredBase` so it always
+  // matches what the list and timeline actually show.
   const displayCountryCount = useMemo(() => {
-    if (!dateFilter) return totalCountryCount;
-    return new Set(filteredBase.map(p => p.country_en).filter(Boolean)).size;
-  }, [dateFilter, totalCountryCount, filteredBase]);
+    const src = dateFilter ? filteredBase : basePoints;
+    return new Set(src.map(p => p.country_en).filter(Boolean)).size;
+  }, [dateFilter, filteredBase, basePoints]);
 
   const displayTotalPostCount = useMemo(() => {
     if (!dateFilter) return totalPostCount;
@@ -321,10 +347,10 @@ export default function MapView() {
     return filteredBase.filter(p => p.cat === '馬拉松' && p.sub_cats.includes('海外馬')).length;
   }, [dateFilter, overseasCount, filteredBase]);
 
-  const displaySevenMajorsCount = useMemo(() => {
-    if (!dateFilter) return sevenMajorsCount;
-    return filteredBase.filter(p => p.cat === '馬拉松' && p.sub_cats.includes('七大馬')).length;
-  }, [dateFilter, sevenMajorsCount, filteredBase]);
+  const displayNineMajorsCount = useMemo(() => {
+    if (!dateFilter) return nineMajorsCount;
+    return filteredBase.filter(p => p.cat === '馬拉松' && p.sub_cats.includes('九大馬')).length;
+  }, [dateFilter, nineMajorsCount, filteredBase]);
 
   const displayTravelCount = useMemo(() => {
     if (!dateFilter) return travelCount;
@@ -339,10 +365,10 @@ export default function MapView() {
   const statItems = useMemo<Array<{ label: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
     { label: "全馬",  unit: "場", value: displayFMCount,          cat: "馬拉松", sub: null      },
     { label: "海外馬", unit: "場", value: displayOverseasCount,   cat: "馬拉松", sub: "海外馬"  },
-    { label: "七大馬", unit: "場", value: displaySevenMajorsCount, cat: "馬拉松", sub: "七大馬"  },
+    { label: "九大馬", unit: "場", value: displayNineMajorsCount,  cat: "馬拉松", sub: "九大馬"  },
     { label: "旅遊",  unit: "篇", value: displayTravelCount,      cat: "旅遊",   sub: null      },
     { label: "登山",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
-  ], [displayFMCount, displayOverseasCount, displaySevenMajorsCount, displayTravelCount, displayHikingCount]);
+  ], [displayFMCount, displayOverseasCount, displayNineMajorsCount, displayTravelCount, displayHikingCount]);
 
   // Points for the map layer: category/sub-category filtered, geo-required.
   // Derived client-side from basePoints instead of a separate network call —
@@ -392,6 +418,47 @@ export default function MapView() {
     });
     return map;
   }, [points]);
+
+  // Marker elements are memoised on `points` alone: without this, every
+  // unrelated re-render (e.g. collapsing the aside) rebuilt a few hundred
+  // Marker/Popup elements and blocked the main thread long enough to swallow
+  // the panel's slide animation.
+  const markerLayer = useMemo(() => (
+    <MarkerClusterGroup
+      chunkedLoading
+      iconCreateFunction={createClusterCustomIcon}
+      maxClusterRadius={60}
+      showCoverageOnHover={false}
+      spiderfyOnMaxZoom={true}
+    >
+      {points.map((pt) => (
+    <Marker
+      key={pt.id}
+      position={[pt.lat, pt.lng]}
+      icon={createEventIcon()}
+    >
+      <Popup className="custom-popup">
+        <Link
+          href={`/log/${pt.postId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block p-2 max-w-[200px] group"
+        >
+          <div className="font-mono text-xs text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
+          <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{pt.title}</h3>
+          {pt.uri && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />
+          )}
+          <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink group-hover:text-brand transition-colors">
+            VIEW LOG <ArrowRight size={12} />
+          </span>
+        </Link>
+      </Popup>
+    </Marker>
+      ))}
+    </MarkerClusterGroup>
+  ), [points]);
 
   const handleFilterClick = useCallback((cat: string, sub: string | null) => {
     setListTitleMode(null);
@@ -465,7 +532,6 @@ export default function MapView() {
         if (!res.ok) return;
         const davis = await res.json();
         setRaceStats({ totalFM: davis.fm_count || 0 });
-        setTotalCountryCount(davis.country_count || 0);
       } catch (err) {
         console.error("Failed to fetch race stats:", err);
       }
@@ -513,14 +579,14 @@ export default function MapView() {
     fetchCategories();
   }, []);
 
-  const pct = ((totalCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
+  const pct = ((displayCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
 
       {/* ── Full-width Date Picker + View Toggle ── */}
       <div
-        className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-line/40 z-[600]"
+        className="shrink-0 flex items-center gap-3 px-4 md:px-6 py-2 border-b border-line/40 z-[600]"
         style={{
           backgroundColor: '#e8e4de',
           backgroundImage: [
@@ -538,39 +604,32 @@ export default function MapView() {
           />
         </div>
         <div className="shrink-0 flex items-center border border-line/60 rounded-full bg-white">
-          <button
-            onClick={() => setViewMode('map')}
-            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'map' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
-          >
-            <span className="font-mono text-sm md:text-[11px] uppercase tracking-[0.15em] leading-none">地圖</span>
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
-          >
-            <span className="font-mono text-sm md:text-[11px] uppercase tracking-[0.15em] leading-none">列表</span>
-          </button>
+          {VIEW_MODES.map(({ mode, label }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex items-center justify-center px-3.5 py-2 rounded-full transition-colors cursor-pointer ${viewMode === mode ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+            >
+              <span className="font-mono text-sm uppercase tracking-[0.15em] leading-none whitespace-nowrap">{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 min-h-0">
+      <div className="relative flex flex-col md:flex-row flex-1 min-h-0">
 
-      {/* ── Desktop Aside (hidden on mobile) ── */}
-      <aside className={`hidden md:flex shrink-0 flex-col bg-white z-[500] overflow-visible transition-all duration-300 relative ${asideOpen ? 'md:w-80' : 'md:w-8'}`}>
+      {/* ── Desktop Aside (hidden on mobile) ──
+          Slides via a negative left margin rather than an animated width: the
+          aside is a flex item, so the flex algorithm resolves its used size
+          from flex-basis and ignores a transitioning `width` (the panel would
+          jump). `margin-left` is applied after flex sizing, so animating it
+          from 0 to -20rem slides the fixed-width panel off to the left while
+          the map (flex-1) smoothly reclaims the space. */}
+      <aside className={`hidden md:flex shrink-0 flex-col bg-white z-[500] overflow-hidden md:w-80 transition-[margin-left] duration-300 ease-in-out relative ${asideOpen ? 'ml-0' : '-ml-80'}`}>
 
-        {/* Collapse / Expand toggle — absolutely on the right border, vertically centered */}
-        <button
-          onClick={() => setAsideOpen(o => !o)}
-          className="absolute top-1/2 -translate-y-1/2 -right-3.5 z-20 w-7 h-7 bg-paper border border-line rounded-full flex items-center justify-center shadow-sm transition-colors cursor-pointer"
-          aria-label={asideOpen ? '收合側欄' : '展開側欄'}
-        >
-          <ChevronLeft size={13} className={`text-ink/50 transition-transform duration-300 ${asideOpen ? '' : 'rotate-180'}`} />
-        </button>
+        <div className="flex flex-col h-full w-80">
 
-        {/* Aside content — hidden when collapsed */}
-        <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${asideOpen ? 'w-80' : 'w-0'}`}>
-
-        <div className="relative z-10 px-7 pt-8 pb-6 border-b border-r border-line/40 bg-white shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
+        <div className="relative z-10 px-7 pt-4 pb-6 border-b border-r border-line/40 bg-white shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
           <div className="grid grid-cols-2 divide-x divide-line/40">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
@@ -656,13 +715,25 @@ export default function MapView() {
           })}
         </div>
         </div>
-        </div>{/* end aside content */}
+        </div>{/* end fixed-width content */}
 
         {/* Right divider — overlaid so the hero section's white bg can't hide it,
             and inside the z-[500] aside so it paints above the map tiles. */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-ink/60 z-10" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-ink/20 z-10" />
 
       </aside>
+
+      {/* Collapse / Expand toggle — a sibling of the aside (not a child), so it
+          stays on screen when the panel slides off. Its `left` animates in
+          lock-step with the panel margin: open → sitting on the panel's right
+          border; collapsed → just inside the map's left edge. */}
+      <button
+        onClick={() => setAsideOpen(o => !o)}
+        className={`hidden md:flex absolute top-1/2 -translate-y-1/2 z-[550] w-5 h-14 bg-paper border border-line rounded-md items-center justify-center shadow-sm transition-[left] duration-300 ease-in-out cursor-pointer ${asideOpen ? 'left-[19.375rem]' : 'left-1'}`}
+        aria-label={asideOpen ? '收合側欄' : '展開側欄'}
+      >
+        <ChevronLeft size={13} className={`text-ink/50 transition-transform duration-300 ${asideOpen ? '' : 'rotate-180'}`} />
+      </button>
 
       {/* ── Main area: Map (always mounted) + ListView overlay ── */}
       <main className="flex-1 flex flex-col min-h-0">
@@ -681,8 +752,19 @@ export default function MapView() {
               />
             </div>
           )}
+          {viewMode === 'timeline' && (
+            <div className="absolute inset-0 z-20 bg-paper">
+              <TimelineView
+                points={listPoints}
+                isLoading={isLoading}
+                category={activeCategory}
+                subCategory={activeSubCategory}
+                titleMode={listTitleMode}
+              />
+            </div>
+          )}
           {isLoading && points.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 animate-pulse font-mono text-xs uppercase tracking-widest text-ink/60">
+            <div className="absolute inset-0 flex items-center justify-center bg-paper z-10 font-mono text-sm uppercase tracking-widest text-ink">
               Generating Spatial Log...
             </div>
           )}
@@ -712,51 +794,18 @@ export default function MapView() {
             />
           )}
 
-          <MapResizer trigger={asideOpen} />
+          <MapResizer />
           <FitBounds points={points} />
           <ZoomControl position="bottomright" />
 
-          <MarkerClusterGroup
-            chunkedLoading
-            iconCreateFunction={createClusterCustomIcon}
-            maxClusterRadius={60}
-            showCoverageOnHover={false}
-            spiderfyOnMaxZoom={true}
-          >
-            {points.map((pt) => (
-              <Marker
-                key={pt.id}
-                position={[pt.lat, pt.lng]}
-                icon={createEventIcon()}
-              >
-                <Popup className="custom-popup">
-                  <Link
-                    href={`/log/${pt.postId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-2 max-w-[200px] group"
-                  >
-                    <div className="font-mono text-xs text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
-                    <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{pt.title}</h3>
-                    {pt.uri && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />
-                    )}
-                    <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink group-hover:text-brand transition-colors">
-                      VIEW LOG <ArrowRight size={12} />
-                    </span>
-                  </Link>
-                </Popup>
-              </Marker>
-            ))}
-          </MarkerClusterGroup>
+          {markerLayer}
         </MapContainer>
         </div>{/* end map/list area */}
 
         {/* ── Mobile Bottom Panel ── */}
         <div className="md:hidden shrink-0 bg-paper border-t border-line">
           {/* Hero stats */}
-          <div className="relative z-10 flex items-center gap-4 px-4 py-3 bg-paper shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.18)]">
+          <div className="relative z-10 flex items-center gap-4 px-4 pt-3 pb-2 bg-paper shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.18)]">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
               className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
@@ -777,11 +826,12 @@ export default function MapView() {
               </span>
             )}
           </div>
-          {/* Category chips */}
-          <div className="chip-scroll flex gap-2 overflow-x-auto px-3 pb-2.5 pb-safe">
+          {/* Category chips — wrap onto multiple rows so every category is
+              visible at once; horizontal scrolling was hard to use on mobile. */}
+          <div className="flex flex-wrap gap-1.5 px-4 pb-2 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setListTitleMode(null); }}
-              className={`shrink-0 flex items-center gap-1.5 px-5 py-3 min-h-[44px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
                 activeCategory === null
                   ? "border-brand bg-brand text-white"
                   : "border-line bg-paper text-ink/60 active:bg-ink/5"
@@ -796,7 +846,7 @@ export default function MapView() {
                 <button
                   key={label}
                   onClick={() => handleFilterClick(cat, sub)}
-                  className={`shrink-0 flex items-center gap-1.5 px-5 py-3 min-h-[44px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
                     isActive
                       ? "border-brand bg-brand text-white"
                       : "border-line bg-paper text-ink/60 active:bg-ink/5"

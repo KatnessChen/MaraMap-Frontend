@@ -31,7 +31,7 @@ type Phase = "idle" | "preparing" | "review" | "finalizing" | "done";
 
 const CATEGORIES = ["馬拉松", "旅遊", "登山"];
 const SUB_CATEGORY_MAP: Record<string, string[]> = {
-  馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "七大馬", "普查"],
+  馬拉松: ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "九大馬", "普查"],
   旅遊: [],
   登山: ["大百岳", "小百岳", "海外登山"],
 };

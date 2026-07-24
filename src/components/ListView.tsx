@@ -63,9 +63,19 @@ export default function ListView({ points, isLoading, category, subCategory, tit
       return next;
     });
 
-  const distinctCountryCount = useMemo(() =>
-    [...grouped.values()].reduce((sum, countries) => sum + countries.size, 0),
-  [grouped]);
+  // Count distinct country NAMES, not (continent, country) pairs. Summing
+  // `countries.size` per continent double-counted any country that appeared
+  // under two continents — which is exactly how empty-country junk posts (the
+  // FB reshares that fall into the '未知' bucket with inconsistent continent
+  // tags) once inflated "到訪國家" to 41 instead of the true 39. Also drop the
+  // '未知' bucket entirely: a post with no country is not a visited country.
+  const distinctCountryCount = useMemo(() => {
+    const names = new Set<string>();
+    for (const countries of grouped.values())
+      for (const country of countries.keys())
+        if (country !== '未知') names.add(country);
+    return names.size;
+  }, [grouped]);
 
   const totalCount = (countries: Map<string, ListPoint[]>) =>
     [...countries.values()].reduce((sum, evts) => sum + evts.length, 0);
@@ -80,7 +90,7 @@ export default function ListView({ points, isLoading, category, subCategory, tit
     <div className="flex flex-col w-full h-full bg-paper overflow-hidden">
 
       {/* Header */}
-      <div className="relative z-10 shrink-0 flex items-center justify-between px-6 py-4 border-b border-line bg-paper shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
+      <div className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-line bg-paper shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
         <p className="font-serif text-xl font-bold text-ink/80">
           {!category ? (titleMode === 'countries' ? '到訪國家' : '所有文章') : subCategory ?? category}
           <span className="ml-2 text-brand tabular-nums">
@@ -104,7 +114,7 @@ export default function ListView({ points, isLoading, category, subCategory, tit
 
       {/* Body */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center font-mono text-sm uppercase tracking-widest text-ink/60 animate-pulse">
+        <div className="flex-1 flex items-center justify-center font-mono text-sm uppercase tracking-widest text-ink">
           Loading...
         </div>
       ) : points.length === 0 ? (
@@ -124,7 +134,7 @@ export default function ListView({ points, isLoading, category, subCategory, tit
                   className="w-full flex items-center gap-3 px-4 md:px-6 py-2.5 bg-ink/[0.06] md:bg-transparent hover:bg-ink/[0.1] md:hover:bg-ink/[0.03] transition-colors text-left"
                 >
                   <ChevronDown size={14} className={`text-ink/50 shrink-0 transition-transform duration-200 ${continentOpen ? "rotate-0" : "-rotate-90"}`} />
-                  <span className="font-sans font-bold text-base text-ink">{continent}</span>
+                  <span className="font-sans text-base text-ink">{continent}</span>
                   <span className="font-mono text-sm text-ink/50 tabular-nums">
                     ({totalCount(countries)})
                   </span>
@@ -166,18 +176,17 @@ export default function ListView({ points, isLoading, category, subCategory, tit
                                     href={`/log/${evt.postId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-between pl-8 pr-4 md:pl-24 md:pr-6 py-2 bg-white md:bg-transparent hover:bg-brand/5 group transition-colors border-b border-line/20"
+                                    className="flex flex-col pl-[55px] pr-4 md:pl-[87px] md:pr-6 py-2.5 bg-white md:bg-transparent hover:bg-brand/5 group transition-colors border-b border-line/20"
                                   >
-                                    <div className="flex items-baseline gap-1.5 min-w-0 mr-4">
-                                      {evt.city && (
-                                        <span className="font-mono text-xs text-ink/60 shrink-0">{formatCityName(evt.city, country)}</span>
-                                      )}
-                                      <span className="font-serif text-base text-ink group-hover:text-brand transition-colors line-clamp-1">
-                                        {evt.title}
-                                      </span>
+                                    {/* Date + city on the meta line, title
+                                        below — same stacked layout as the
+                                        timeline entries. */}
+                                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-0.5 font-mono text-sm text-ink/60">
+                                      <span className="tabular-nums">{evt.date}</span>
+                                      {evt.city && <span>{formatCityName(evt.city, country)}</span>}
                                     </div>
-                                    <span className="font-mono text-sm text-ink/60 tabular-nums shrink-0">
-                                      {evt.date}
+                                    <span className="font-sans text-base text-ink leading-snug group-hover:text-brand transition-colors line-clamp-2">
+                                      {evt.title}
                                     </span>
                                   </Link>
                                 ))}

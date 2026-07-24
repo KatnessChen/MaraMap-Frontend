@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
+import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
@@ -255,12 +255,188 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
   );
 }
 
+const MIN_SCALE = 1;
+const MAX_SCALE = 5;
+const DOUBLE_TAP_SCALE = 2.5;
+
+interface Transform { scale: number; x: number; y: number }
+const IDENTITY: Transform = { scale: 1, x: 0, y: 0 };
+
+/**
+ * Facebook-style zoom + pan for the lightbox: wheel / pinch to zoom around the
+ * cursor (or pinch midpoint), drag to pan once zoomed, double click/tap to
+ * toggle. Callers reset it themselves when switching slides.
+ */
+function useZoomPan(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [transform, setTransform] = useState<Transform>(IDENTITY);
+  // Mirror of `transform` so gesture handlers can read the latest value
+  // without re-subscribing native listeners on every frame.
+  const ref = useRef(IDENTITY);
+  const commit = useCallback((next: Transform) => {
+    ref.current = next;
+    setTransform(next);
+  }, []);
+
+  const clamp = useCallback((next: Transform): Transform => {
+    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next.scale));
+    if (scale === MIN_SCALE) return IDENTITY;
+    const el = containerRef.current;
+    const maxX = ((el?.clientWidth ?? 0) * (scale - 1)) / 2;
+    const maxY = ((el?.clientHeight ?? 0) * (scale - 1)) / 2;
+    return {
+      scale,
+      x: Math.min(maxX, Math.max(-maxX, next.x)),
+      y: Math.min(maxY, Math.max(-maxY, next.y)),
+    };
+  }, [containerRef]);
+
+  // Zoom by `factor`, keeping the point under (clientX, clientY) anchored.
+  // Without a focal point the zoom is centred on the container.
+  const zoomBy = useCallback((factor: number, clientX?: number, clientY?: number) => {
+    const cur = ref.current;
+    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, cur.scale * factor));
+    const ratio = scale / cur.scale;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect && clientX != null && clientY != null) {
+      const px = clientX - rect.left - rect.width / 2;
+      const py = clientY - rect.top - rect.height / 2;
+      commit(clamp({ scale, x: px - (px - cur.x) * ratio, y: py - (py - cur.y) * ratio }));
+    } else {
+      commit(clamp({ scale, x: cur.x * ratio, y: cur.y * ratio }));
+    }
+  }, [clamp, commit, containerRef]);
+
+  const panBy = useCallback((dx: number, dy: number) => {
+    const cur = ref.current;
+    commit(clamp({ ...cur, x: cur.x + dx, y: cur.y + dy }));
+  }, [clamp, commit]);
+
+  const reset = useCallback(() => commit(IDENTITY), [commit]);
+
+  const toggle = useCallback((clientX?: number, clientY?: number) => {
+    if (ref.current.scale > MIN_SCALE) reset();
+    else zoomBy(DOUBLE_TAP_SCALE, clientX, clientY);
+  }, [reset, zoomBy]);
+
+  // Wheel must be a non-passive native listener so preventDefault works and the
+  // page behind the portal doesn't scroll.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.18 : 1 / 1.18, e.clientX, e.clientY);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [containerRef, zoomBy]);
+
+  return { transform, zoomBy, panBy, reset, toggle, zoomed: transform.scale > MIN_SCALE };
+}
+
 function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: number; onClose: () => void }) {
   const [idx, setIdx] = useState(initialIdx);
-  const prev = useCallback(() => setIdx(i => (i - 1 + items.length) % items.length), [items.length]);
-  const next = useCallback(() => setIdx(i => (i + 1) % items.length), [items.length]);
-  const drag = useSliderDrag(idx, items.length, prev, next);
   const stripRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const { transform: zoomT, zoomBy, panBy, reset: resetZoom, toggle: toggleZoom, zoomed } = useZoomPan(viewportRef);
+  // Zoom is per-slide: always land on a new photo at 1x.
+  const goTo = useCallback((updater: (i: number) => number) => {
+    resetZoom();
+    setIdx(updater);
+  }, [resetZoom]);
+  const prev = useCallback(() => goTo(i => (i - 1 + items.length) % items.length), [goTo, items.length]);
+  const next = useCallback(() => goTo(i => (i + 1) % items.length), [goTo, items.length]);
+  const drag = useSliderDrag(idx, items.length, prev, next);
+
+  // Touch gestures are multiplexed: 2 fingers pinch, 1 finger pans while
+  // zoomed, 1 finger swipes between slides at 1x.
+  const touchMode = useRef<'swipe' | 'pan' | 'pinch' | null>(null);
+  const pinchDist = useRef(0);
+  const lastTouch = useRef<{ x: number; y: number } | null>(null);
+  const lastTapAt = useRef(0);
+  const panStart = useRef<{ x: number; y: number } | null>(null);
+
+  const touchDistance = (t: React.TouchList) =>
+    Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length >= 2) {
+      touchMode.current = 'pinch';
+      pinchDist.current = touchDistance(e.touches);
+      return;
+    }
+    if (zoomed) {
+      touchMode.current = 'pan';
+      lastTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      return;
+    }
+    touchMode.current = 'swipe';
+    drag.onTouchStart(e);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchMode.current === 'pinch' && e.touches.length >= 2) {
+      const dist = touchDistance(e.touches);
+      if (pinchDist.current > 0) {
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        zoomBy(dist / pinchDist.current, midX, midY);
+      }
+      pinchDist.current = dist;
+      return;
+    }
+    if (touchMode.current === 'pan' && lastTouch.current) {
+      const { clientX, clientY } = e.touches[0];
+      panBy(clientX - lastTouch.current.x, clientY - lastTouch.current.y);
+      lastTouch.current = { x: clientX, y: clientY };
+      return;
+    }
+    if (touchMode.current === 'swipe') drag.onTouchMove(e);
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchMode.current === 'swipe') {
+      drag.onTouchEnd();
+      // Double tap toggles zoom (only when the finger didn't travel).
+      if (!drag.didDrag.current) {
+        const now = Date.now();
+        const touch = e.changedTouches[0];
+        if (now - lastTapAt.current < 300) {
+          toggleZoom(touch?.clientX, touch?.clientY);
+          lastTapAt.current = 0;
+        } else {
+          lastTapAt.current = now;
+        }
+      }
+    }
+    if (e.touches.length === 0) {
+      touchMode.current = null;
+      lastTouch.current = null;
+      pinchDist.current = 0;
+    }
+  };
+
+  // Mouse drag-to-pan while zoomed.
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!zoomed) return;
+    e.preventDefault();
+    panStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!panStart.current) return;
+      panBy(e.clientX - panStart.current.x, e.clientY - panStart.current.y);
+      panStart.current = { x: e.clientX, y: e.clientY };
+    };
+    const onUp = () => { panStart.current = null; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [panBy]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -272,10 +448,13 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') prev();
       if (e.key === 'ArrowRight') next();
+      if (e.key === '+' || e.key === '=') zoomBy(1.3);
+      if (e.key === '-' || e.key === '_') zoomBy(1 / 1.3);
+      if (e.key === '0') resetZoom();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose, prev, next]);
+  }, [onClose, prev, next, zoomBy, resetZoom]);
 
   // Pause all videos when switching slides
   useEffect(() => {
@@ -286,26 +465,71 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
       {/* Main viewing area */}
       <div
-        className="relative flex-1 overflow-hidden"
+        ref={viewportRef}
+        className={`relative flex-1 overflow-hidden touch-none ${zoomed ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onClick={e => e.stopPropagation()}
-        onTouchStart={drag.onTouchStart}
-        onTouchMove={drag.onTouchMove}
-        onTouchEnd={drag.onTouchEnd}
+        onDoubleClick={e => toggleZoom(e.clientX, e.clientY)}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         <div ref={stripRef} className="flex h-full items-center" style={drag.stripStyle}>
-          {items.map((item, i) => (
-            <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center">
-              {item.type === 'video'
-                ? <video src={item.uri} controls className="w-full h-full outline-none" />
-                : /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" draggable={false} />}
-            </div>
-          ))}
+          {items.map((item, i) => {
+            const zoomStyle: React.CSSProperties | undefined =
+              i === idx && item.type !== 'video'
+                ? {
+                    transform: `translate(${zoomT.x}px, ${zoomT.y}px) scale(${zoomT.scale})`,
+                    transition: 'transform 0.12s ease-out',
+                    willChange: 'transform',
+                  }
+                : undefined;
+            return (
+              <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center overflow-hidden">
+                {item.type === 'video'
+                  ? <video src={item.uri} controls className="w-full h-full outline-none" />
+                  : /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" style={zoomStyle} draggable={false} />}
+              </div>
+            );
+          })}
         </div>
 
         <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors text-white rounded-full z-10">
           <X size={18} />
         </button>
+
+        {/* Zoom controls */}
+        {items[idx]?.type !== 'video' && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1.5 z-10">
+            <button
+              onClick={() => zoomBy(1 / 1.3)}
+              disabled={!zoomed}
+              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+              aria-label="縮小"
+            >
+              <ZoomOut size={20} />
+            </button>
+            <span className="font-mono text-sm text-white/80 tabular-nums w-12 text-center">
+              {Math.round(zoomT.scale * 100)}%
+            </span>
+            <button
+              onClick={() => zoomBy(1.3)}
+              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors"
+              aria-label="放大"
+            >
+              <ZoomIn size={20} />
+            </button>
+            <button
+              onClick={() => resetZoom()}
+              disabled={!zoomed}
+              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+              aria-label="重設縮放"
+            >
+              <RotateCcw size={18} />
+            </button>
+          </div>
+        )}
 
         {items.length > 1 && (
           <>
@@ -370,14 +594,14 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
     return () => el.removeEventListener("scroll", toggleVisibility);
   }, [isLoading]);
 
-  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg animate-pulse text-ink/60">正在載入紀錄...</div>;
+  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg text-ink">正在載入紀錄...</div>;
   if (!post) notFound();
 
   const title = getDisplayTitle(post);
   const content = getDisplayContent(post);
   const coords = extractCoordinates(post.media);
   const locationLabel = post.metadata 
-    ? (post.metadata.country && post.metadata.city ? `${post.metadata.country} / ${formatCityName(post.metadata.city, post.metadata.country)}` : (post.metadata.race_name || '探索軌跡'))
+    ? (post.metadata.country && post.metadata.city ? `${post.metadata.country}·${formatCityName(post.metadata.city, post.metadata.country)}` : (post.metadata.race_name || '探索軌跡'))
     : null;
 
   return (
