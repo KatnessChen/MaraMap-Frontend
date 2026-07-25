@@ -196,7 +196,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                 className="flex items-center gap-4 px-5 py-3.5 group hover:bg-paper/60 transition-colors"
               >
                 {/* value + delta */}
-                <div className="flex flex-col items-start w-28 shrink-0">
+                <div className="flex flex-col items-start w-28 shrink-0 gap-1">
                   <span
                     className={`font-serif font-black text-lg tabular-nums leading-none ${
                       isCurrent ? "text-brand" : "text-ink"
@@ -210,7 +210,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                 </div>
                 {/* race + date */}
                 <div className="min-w-0 flex-1">
-                  <p className="font-sans text-base font-bold text-ink/85 group-hover:text-brand transition-colors line-clamp-1">
+                  <p className="font-sans text-base font-bold text-ink/85 group-hover:text-brand transition-colors line-clamp-1 mb-1">
                     {m.raceName || "—"}
                   </p>
                   <p className="font-mono text-sm text-ink/55">
@@ -219,7 +219,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                   </p>
                 </div>
                 {isCurrent && (
-                  <span className="shrink-0 font-mono text-xs uppercase tracking-[0.2em] text-brand border border-brand/40 rounded-full px-2.5 py-1">
+                  <span className="shrink-0 font-sans text-base font-bold text-brand border border-brand/40 rounded-full px-3 py-1">
                     目前最佳
                   </span>
                 )}
@@ -283,8 +283,11 @@ export default function PersonalBestPage() {
         >
           <ArrowLeft size={18} /> 回到首頁
         </Link>
-        <h1 className="flex items-center gap-3 font-mono text-sm uppercase tracking-[0.3em] text-ink/70 mb-3">
-          <Trophy size={15} className="text-brand" /> 個人最佳成績
+        {/* Wide mono tracking is a Latin device — on Chinese it just pushes the
+            glyphs apart and reads as broken. Headings use the serif face at a
+            legible size instead; the audience skews older. */}
+        <h1 className="flex items-center gap-3 font-serif font-black text-3xl text-ink mb-3">
+          <Trophy size={24} className="text-brand shrink-0" /> 個人最佳成績
         </h1>
 
         {isLoading ? (
@@ -292,7 +295,7 @@ export default function PersonalBestPage() {
             Loading...
           </div>
         ) : !data || participants.length === 0 ? (
-          <div className="flex items-center justify-center h-48 font-mono text-base uppercase tracking-widest text-ink/60">
+          <div className="flex items-center justify-center h-48 font-sans text-base text-ink/60">
             尚無 Personal Best 紀錄
           </div>
         ) : (
@@ -334,7 +337,7 @@ export default function PersonalBestPage() {
 
                 {/* Full record-breaking history per distance */}
                 <div className="space-y-6 pt-4">
-                  <h2 className="font-mono text-sm uppercase tracking-[0.3em] text-ink/60">
+                  <h2 className="font-serif font-black text-2xl text-ink">
                     破紀錄歷程
                   </h2>
                   {orderedBuckets.map((bucket) => (
