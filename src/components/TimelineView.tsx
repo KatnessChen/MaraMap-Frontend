@@ -108,10 +108,11 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                         rel="noopener noreferrer"
                         className="group flex py-3 pl-4 pr-4 md:pl-6 md:pr-6 hover:bg-brand/5 transition-colors border-b border-line/30"
                       >
-                        {/* Date column */}
+                        {/* Date column — deliberately the lighter of the two:
+                            the title carries the weight, the date supports it. */}
                         <div className="w-14 shrink-0 flex flex-col items-end pr-4">
                           <span className="font-mono text-sm text-ink/60 tabular-nums leading-none">{monthLabel(evt.date)}</span>
-                          <span className="font-mono font-bold text-lg text-ink tabular-nums leading-none mt-1">{dayLabel(evt.date)}</span>
+                          <span className="font-mono font-normal text-lg text-ink/80 tabular-nums leading-none mt-1">{dayLabel(evt.date)}</span>
                         </div>
 
                         {/* Content */}

@@ -610,7 +610,9 @@ export default function MapView() {
               onClick={() => setViewMode(mode)}
               className={`flex items-center justify-center px-3.5 py-2 rounded-full transition-colors cursor-pointer ${viewMode === mode ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
-              <span className="font-mono text-sm uppercase tracking-[0.15em] leading-none whitespace-nowrap">{label}</span>
+              {/* Tracking stays off: these labels are Chinese, and letter-spacing
+                  built for Latin caps just pushes the glyphs apart. */}
+              <span className="font-mono text-xs leading-none whitespace-nowrap">{label}</span>
             </button>
           ))}
         </div>
