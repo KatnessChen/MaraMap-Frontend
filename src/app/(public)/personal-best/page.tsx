@@ -30,7 +30,7 @@ interface RecordBucket {
 }
 
 interface ParticipantData {
-  records: Record<string, RecordBucket>;
+  records?: Record<string, RecordBucket>;
 }
 
 interface PBResponse {
@@ -266,9 +266,12 @@ export default function PersonalBestPage() {
     [data, activeParticipant],
   );
 
+  // `records` is optional on purpose: an older backend serves a different
+  // participant shape, and reaching straight into it white-screens the page.
+  // Without it we fall through to the "no records" state instead.
   const orderedBuckets = useMemo(() => {
-    if (!current) return [];
-    return BUCKET_ORDER.filter((b) => current.records[b]);
+    if (!current?.records) return [];
+    return BUCKET_ORDER.filter((b) => current.records![b]);
   }, [current]);
 
   return (
@@ -324,7 +327,7 @@ export default function PersonalBestPage() {
                     <MedalTile
                       key={bucket}
                       bucket={bucket}
-                      rec={current!.records[bucket]}
+                      rec={current!.records![bucket]}
                     />
                   ))}
                 </div>
@@ -338,7 +341,7 @@ export default function PersonalBestPage() {
                     <RecordSection
                       key={bucket}
                       bucket={bucket}
-                      rec={current!.records[bucket]}
+                      rec={current!.records![bucket]}
                     />
                   ))}
                 </div>
