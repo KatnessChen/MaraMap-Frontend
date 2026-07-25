@@ -618,7 +618,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
               <span>{post.event_date}</span>
               {locationLabel && ( <> <span className="text-line">/</span> <span className="text-ink/60">{locationLabel}</span> </> )}
             </div>
-            <h1 className="font-serif text-4xl md:text-6xl font-black leading-[1.2] text-ink mb-10 tracking-tight">{title}</h1>
+            <h1 className="font-serif text-3xl md:text-5xl font-black leading-[1.2] text-ink mb-10 tracking-tight">{title}</h1>
             
             {post.metadata && post.metadata.participants && Array.isArray(post.metadata.participants) && (
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -631,14 +631,14 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                   return (
                     <div key={idx} className={`group relative overflow-hidden p-8 border-2 shadow-xl transition-all duration-500 hover:-translate-y-1 ${info.bg} ${info.border}`}>
                       {/* 浮水印 */}
-                      <div className={`absolute -right-4 -bottom-4 font-serif font-black text-[140px] leading-none select-none pointer-events-none transition-all duration-1000 group-hover:scale-110 group-hover:-rotate-6 ${info.text}`}>
+                      <div className={`absolute -right-4 -bottom-4 font-serif font-black text-[110px] leading-none select-none pointer-events-none transition-all duration-1000 group-hover:scale-110 group-hover:-rotate-6 ${info.text}`}>
                         {info.label}
                       </div>
 
                       <div className="relative z-10">
                         {/* Header: name + distance badge */}
                         <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-5">
-                          <span className={`font-serif text-4xl font-black italic tracking-tighter leading-none ${info.dataText}`}>{p.name}</span>
+                          <span className={`font-serif text-3xl font-black italic tracking-tighter leading-none ${info.dataText}`}>{p.name}</span>
                           <span className={`font-sans text-base font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
                         </div>
 
@@ -647,20 +647,20 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                           <div className="flex flex-wrap gap-5 mb-7">
                             {p.stats?.FM_count && (
                               <div className="flex flex-col">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>全馬累計</span>
-                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>全馬累計</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
                               </div>
                             )}
                             {p.stats?.HM_count && (
                               <div className="flex flex-col border-l border-black/10 pl-5">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>半馬累計</span>
-                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>半馬累計</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
                               </div>
                             )}
                             {p.stats?.UM_count && (
                               <div className="flex flex-col border-l border-black/10 pl-5">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-1.5 ${info.dataText}`}>超馬累計</span>
-                                <span className="font-mono text-lg font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>超馬累計</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
                               </div>
                             )}
                           </div>
@@ -674,9 +674,9 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                               <span className="font-sans text-xs uppercase font-black tracking-widest">完賽時間</span>
                             </div>
                             {hasTime ? (
-                              <span className={`font-mono text-4xl font-black tabular-nums leading-none ${info.dataText}`}>{p.time}</span>
+                              <span className={`font-mono text-3xl font-black tabular-nums leading-none ${info.dataText}`}>{p.time}</span>
                             ) : (
-                              <span className={`font-mono text-4xl font-black leading-none opacity-20 ${info.dataText}`}>—</span>
+                              <span className={`font-mono text-3xl font-black leading-none opacity-20 ${info.dataText}`}>—</span>
                             )}
                           </div>
                           {displayPace && (
@@ -685,7 +685,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                                 <Gauge size={14} />
                                 <span className="font-sans text-xs uppercase font-black tracking-widest">平均配速</span>
                               </div>
-                              <span className="font-mono text-4xl font-black italic tabular-nums leading-none text-brand">{displayPace}</span>
+                              <span className="font-mono text-3xl font-black italic tabular-nums leading-none text-brand">{displayPace}</span>
                             </div>
                           )}
                         </div>
@@ -701,8 +701,8 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             {content.split('\n\n').map((paragraph, index) => {
               const pText = paragraph.trim();
               if (!pText) return null;
-              if (index === 0) return <p key={index} className="font-sans text-2xl text-ink leading-relaxed text-justify mb-10"><span className="float-left font-serif text-7xl md:text-8xl leading-[0.8] pt-2 pr-4 pb-0 text-brand font-black">{pText.charAt(0)}</span>{pText.slice(1)}</p>;
-              return <p key={index} className="font-sans text-xl md:text-2xl text-ink-light leading-[1.8] text-justify mb-8 whitespace-pre-wrap">{pText}</p>;
+              if (index === 0) return <p key={index} className="font-sans text-lg md:text-xl text-ink leading-relaxed text-justify mb-10"><span className="float-left font-serif text-6xl md:text-7xl leading-[0.8] pt-2 pr-4 pb-0 text-brand font-black">{pText.charAt(0)}</span>{pText.slice(1)}</p>;
+              return <p key={index} className="font-sans text-lg md:text-xl text-ink-light leading-[1.8] text-justify mb-8 whitespace-pre-wrap">{pText}</p>;
             })}
           </article>
 
