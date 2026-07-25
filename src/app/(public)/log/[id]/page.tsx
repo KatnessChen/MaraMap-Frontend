@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
@@ -223,10 +223,10 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
 
         {items.length > 1 && (
           <>
-            <button onClick={e => { e.stopPropagation(); prev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
+            <button onClick={e => { e.stopPropagation(); prev(); }} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm hidden md:flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
               <ChevronLeft size={18} className="text-ink" />
             </button>
-            <button onClick={e => { e.stopPropagation(); next(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
+            <button onClick={e => { e.stopPropagation(); next(); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-paper/80 hover:bg-paper backdrop-blur-sm hidden md:flex items-center justify-center transition-all md:opacity-0 md:group-hover:opacity-100">
               <ChevronRight size={18} className="text-ink" />
             </button>
           </>
@@ -499,44 +499,17 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
           <X size={18} />
         </button>
 
-        {/* Zoom controls */}
-        {items[idx]?.type !== 'video' && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1.5 z-10">
-            <button
-              onClick={() => zoomBy(1 / 1.3)}
-              disabled={!zoomed}
-              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-              aria-label="縮小"
-            >
-              <ZoomOut size={20} />
-            </button>
-            <span className="font-mono text-sm text-white/80 tabular-nums w-12 text-center">
-              {Math.round(zoomT.scale * 100)}%
-            </span>
-            <button
-              onClick={() => zoomBy(1.3)}
-              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors"
-              aria-label="放大"
-            >
-              <ZoomIn size={20} />
-            </button>
-            <button
-              onClick={() => resetZoom()}
-              disabled={!zoomed}
-              className="w-11 h-11 flex items-center justify-center text-white rounded-full hover:bg-white/20 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-              aria-label="重設縮放"
-            >
-              <RotateCcw size={18} />
-            </button>
-          </div>
-        )}
+        {/* No on-screen zoom controls: the photo is the control surface. Touch
+            pinches and double-taps, desktop uses the wheel, double-click and
+            +/-/0 — all wired up above. */}
 
+        {/* Arrows are desktop-only; on touch the photo is swiped directly. */}
         {items.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white rounded-full z-10">
+            <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 hidden md:flex items-center justify-center transition-colors text-white rounded-full z-10">
               <ChevronLeft size={22} />
             </button>
-            <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white rounded-full z-10">
+            <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/10 hover:bg-white/20 hidden md:flex items-center justify-center transition-colors text-white rounded-full z-10">
               <ChevronRight size={22} />
             </button>
           </>
