@@ -13,9 +13,53 @@ export interface MediaItem {
 // VIDEO_MAX_BYTES). Pre-checking here gives instant feedback and avoids
 // pushing an oversize file over the wire only to be rejected.
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 64 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
 const UPLOAD_ACCEPT =
   "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm";
+
+// Some browsers hand us a File with an empty `type` (notably .mov). The
+// presigned PUT must be signed with — and uploaded with — the same
+// Content-Type, so derive one from the extension when the browser omits it.
+const EXT_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+
+function resolveContentType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_MIME[ext] ?? "";
+}
+
+// PUT the file straight to R2 via the presigned URL, reporting upload progress.
+// fetch() can't surface upload progress, so we use XMLHttpRequest.
+function putToR2(
+  url: string,
+  file: File,
+  contentType: string,
+  onProgress: (pct: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`R2 ${xhr.status}`));
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.send(file);
+  });
+}
 
 // Shared upload + cover-picker + delete grid used by both the new-post and
 // edit-post admin screens. Uploads land in the backend's tmp prefix and are
@@ -36,6 +80,7 @@ export default function MediaManager({
   onAuthFail: () => void;
 }) {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState("");
 
   const handleUpload = async (files: FileList | null) => {
@@ -47,35 +92,55 @@ export default function MediaManager({
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError("");
     const apiUrl = getApiBase();
     try {
       const uploaded: MediaItem[] = [];
       const rejected: string[] = [];
       for (const file of Array.from(files)) {
-        const isVideo = file.type.startsWith("video/");
-        const max = isVideo ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
-        if (file.size > max) {
-          rejected.push(`${file.name}（${isVideo ? "影片上限 64MB" : "圖片上限 8MB"}）`);
+        const contentType = resolveContentType(file);
+        const isVideo = contentType.startsWith("video/");
+        if (!contentType) {
+          rejected.push(`${file.name}（不支援的檔案格式）`);
           continue;
         }
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch(`${apiUrl}/api/v1/posts/upload-media`, {
+        const max = isVideo ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
+        if (file.size > max) {
+          rejected.push(`${file.name}（${isVideo ? "影片上限 200MB" : "圖片上限 8MB"}）`);
+          continue;
+        }
+        // 1) Ask the backend for a presigned PUT URL (bypasses Cloud Run 32MB).
+        const res = await fetch(`${apiUrl}/api/v1/posts/upload-url`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ contentType }),
         });
-        if (res.ok) {
-          const data: { key: string; url: string; type: "photo" | "video" } = await res.json();
-          uploaded.push({ uri: data.url, type: data.type });
-        } else if (res.status === 401) {
+        if (res.status === 401) {
           setUploadError("登入已過期，請重新登入。");
           onAuthFail();
           return;
-        } else {
+        }
+        if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          rejected.push(`${file.name}（${err.message || "上傳失敗"}）`);
+          rejected.push(`${file.name}（${err.message || "無法取得上傳連結"}）`);
+          continue;
+        }
+        const { uploadUrl, publicUrl, type }: {
+          uploadUrl: string;
+          publicUrl: string;
+          type: "photo" | "video";
+        } = await res.json();
+        // 2) Upload the file straight to R2 with progress.
+        setUploadProgress(0);
+        try {
+          await putToR2(uploadUrl, file, contentType, setUploadProgress);
+          uploaded.push({ uri: publicUrl, type });
+        } catch {
+          rejected.push(`${file.name}（上傳失敗）`);
         }
       }
       if (uploaded.length > 0) {
@@ -90,6 +155,7 @@ export default function MediaManager({
       setUploadError("連線失敗，請檢查網路狀態。");
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -105,7 +171,9 @@ export default function MediaManager({
       >
         {isUploading ? <Loader2 className="animate-spin" size={22} /> : <UploadCloud size={22} />}
         <span className="font-sans text-base font-bold">
-          {isUploading ? "上傳中…" : "點此上傳圖片或影片（可多選）"}
+          {isUploading
+            ? `上傳中… ${uploadProgress}%`
+            : "點此上傳圖片或影片（可多選）"}
         </span>
         <input
           type="file"
@@ -120,7 +188,7 @@ export default function MediaManager({
         />
       </label>
       <p className="font-sans text-xs text-ink/30">
-        圖片每張最大 8MB；影片每支最大 64MB。影片不可設為封面。
+        圖片每張最大 8MB；影片每支最大 200MB。影片不可設為封面。
       </p>
       {uploadError && (
         <p className="text-brand text-sm font-sans font-bold flex items-start gap-1">
