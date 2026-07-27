@@ -8,9 +8,9 @@
   --color-paper-dark: #E9ECEF;
   --color-line: rgba(26, 26, 26, 0.1);
   
-  --font-serif: var(--font-noto-serif-tc);
-  --font-sans: var(--font-noto-sans-tc);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-serif: "Noto Serif TC", "Source Han Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 /* 強制取消任何系統預設的深色模式影響 */
