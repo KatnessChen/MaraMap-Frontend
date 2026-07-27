@@ -12,8 +12,12 @@ export interface MediaItem {
 // Kept in sync with the backend's per-type ceilings (IMAGE_MAX_BYTES /
 // VIDEO_MAX_BYTES). Pre-checking here gives instant feedback and avoids
 // pushing an oversize file over the wire only to be rejected.
-const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 15 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 300 * 1024 * 1024;
+// Derived so the limits shown to the admin can never drift from the numbers
+// actually enforced above.
+const IMAGE_MAX_MB = IMAGE_MAX_BYTES / 1024 / 1024;
+const VIDEO_MAX_MB = VIDEO_MAX_BYTES / 1024 / 1024;
 const UPLOAD_ACCEPT =
   "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm";
 
@@ -107,7 +111,7 @@ export default function MediaManager({
         }
         const max = isVideo ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
         if (file.size > max) {
-          rejected.push(`${file.name}（${isVideo ? "影片上限 200MB" : "圖片上限 8MB"}）`);
+          rejected.push(`${file.name}（${isVideo ? `影片上限 ${VIDEO_MAX_MB}MB` : `圖片上限 ${IMAGE_MAX_MB}MB`}）`);
           continue;
         }
         // 1) Ask the backend for a presigned PUT URL (bypasses Cloud Run 32MB).
@@ -188,7 +192,7 @@ export default function MediaManager({
         />
       </label>
       <p className="font-sans text-xs text-ink/30">
-        圖片每張最大 8MB；影片每支最大 200MB。影片不可設為封面。
+        圖片每張最大 {IMAGE_MAX_MB}MB；影片每支最大 {VIDEO_MAX_MB}MB。影片不可設為封面。
       </p>
       {uploadError && (
         <p className="text-brand text-sm font-sans font-bold flex items-start gap-1">
