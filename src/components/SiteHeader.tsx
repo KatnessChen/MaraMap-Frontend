@@ -28,14 +28,14 @@ export default function SiteHeader() {
         ].join(', '),
       }}
     >
-      <Link href="/" className="site-header-logo flex items-center gap-2.5">
-        <span className="site-header-english font-serif font-black italic text-xl text-brand">Davis &amp; Rose</span>
-        <span className="text-white/25 text-xl font-thin" style={{ transform: 'rotate(12deg)', display: 'inline-block' }}>/</span>
-        <span className="site-header-chinese font-serif font-black text-xl text-white tracking-[0.15em]">環球跑旅</span>
+      <Link href="/" className="site-header-logo flex items-center gap-2.5 whitespace-nowrap">
+        <span className="site-header-english font-serif font-black italic text-[clamp(0.95rem,3.9vw,1.25rem)] text-brand">Davis &amp; Rose</span>
+        <span className="text-white/25 text-[clamp(0.85rem,3.4vw,1.25rem)] font-thin" style={{ transform: 'rotate(12deg)', display: 'inline-block' }}>/</span>
+        <span className="site-header-chinese font-serif font-black text-[clamp(0.9rem,3.7vw,1.25rem)] text-white tracking-[0.08em] sm:tracking-[0.12em] md:tracking-[0.15em]">環球跑旅</span>
       </Link>
       <nav className="flex items-center gap-5">
         {humanViews !== null && (
-          <span className="hidden md:block font-mono text-xs text-white/40 tracking-widest whitespace-nowrap">
+          <span className="hidden md:block font-mono text-xs text-white/40 tracking-widest whitespace-nowrap text-right">
             累計 {humanViews.toLocaleString()} 人次造訪
           </span>
         )}

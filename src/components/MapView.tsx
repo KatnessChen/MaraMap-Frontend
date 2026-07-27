@@ -823,7 +823,7 @@ export default function MapView() {
               <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
             {humanViews !== null && (
-              <span className="self-end pb-0.5 ml-auto shrink-0 font-mono text-[12px] text-ink/40 tracking-widest whitespace-nowrap">
+              <span className="self-end pb-0.5 ml-auto shrink-0 font-mono text-[12px] text-ink/40 tracking-[0.06em] whitespace-nowrap text-right">
                 累計 {humanViews.toLocaleString()} 人次造訪
               </span>
             )}
@@ -833,7 +833,7 @@ export default function MapView() {
           <div className="flex flex-wrap gap-1.5 px-4 pb-2 pb-safe">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setListTitleMode(null); }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono font-bold text-sm whitespace-nowrap transition-all ${
                 activeCategory === null
                   ? "border-brand bg-brand text-white"
                   : "border-line bg-paper text-ink/60 active:bg-ink/5"
@@ -848,7 +848,7 @@ export default function MapView() {
                 <button
                   key={label}
                   onClick={() => handleFilterClick(cat, sub)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono text-sm whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full border font-mono font-bold text-sm whitespace-nowrap transition-all ${
                     isActive
                       ? "border-brand bg-brand text-white"
                       : "border-line bg-paper text-ink/60 active:bg-ink/5"
