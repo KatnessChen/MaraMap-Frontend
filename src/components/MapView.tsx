@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
-import { GeoJsonObject, Feature, Geometry } from "geojson";
+import type { GeoJsonObject, Feature, Geometry } from "geojson";
 import { ArrowRight, ChevronLeft } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
