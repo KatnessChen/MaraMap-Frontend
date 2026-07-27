@@ -270,7 +270,9 @@ function MapResizer() {
 
 export default function MapView() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>("馬拉松");
+  // null = 「所有文章」. The map opens on everything; defaulting to 馬拉松 meant
+  // 旅遊/登山 posts were silently absent until the visitor found the filter.
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
@@ -464,7 +466,9 @@ export default function MapView() {
     setListTitleMode(null);
     const isActive = activeCategory === cat && activeSubCategory === sub;
     if (isActive) {
-      setActiveCategory("馬拉松");
+      // Toggling the active filter off returns to 「所有文章」, matching the
+      // initial state rather than dropping the visitor into 馬拉松.
+      setActiveCategory(null);
       setActiveSubCategory(null);
     } else {
       setActiveCategory(cat);
