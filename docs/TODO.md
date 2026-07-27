@@ -1,46 +1,130 @@
-# Client Requirements — 2026-04-23
+# MaraMap TODO
 
-## ✅ Personal Best 頁面
+> 本檔結構：**TODO（待處理）** → **Backlog（未來規劃）** → **已完成紀錄（依會議日期存檔）**。
+> 待辦項目一律集中在最上方的 TODO 區；各次會議區塊只保留已完成事項作為紀錄。
+> 最後更新：2026-07-27
 
+---
+
+## 🔴 TODO（待處理）
+
+### P1 — Rogers 評估回饋（2026-07-13，馬拉松跑者視角）
+
+#### 2. 完賽時間未露出到 ListView / 地圖 popup
+文章內頁已有大字時間與配速，但 ListView 與地圖 popup 只顯示分類與日期。跑者瀏覽某國家底下多場比賽時，時間應並排可見，不用逐篇點進去。
+*（已驗證 2026-07-27：`ListView` / `TimelineView` / `MapView` 皆無成績欄位）*
+
+#### 3. PB 徽章未露出到地圖與列表
+`is_personal_best` 已在資料模型與 PB 頁面呈現，但地圖 marker 與 ListView 上，PB 場次和一般訓練賽長得一模一樣。應加上視覺標記（金色 marker 或 🏆 badge）。
+*（已驗證 2026-07-27：`components/` 內無任何 `is_personal_best` 參照）*
+
+#### 4. 「已征服全球 X%」算了但沒有渲染
+`MapView.tsx:586` 已計算 `pct`（到訪國家 ÷ 195 國），但 JSX 中沒有任何地方顯示 —— eslint 目前把它報為 unused variable。這是最低成本、最高炫耀價值的功能，應放到 hero 數字區。
+
+#### 5. Hero 全馬數只計算 Davis
+`MapView.tsx:535` 的 race stats 只打 `stats?participant=Davis`，但網站是「Davis & Rose 環球跑旅」雙人站。需確認是否為刻意設計，否則 Rose 的場次會從統計中消失。
+
+#### 6. GeoJSON 依賴外部 GitHub 即時抓取
+`MapView.tsx:480` 從 `raw.githubusercontent.com` 即時 fetch 國家圖資。建議打包進 `public/` 自行 host，避免外部依賴影響最重要的視覺效果。
+
+#### 7. 一鍵分享合成圖（新功能建議）
+地圖截圖 + 到訪國家數 + 全馬場次合成一張圖，一鍵發 FB/IG。呼應客戶「對外展示、炫耀成就」的核心動機，長期價值高。
+
+---
+
+### P2 — 客戶會議回饋（2026-07-23）未完成項
+
+#### 8. 網址改為 maramap.vercel.app
+前端部署設定 + 站內絕對連結 / metadata / OG URL 一併更新。
+*（已驗證 2026-07-27：codebase 內尚無任何 `maramap.vercel.app` 字串）*
+
+---
+
+### ⏸ 待客戶回覆（阻塞中）
+
+#### 9. ETL 九大馬新賽事清單
+`etl/02_classify/ai-classify.js` 的賽事清單仍是原本七場（東京、波士頓、倫敦、柏林、芝加哥、紐約、雪梨），新增的兩場是哪兩場未知，已在檔案內留 TODO。此為之後匯入新文章時 AI 分類用，不影響現有顯示。
+
+---
+
+## 📋 Backlog（未來規劃，現階段不實作）
+
+### 媒體排序
+後台編輯文章時，可自行調整照片／影片的顯示順序（拖曳排序），決定文章頁 carousel 與 lightbox 的呈現次序。目前順序固定沿用匯入／上傳當下的順序，無法調整。
+
+### 馬拉松子類別設定
+後台支援設定子類別（普查承認 / 海外 / 超馬）。
+
+### 類別管理
+後台支援新增類別、修改類別名稱。
+Use case：「九大馬」未來可能再擴增，需要彈性調整。
+
+### 年度回顧頁面
+獨立頁面，呈現每年度的跑步與旅行亮點統計。
+
+---
+---
+
+# 已完成紀錄
+
+> 以下依會議日期存檔，僅保留已完成事項。未完成項目一律上移至最上方 TODO 區。
+
+---
+
+## 2026-07-27
+
+### ✅ 字體 regression 修復：明體變細、900 字重消失
+**症狀**：全站明體（`font-serif`，共 60 處 / 14 個檔案，大量搭配 `font-black`）忽然變細。
+
+**根因**：`e09bdc8` 為了修 Vercel build 失敗，把 `next/font/google` 整段移除，`--font-serif` 改成純字型名稱堆疊 —— 但那只是「使用者本機有裝才會用到」，**全站等於沒有載入任何 web font**。macOS 掉到 Songti TC（宋體）、Windows 掉到 PMingLiU（新細明體），兩者都沒有 Black/900 字重，只能靠瀏覽器合成假粗體。
+
+實測佐證：`document.fonts` 內只剩 Next.js 內部的 Geist；canvas 量測 `"Noto Serif TC"` 的寬度（425.51）與不存在的假字型完全相同 → 確認未載入。
+
+**build 失敗的真因**：Vercel builder 連不到 `fonts.gstatic.com`（`Error while requesting resource`），9 個 woff2 抓不到後 Turbopack 噴 27 個 `Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'`。`next/font/google` 在建置期抓不到字體時沒有 graceful fallback，直接硬失敗；當次又因 package manager 由 npm 改 pnpm 而丟掉 build cache，沒有可用的快取字體。**是建置期連外失敗，不是字體設定錯誤。**
+
+**修法**：改為 runtime `<link>`（`layout.tsx` 加 preconnect + `fonts.googleapis.com/css2` stylesheet），字體由瀏覽器在使用者端載入。build 完全不連外 → 根治建置失敗；repo 不增加體積；字重維持 400/700/900。
+
+**驗證**：`document.fonts` 已載入 Noto Serif TC 400/700/**900** 真實字面（非合成）；canvas 量測 400 = 489.28、900 = 517.72，皆與 fallback 基準 425.51 不同 → 確認為真字體與真字重。`pnpm build` 通過且產出的 HTML 內含該 stylesheet link，codebase 已無任何 `next/font` import。
+
+> 取捨：訪客端仍會連到 Google Fonts（隱私 + 一次外部連線）。若日後要完全去除第三方依賴，需改 `next/font/local` 自行 host subset 後的 woff2（約 8–12MB 進 git）。
+
+### ✅ 地圖預設分類改為「所有文章」
+`MapView.tsx` 的 `activeCategory` 預設值原本寫死 `"馬拉松"`，導致 `旅遊` / `登山` 文章一進站完全不會出現在地圖上——即使該文章有正確座標，看起來也像「資料掉了」。改為 `null`（所有文章），並讓「取消目前篩選」也回到 `null` 而非掉回馬拉松。
+
+> 起因是排查文章 `d97b0818` 有 `fallback_lat/lng` 卻不顯示。已逐層確認 DB、後端 query、線上 prod API 三層資料都正確，純粹被預設篩選擋掉。
+
+### ✅ 後台媒體上限調高：照片 15MB、影片 300MB
+`IMAGE_MAX_BYTES` 8MB → 15MB、`VIDEO_MAX_BYTES` 200MB → 300MB（前後端同步）。媒體是瀏覽器經 presigned PUT 直傳 R2，不經過 Cloud Run，故不受 32MiB 請求上限限制；presign 有效期 1 小時，300MB 有充足餘裕。前端兩處寫死的「200MB / 8MB」文案改為由常數推導，避免日後再次不同步。
+
+> 後端 `claimTmpMedia` 的 HEAD 把關仍是 **video-only**，`IMAGE_MAX_BYTES` 在後端沒有實際強制點（繞過前端直接打 API 不會被擋）。此為既有設計，待日後補 photo 分支。
+
+---
+
+## Client Requirements — 2026-04-23
+
+### ✅ Personal Best 頁面
 展示跑者歷年創 PB 的比賽與當前最佳成績。
-
 - 當前最佳成績（全馬、半馬、超馬分距離顯示）
 - 多人分頁（Davis / KC tab 切換）
 - 點擊成績卡片連結至對應文章
 
----
-
-## ✅ 後台文章管理頁面（部分）
-
-已完成欄位：
+### ✅ 後台文章管理頁面
 - `is_personal_best` flag + 完賽成績（供 PB 頁面讀取）
 - `is_ai_editing_locked` flag（鎖定 AI script 自動異動）
+- 主要貼文 / 次要貼文切換（依賴旅行 Group 機制）
 
-待完成：
-- ✅ 主要貼文 / 次要貼文切換（依賴旅行 Group 機制）
-
----
-
-## ✅ 1. 旅行 Group 機制
-
+### ✅ 1. 旅行 Group 機制
 同一趟旅行的多篇文章要能被 group 在一起：
 - **主要貼文**：馬拉松文章
 - **次要貼文**：同趟旅行的其餘文章（旅遊、爬山等）
 - 系統需能自行判定主/次貼文歸屬
 
----
-
-## ✅ 2. Aside 文字可讀性改善（長輩友善）
-
-統計數據與類別區塊部分文字過小過淺，需調整：
-- 加大字體（建議最小 16px）
+### ✅ 2. Aside 文字可讀性改善（長輩友善）
+- 加大字體（最小 16px）
 - 提高對比度（符合 WCAG AA 標準）
 - 目標使用者：60 歲以上跑者
 
----
-
-## ✅ 近期功能更新（非原始需求）
-
+### ✅ 近期功能更新（非原始需求）
 - **SiteHeader**：文章頁面加入全站導覽列
 - **Media Carousel**：文章圖片/影片改為可滑動 carousel，支援全螢幕 lightbox、左右箭頭、mobile swipe 拖曳動畫
 - **時間 Filter**：改為年+月起訖區間選取，有 Apply/Clear 操作
@@ -140,30 +224,14 @@ Header 改為深色背景（`bg-ink`）；「Davis & Rose」serif italic 紅色�
 
 ## Rogers 評估回饋 — 2026-07-13（馬拉松跑者視角 Review）
 
-整體評分：🟢 On track。地圖已成為首頁與產品核心（choropleth 國家染色、cluster、CountryModal），PB 頁面與時間篩選皆已到位，方向正確。以下為尚待處理的缺口：
+整體評分：🟢 On track。地圖已成為首頁與產品核心（choropleth 國家染色、cluster、CountryModal），PB 頁面與時間篩選皆已到位，方向正確。
 
-### 完賽時間未露出到 ListView / 地圖 popup
-文章內頁已有大字時間與配速計算，但 ListView 列表項目與地圖 popup 只顯示分類與日期，沒有時間。跑者瀏覽某國家底下多場比賽時，時間應該並排可見，不用逐篇點進去看。
-
-### PB 徽章未露出到地圖與列表
-`is_personal_best` 已在資料模型與 PB 頁面呈現，但地圖 marker 與 ListView 上，PB 場次和一般訓練賽長得一模一樣。應加上視覺標記（如金色 marker 或 🏆 badge）。
-
-### 「已征服全球 X%」數字算了但沒有渲染
-`MapView.tsx` 已計算 `pct`（到訪國家 ÷ 195 國），但 JSX 中沒有任何地方顯示。這是最低成本、最高炫耀價值的功能（呼應 3Pulse 的「領土占領」心理），應放到 hero 數字區。
+> 本次回饋的**未完成項目已上移至最上方 TODO 區 P1**（項目 2–7）。
 
 ### ✅ 三個殭屍元件待清除
 確認 `PostFeed.tsx`、`AggregateStatsSection.tsx`、`StatisticsBlock.tsx` 全站無任何引用後刪除（移至垃圾桶）。含假資料 fallback 的 `AggregateStatsSection` 一併清掉。
 
-### Hero 全馬數只計算 Davis
-`MapView.tsx` 的 race stats fetch 只打 `participant=Davis`，但網站是「Davis & Rose 環球跑旅」雙人站。需確認這是否為刻意設計，否則 Rose 的場次會從統計中消失。
-
-### GeoJSON 依賴外部 GitHub 即時抓取
-國家染色地圖的核心資料從 `raw.githubusercontent.com` 即時 fetch，建議改為打包進 `public/` 自行 host，避免外部依賴影響最重要的視覺效果。
-
-### 新增功能建議：一鍵分享合成圖
-地圖截圖 + 到訪國家數 + 全馬場次合成一張圖，一鍵可發 FB/IG。呼應客戶「對外展示、炫耀成就」的核心動機，長期價值高。
-
-### 07-13 TODO 優先順序建議
+### 07-13 TODO 優先順序建議（歷史紀錄）
 - **先做**：#5 mobile 分類按鈕過小、#6 lightbox 移除縮圖列、#4 澳門國家歸屬、#1 百岳→登山改名
 - **再做**：#9、#10 文案聯動類小項，與 #2、#3、#7 後台 CRUD 一併處理
 - **最後**：#8 FB zip 自動匯入（方向正確但工程量最大，不應卡住前面的 UX 修正）
@@ -193,6 +261,8 @@ Header 改為深色背景（`bg-ink`）；「Davis & Rose」serif italic 紅色�
 ### ✅ 字體：僅 List / Timeline 文章標題改黑體
 原本 `font-serif`（Noto Serif TC）共 **60 處**、分布 13 個檔案。曾一次全改黑體，後依客戶決定改回：**只有 ListView 與 TimelineView 的文章標題維持黑體**，其餘（文章頁標題與內文首字、成績卡、Header logo、後台各頁、hero 單位字等）全部還原為細明體。Noto Serif TC 的載入與 `--font-serif` token 一併還原。
 
+> ⚠️ 此處還原的 Noto Serif TC 載入，曾於 2026-07-27 被 `e09bdc8` 移除，同日已改用 runtime `<link>` 修復 —— 見 2026-07-27 區塊。
+
 ### ✅ ListView 城市與標題改為上下排列並與國家對齊
 文章列改為 meta 行在上（日期 + 城市，mono 14px）、標題在下（16px，最多兩行），與時間軸的呈現一致；日期不再獨佔右側欄位。縮排改為 `pl-[55px] md:pl-[87px]`，使 meta / 標題左緣與上一層「國家」文字對齊（實測 447.25 vs 447）。
 
@@ -204,9 +274,6 @@ Header 改為深色背景（`bg-ink`）；「Davis & Rose」serif italic 紅色�
 
 ### ✅ 時間軸配色收斂為黑
 年份、每列分類、標頭篇數統計由 `text-brand` 改為 `text-ink`；主題紅只留在其他檢視。
-
-### ✅ 七大馬資料改名（客戶自行處理）
-曾提供 jsonb 陣列改名的 migration，客戶決定手動改資料，migration 檔已移除。前端 `MAJORS_SUB_CAT_ALIASES` 與後端白名單仍同時吃新舊值，待確認資料已改完可移除相容邏輯。
 
 ### ✅ 桌面版側欄與控制列微調
 - 時間軸年份 `text-2xl → text-xl`、文章標題 `text-base md:text-lg → text-base`。
@@ -237,18 +304,13 @@ Header 改為深色背景（`bg-ink`）；「Davis & Rose」serif italic 紅色�
 ### ✅ 載入文字對比度不足
 載入文字改為實心 `text-ink`（原本 `text-ink/40`～`/60`）並移除 `animate-pulse`（脈動會讓透明度再往下掉一半）。涵蓋：首頁「Initializing Spatial Data...」、地圖「Generating Spatial Log...」、ListView / TimelineView「Loading...」、文章頁「正在載入紀錄...」、PB 頁載入字。後台的「正在載入文章...」未改（非前台，暫留）。
 
-### 網址改為 maramap.vercel.app
-網站網址改用 `maramap.vercel.app`（前端部署設定 + 站內絕對連結 / metadata / OG URL 一併更新）。
-
 ### ✅ 分類「七大馬」改名為「九大馬」
 前台顯示、後台四處子分類選單、後端 `getCategories` 白名單、ETL 分類 prompt 皆改為「九大馬」。
 
 **資料已改名（客戶手動處理）+ 相容邏輯已移除**：客戶已將資料庫 `sub_categories` 全部從「七大馬」改為「九大馬」。前端 `MAJORS_SUB_CAT_ALIASES` / `matchesSubCat` 與後端白名單的舊值皆已刪除，改為直接比對「九大馬」。全 codebase 已無「七大馬」（ETL 產出的歷史 JSON 不算）。
 
-**待客戶確認（新賽事清單）**：`etl/02_classify/ai-classify.js` 的賽事清單仍是原本七場（東京、波士頓、倫敦、柏林、芝加哥、紐約、雪梨），新增的兩場是哪兩場未知，已在檔案內留 TODO。此為之後匯入新文章時 AI 分類用，不影響現有顯示。
-
-### 後台建立文章：影片大小上限 200MB
-後台建立 / 編輯文章流程中，每支影片檔案大小上限為 200MB，超過需擋下並顯示提示。
+### ✅ 後台建立文章：影片大小上限
+原需求為 200MB。**已於 2026-07-27 實作並調高為 300MB（照片 15MB）** —— 見上方 2026-07-27 區塊。
 
 ### ✅ Hero Number 到訪國家統計來源修正
 到訪國家數原本讀 `stats?participant=Davis` 的 `country_count`（只看 Davis 有比賽的國家），改為從 `basePoints`（全部文章、所有分類、不限有無座標）取 distinct `country_en`，自然含旅遊/登山才去的國家；有時間篩選時改用 `filteredBase`。移除 `totalCountryCount` state 與對應 fetch 賦值。
@@ -261,36 +323,13 @@ Header 改為深色背景（`bg-ink`）；「Davis & Rose」serif italic 紅色�
 
 ---
 
-## 下次接續（2026-07-23 收工時狀態）
-
-本次會議 8 項已完成 6 項，**尚未動的 2 項**：
-- **網址改為 maramap.vercel.app** — 前端部署設定 + 站內絕對連結 / metadata / OG URL。
-- **後台影片上限 200MB** — 建立/編輯文章流程擋下超過 200MB 的影片並提示。
-
-待客戶回覆：
-- ETL 九大馬的新賽事清單（多的 2 場是哪 2 場），才能讓新匯入文章正確分類。
-
-Rogers 回饋仍未做（非本次會議、可排後）：完賽時間露出 List/popup、PB 徽章、全球 X% 渲染、Hero 全馬只算 Davis、GeoJSON 自行 host、一鍵分享合成圖。
-
----
-
-## Backlog（未來規劃，現階段不實作）
+## Backlog 已完成項
 
 ### ✅ 新增貼文
 後台已有建立文章功能（`/admin/new`）。
 
 ### ✅ 貼文照片／影片新增／刪除功能
 後台編輯頁已支援照片與影片的新增／刪除（`MediaManager`）。
-
-### 馬拉松子類別設定
-後台支援設定子類別（普查承認 / 海外 / 超馬）。
-
-### 類別管理
-後台支援新增類別、修改類別名稱。
-Use case：「七大馬」未來可能擴增為「八大馬」，需要彈性調整。
-
-### 年度回顧頁面
-獨立頁面，呈現每年度的跑步與旅行亮點統計。
 
 ### ✅ Recurring Data Inflow Pipeline
 已透過 2026-07-13「後台支援 Facebook Export 自動匯入」實作：`/admin/import` 上傳 zip 即自動跑完整 pipeline（增量匯入邏輯沿用 `06_import` 既有的 content-signature dedup，客戶本人仍不需手動新增/修改文章）。
