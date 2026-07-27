@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -521,6 +522,8 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
 }
 
 export default function LogDetail({ params }: { params: Promise<{ id: string }> }) {
+  const searchParams = useSearchParams();
+  const previewMode = searchParams.get('preview') === 'true';
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
@@ -538,7 +541,11 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       try {
         const { id } = await (params as Promise<{ id: string }>);
         const apiUrl = getApiBase();
-        const res = await fetch(`${apiUrl}/api/v1/posts/${id}`, { cache: 'no-store' });
+        const url = new URL(`${apiUrl}/api/v1/posts/${id}`);
+        if (previewMode) {
+          url.searchParams.set('preview', 'true');
+        }
+        const res = await fetch(url.toString(), { cache: 'no-store' });
         if (!res.ok) { setIsLoading(false); return; }
         const data = await res.json();
         setPost(data);
@@ -556,7 +563,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       }
     };
     fetchPostAndNav();
-  }, [params]);
+  }, [params, previewMode]);
 
   useEffect(() => {
     if (isLoading) return;

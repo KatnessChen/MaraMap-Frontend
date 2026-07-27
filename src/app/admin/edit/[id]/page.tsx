@@ -588,18 +588,27 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
               <ArrowLeft size={18} /> 回文章列表
             </Link>
+          </div>
+          <div className="flex items-center gap-3 md:gap-5">
+            <Link
+              href={`/log/${post.id}?preview=true`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full cursor-pointer"
+              title="新分頁預覽文章"
+            >
+              <Eye size={18} /> <span className="hidden sm:inline">預覽文章</span>
+            </Link>
             {post && (
               <button
                 onClick={handleDelete}
                 disabled={isSaving}
                 title="刪除此文章"
-                className="inline-flex items-center gap-1.5 text-ink/30 hover:text-brand font-sans text-sm md:text-base font-black transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full disabled:opacity-40 cursor-pointer"
               >
                 <Trash2 size={18} /> <span className="hidden sm:inline">刪除文章</span>
               </button>
             )}
-          </div>
-          <div className="flex flex-col items-end gap-1 md:gap-2">
             <button onClick={() => handleSave()} disabled={isSaving} className="bg-ink text-paper px-4 py-2 md:px-12 md:py-4 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
               {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}
               {isSaving ? "儲存中..." : "儲存變更"}
