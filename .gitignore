@@ -18,7 +18,6 @@
 # next.js
 /.next/
 /out/
-nextjs.log
 
 # production
 /build
@@ -27,11 +26,9 @@ nextjs.log
 .DS_Store
 *.pem
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# logs — package manager debug output plus the dev-server logs
+# (backend.log / frontend.log / nextjs.log) that pile up locally
+*.log
 
 # env files (can opt-in for committing if needed)
 .env*
