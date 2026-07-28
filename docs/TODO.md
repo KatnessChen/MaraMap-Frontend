@@ -49,6 +49,20 @@
 
 ## 📋 Backlog（未來規劃，現階段不實作）
 
+### Infra 花費追蹤 → [`COST_TRACKING.md`](./COST_TRACKING.md)
+每月快照 + 年度報表。實測現況：R2 19.49 GiB（約 $0.16/月）、Artifact Registry 1.4 GB（約 $0.09/月，**已超過 0.5 GB 免費額度**）、Cloud Run / Vercel / Supabase 皆 $0。年度總計預估 < US$5。
+**唯一有時效性的一步**：Gemini token 用量目前完全沒記錄，沒記到的事後補不回來 —— 建議優先做 instrumentation。
+一次性動作（投報率最高）：GCP budget alert、Artifact Registry cleanup policy、收斂 prod `timeout=3600`、後端 rate limiting。
+
+### 整站英文化 → [`I18N_PLAN.md`](./I18N_PLAN.md)
+前台 UI 僅約 217 條字串（後台 542 條不需翻）；地名已是雙語資料可沿用。
+真正的大工程是 634 篇、31 萬字的文章內文。
+**阻塞項**：需先跟客戶確認英文版的目標讀者，才能決定要不要做全文翻譯。
+
+### AI Chatbot → [`CHATBOT_PLAN.md`](./CHATBOT_PLAN.md)
+語料庫僅 30 萬字（約 20–25 萬 token），塞得進單一 context —— v1 不需要 RAG／pgvector，用 tool-calling 包既有 API 即可。
+**硬性前置**：後端目前無 rate limiting，在此狀態下開放公開 LLM 端點等於把帳單上限交給陌生人。
+
 ### 媒體排序
 後台編輯文章時，可自行調整照片／影片的顯示順序（拖曳排序），決定文章頁 carousel 與 lightbox 的呈現次序。目前順序固定沿用匯入／上傳當下的順序，無法調整。
 

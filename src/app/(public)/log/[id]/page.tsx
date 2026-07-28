@@ -240,11 +240,12 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
             <button key={i} onClick={() => setIdx(i)} className={`shrink-0 w-14 h-14 relative overflow-hidden border-2 transition-all ${i === idx ? 'border-brand' : 'border-transparent opacity-50 hover:opacity-80'}`}>
               {m.type === 'video'
                 ? (
-                  <div className="relative w-full h-full">
-                    <video src={m.uri} muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={12} className="text-white drop-shadow" fill="white" />
-                    </div>
+                  // No <video> here on purpose: at 56px the first frame is
+                  // unreadable, so the icon alone carries the meaning — and
+                  // every thumbnail that renders one costs a metadata fetch
+                  // on page load, on top of the one the main strip already does.
+                  <div className="w-full h-full flex items-center justify-center bg-ink/70">
+                    <Play size={18} className="text-white" fill="white" />
                   </div>
                 )
                 : <Image src={m.uri} alt="" fill className="object-cover" />}
@@ -488,7 +489,10 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
             return (
               <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center overflow-hidden">
                 {item.type === 'video'
-                  ? <video src={item.uri} controls className="w-full h-full outline-none" />
+                  // Every slide in the strip is rendered, so without preload="none"
+                  // opening the lightbox fetches metadata for all N videos at once.
+                  // There is no autoplay — the viewer presses play either way.
+                  ? <video src={item.uri} controls preload="none" className="w-full h-full outline-none" />
                   : /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" style={zoomStyle} draggable={false} />}
               </div>

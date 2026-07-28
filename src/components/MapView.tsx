@@ -6,7 +6,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import type { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight, ChevronLeft } from "lucide-react";
+import { ArrowRight, ChevronLeft, History, List as ListIcon, Map as MapIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
@@ -83,10 +84,10 @@ interface RaceStats {
 
 type ViewMode = 'map' | 'list' | 'timeline';
 
-const VIEW_MODES: Array<{ mode: ViewMode; label: string }> = [
-  { mode: 'map', label: '地圖' },
-  { mode: 'list', label: '列表' },
-  { mode: 'timeline', label: '時間軸' },
+const VIEW_MODES: Array<{ mode: ViewMode; label: string; Icon: LucideIcon }> = [
+  { mode: 'map', label: '地圖', Icon: MapIcon },
+  { mode: 'list', label: '列表', Icon: ListIcon },
+  { mode: 'timeline', label: '時間軸', Icon: History },
 ];
 
 const TOTAL_COUNTRIES = 195;
@@ -608,15 +609,19 @@ export default function MapView() {
           />
         </div>
         <div className="shrink-0 flex items-center border border-line/60 rounded-full bg-white">
-          {VIEW_MODES.map(({ mode, label }) => (
+          {VIEW_MODES.map(({ mode, label, Icon }) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`flex items-center justify-center px-3.5 py-2 rounded-full transition-colors cursor-pointer ${viewMode === mode ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
+              aria-label={label}
+              className={`flex items-center justify-center px-3.5 py-2 max-[360px]:py-3.5 rounded-full transition-colors cursor-pointer ${viewMode === mode ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
+              {/* Below 360px three Chinese labels plus the date picker overflow
+                  the row, so the toggle falls back to icons. */}
+              <Icon size={16} className="hidden max-[360px]:block shrink-0" />
               {/* Tracking stays off: these labels are Chinese, and letter-spacing
                   built for Latin caps just pushes the glyphs apart. */}
-              <span className="font-mono text-xs leading-none whitespace-nowrap">{label}</span>
+              <span className="font-mono text-xs leading-none whitespace-nowrap max-[360px]:hidden">{label}</span>
             </button>
           ))}
         </div>
@@ -811,24 +816,27 @@ export default function MapView() {
         {/* ── Mobile Bottom Panel ── */}
         <div className="md:hidden shrink-0 bg-paper border-t border-line">
           {/* Hero stats */}
-          <div className="relative z-10 flex items-center gap-4 px-4 pt-3 pb-2 bg-paper shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.18)]">
+          <div className="relative z-10 flex items-center gap-3 px-4 pt-3 pb-2 bg-paper shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.18)]">
             <button
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
-              className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
+              className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayCountryCount}</span>
               <span className="font-serif text-base text-ink/60">國</span>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
-              className="flex items-baseline gap-1 active:opacity-60 transition-opacity"
+              className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayOverseasCount}</span>
               <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
+            {/* The counter yields first on narrow screens — the two stat
+                buttons must never be squeezed into per-character wrapping —
+                and drops out entirely below 360px. */}
             {humanViews !== null && (
-              <span className="self-end pb-0.5 ml-auto shrink-0 font-mono text-[12px] text-ink/40 tracking-[0.06em] whitespace-nowrap text-right">
-                累計 {humanViews.toLocaleString()} 人次造訪
+              <span className="self-end pb-0.5 ml-auto min-w-0 truncate font-mono text-[12px] text-ink/40 tracking-[0.01em] whitespace-nowrap text-right max-[360px]:hidden">
+                累計 {humanViews.toLocaleString()} 次造訪
               </span>
             )}
           </div>
