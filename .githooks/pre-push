@@ -3,17 +3,41 @@
 # Install via: git config core.hooksPath .githooks
 # (auto-installed by `bun install` via the prepare script)
 
-echo "🔧 Running ESLint auto-fix..."
-bun run lint --fix
+WORK=$(mktemp -d) || exit 1
+trap 'rm -rf "$WORK"' EXIT
 
-# If eslint --fix changed any tracked files, amend them into the latest commit
-FIXED=$(git diff --name-only)
+# "<blob-hash> <path>" for every tracked file that differs from HEAD.
+# Hashing the contents — rather than just listing names — is what keeps this
+# hook off work you deliberately left uncommitted: a file that was already
+# dirty before lint hashes the same afterwards, so it is never staged.
+snapshot() {
+  git diff --name-only | while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    printf '%s %s\n' "$(git hash-object -- "$f")" "$f"
+  done
+}
+
+echo "🔧 Running ESLint auto-fix..."
+snapshot > "$WORK/before"
+bun run lint --fix
+snapshot > "$WORK/after"
+
+FIXED=$(grep -vxF -f "$WORK/before" "$WORK/after" | cut -d' ' -f2-)
+
 if [ -n "$FIXED" ]; then
   echo "   Auto-fixed files:"
-  echo "$FIXED" | sed 's/^/   ✏️  /'
-  git add -u
+  printf '%s\n' "$FIXED" | sed 's/^/   ✏️  /'
+  printf '%s\n' "$FIXED" | while IFS= read -r f; do
+    git add -- "$f"
+  done
   git commit --amend --no-edit --no-verify
-  echo "   Amended into last commit."
+  echo ""
+  echo "⚠️  Lint fixes were amended into the last commit."
+  echo "   git resolves what to push before this hook runs, so the amended"
+  echo "   commit is NOT the one being sent — pushing now would leave the"
+  echo "   branch diverged from its remote. Run the same push again to send"
+  echo "   the amended commit."
+  exit 1
 fi
 
 echo ""
