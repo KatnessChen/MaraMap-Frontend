@@ -13,7 +13,7 @@ export interface MediaItem {
 // VIDEO_MAX_BYTES). Pre-checking here gives instant feedback and avoids
 // pushing an oversize file over the wire only to be rejected.
 const IMAGE_MAX_BYTES = 15 * 1024 * 1024;
-const VIDEO_MAX_BYTES = 300 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
 // Derived so the limits shown to the admin can never drift from the numbers
 // actually enforced above.
 const IMAGE_MAX_MB = IMAGE_MAX_BYTES / 1024 / 1024;
