@@ -101,6 +101,21 @@ interface DateFilter {
   endMonth: number | null;
 }
 
+// Placeholder shown in place of a stat while its source request is still in
+// flight. Sized in `ch`/`em` so it inherits the metrics of whatever number it
+// stands in for — including the container-query `clamp()` sizes in the
+// category grid — which keeps the box identical to the digits that replace it
+// and stops the panel from reflowing when the data lands.
+function StatSkeleton({ digits = 2 }: { digits?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block align-baseline rounded-sm bg-ink/10 animate-pulse"
+      style={{ width: `${digits}ch`, height: "0.72em" }}
+    />
+  );
+}
+
 function formatDateFilter(f: DateFilter, compact = false): string {
   if (compact) {
     const sy = String(f.startYear).slice(-2);
@@ -279,6 +294,12 @@ export default function MapView() {
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
+  // The hero/grid numbers come from three independent requests (locations,
+  // categories, race stats). `isLoading` only covers locations, so categories-
+  // and stats-derived tiles used to render a bare 0 until their own request
+  // landed. Tracked separately so the skeleton covers all three.
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [raceStatsLoading, setRaceStatsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [listTitleMode, setListTitleMode] = useState<'countries' | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
@@ -539,6 +560,11 @@ export default function MapView() {
         setRaceStats({ totalFM: davis.fm_count || 0 });
       } catch (err) {
         console.error("Failed to fetch race stats:", err);
+      } finally {
+        // Also clears on the `!res.ok` early return and on error: a failed
+        // request must fall through to the real (zero) value rather than
+        // leave the tile shimmering forever.
+        setRaceStatsLoading(false);
       }
     };
     fetchRaceStats();
@@ -579,12 +605,21 @@ export default function MapView() {
         }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     fetchCategories();
   }, []);
 
   const pct = ((displayCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
+
+  // With a date filter every tile is recomputed from `filteredBase` (i.e. from
+  // basePoints alone), so the categories/race-stats requests are irrelevant and
+  // only the locations fetch can still be pending.
+  const statsLoading = dateFilter
+    ? isLoading
+    : isLoading || categoriesLoading || raceStatsLoading;
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
@@ -648,7 +683,7 @@ export default function MapView() {
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
-                  {displayCountryCount}
+                  {statsLoading ? <StatSkeleton /> : displayCountryCount}
                 </span>
                 <span className="font-serif text-lg text-ink/40 pb-0.5">國</span>
               </div>
@@ -660,7 +695,7 @@ export default function MapView() {
             >
               <div className="flex items-end gap-1.5 mb-2">
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
-                  {displayOverseasCount}
+                  {statsLoading ? <StatSkeleton /> : displayOverseasCount}
                 </span>
                 <span className="font-serif text-lg text-ink/40 pb-0.5">場</span>
               </div>
@@ -684,7 +719,7 @@ export default function MapView() {
           >
             <div className="flex items-baseline gap-1 leading-none">
               <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${activeCategory === null ? "text-brand" : "text-ink"}`}>
-                {displayTotalPostCount}
+                {statsLoading ? <StatSkeleton digits={3} /> : displayTotalPostCount}
               </span>
               <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${activeCategory === null ? "text-brand/70" : "text-ink/50"}`}>
                 篇
@@ -710,7 +745,7 @@ export default function MapView() {
               >
                 <div className="flex items-baseline gap-1 leading-none">
                   <span className={`font-mono font-bold tabular-nums [font-size:clamp(1.25rem,44cqh,2.25rem)] ${isActive ? "text-brand" : "text-ink"}`}>
-                    {value}
+                    {statsLoading ? <StatSkeleton /> : value}
                   </span>
                   <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${isActive ? "text-brand/70" : "text-ink/50"}`}>
                     {unit}
@@ -821,14 +856,14 @@ export default function MapView() {
               onClick={() => { setActiveCategory(null); setActiveSubCategory(null); setViewMode('list'); setListTitleMode('countries'); }}
               className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
-              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayCountryCount}</span>
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{statsLoading ? <StatSkeleton /> : displayCountryCount}</span>
               <span className="font-serif text-base text-ink/60">國</span>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
               className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
-              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{displayOverseasCount}</span>
+              <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{statsLoading ? <StatSkeleton /> : displayOverseasCount}</span>
               <span className="font-serif text-base text-ink/60">場海外馬</span>
             </button>
             {/* The counter yields first on narrow screens — the two stat
@@ -852,7 +887,7 @@ export default function MapView() {
               }`}
             >
               <span>所有文章</span>
-              <span className="font-bold tabular-nums">{displayTotalPostCount}</span>
+              <span className="font-bold tabular-nums">{statsLoading ? <StatSkeleton digits={3} /> : displayTotalPostCount}</span>
             </button>
             {statItems.map(({ label, value, cat, sub }) => {
               const isActive = activeCategory === cat && activeSubCategory === sub;
@@ -867,7 +902,7 @@ export default function MapView() {
                   }`}
                 >
                   <span>{label}</span>
-                  <span className="font-bold tabular-nums">{value}</span>
+                  <span className="font-bold tabular-nums">{statsLoading ? <StatSkeleton /> : value}</span>
                 </button>
               );
             })}
