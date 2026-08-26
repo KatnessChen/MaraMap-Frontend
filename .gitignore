@@ -47,3 +47,6 @@ next-env.d.ts
 /proposals
 # Local notes
 TODO.md
+
+# internal planning docs — not part of the shipped app
+/docs
