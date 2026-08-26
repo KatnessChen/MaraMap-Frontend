@@ -499,7 +499,9 @@ export default function MapView() {
   }, [activeCategory, activeSubCategory]);
 
   useEffect(() => {
-    fetch("https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson")
+    // Self-hosted in public/ rather than fetched live from GitHub at runtime —
+    // the homepage's core visual shouldn't depend on an external host staying up.
+    fetch("/countries.geojson")
       .then(res => res.json())
       .then(data => setGeoData(data))
       .catch(err => console.error("Failed to fetch GeoJSON:", err));
@@ -828,7 +830,7 @@ export default function MapView() {
           <TileLayer
             className="grayscale-[0.8] contrast-[1.1]"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_BASEMAP_API_KEY}`}
           />
 
           {geoData && (

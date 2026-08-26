@@ -29,18 +29,17 @@ The app needs the backend running on **port 3001** for anything data-driven.
 
 ### Environment variables
 
-Only one variable matters: `NEXT_PUBLIC_API_URL`.
+A single gitignored `.env` holds everything this machine needs: `NEXT_PUBLIC_API_URL`
+and `NEXT_PUBLIC_CARTO_BASEMAP_API_KEY`. There's no `.env.development` /
+`.env.production` split locally — this repo only ever runs one environment
+on a dev machine, and the deployed values on Vercel are configured in its own
+dashboard rather than from a committed file (these were always gitignored, so
+they never reached a Vercel build in the first place).
 
-| File | Value | When |
-|---|---|---|
-| `.env.local` | *(empty)* | Local dev — see below |
-| `.env.development` | explicit URL | Pointing dev at a remote backend |
-| `.env.production` | Cloud Run URL | Production build |
-
-**Leave it empty for local dev.** `src/utils/apiBase.ts` then derives the backend
-URL from the page's own hostname, so the app works from both the laptop
-(`localhost:3001`) *and* a phone on the same LAN (`<machine-LAN-IP>:3001`) with
-no hardcoded address to update when the IP changes.
+**Leave `NEXT_PUBLIC_API_URL` empty for local dev.** `src/utils/apiBase.ts` then
+derives the backend URL from the page's own hostname, so the app works from
+both the laptop (`localhost:3001`) *and* a phone on the same LAN
+(`<machine-LAN-IP>:3001`) with no hardcoded address to update when the IP changes.
 
 ## Project structure
 
@@ -116,16 +115,3 @@ once. See [`docs/VIDEO_PLAN.md`](./docs/VIDEO_PLAN.md).
 `package-lock.json`). CI and the git hooks use **Bun** — that is the source of
 truth. A past package-manager switch dropped the Vercel build cache and
 contributed to a build failure, so be deliberate about which one you touch.
-
-## Docs
-
-| Doc | What |
-|---|---|
-| [`DESIGN_GUIDELINES.md`](./docs/DESIGN_GUIDELINES.md) | Mobile-first, RWD and accessibility principles |
-| [`TODO.md`](./docs/TODO.md) | Live TODO / backlog / completed log by meeting date |
-| [`data-pipeline.md`](./docs/data-pipeline.md) | How posts get from Facebook to the site (client + developer versions) |
-| [`VIDEO_PLAN.md`](./docs/VIDEO_PLAN.md) | Video compression research and the unresolved `.mov` playback issue |
-| [`COST_TRACKING.md`](./docs/COST_TRACKING.md) | Monthly infra cost snapshot workflow |
-| [`CHATBOT_PLAN.md`](./docs/CHATBOT_PLAN.md) | AI chatbot plan |
-| [`I18N_PLAN.md`](./docs/I18N_PLAN.md) | English localisation plan |
-| [`SPEC.md`](./docs/SPEC.md) | Chrome extension spec (separate ingestion front-end) |
