@@ -10,6 +10,13 @@
 !.yarn/releases
 !.yarn/versions
 
+# bun is the only package manager this repo uses (see "packageManager" and
+# the "preinstall" guard in package.json) — never commit another lockfile
+# even if that guard is somehow bypassed.
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
 # testing
 /coverage
 /test-results
