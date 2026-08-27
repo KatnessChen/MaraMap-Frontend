@@ -13,6 +13,7 @@ import CountryModal from "./CountryModal";
 import ListView from "./ListView";
 import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
+import { getCountryGeoStyle } from "@/utils/mapStyle";
 
 const API_URL = getApiBase();
 
@@ -90,7 +91,6 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string; Icon: LucideIcon }> = [
   { mode: 'timeline', label: '時間軸', Icon: History },
 ];
 
-const TOTAL_COUNTRIES = 195;
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const selectCls = "font-mono text-sm bg-paper border border-line/60 px-2 py-1 text-ink focus:outline-none focus:border-brand/60 cursor-pointer";
 
@@ -507,41 +507,8 @@ export default function MapView() {
       .catch(err => console.error("Failed to fetch GeoJSON:", err));
   }, []);
 
-  // Sequential scale: near-white pink (1 visit) → deep vivid red (VISIT_CAP+
-  // visits). Saturation ramps up alongside darkness so the deep end reads as
-  // more vivid, not muddier, than the brand red it's built around.
-  const COUNTRY_HUE = 356;
-  const countryFillColor = (intensity: number) => {
-    const saturation = 80 + intensity * 10; // 65% (light) → 90% (deep, vivid)
-    const lightness = 85 - intensity * 50; // 95% (near-white pink) → 42% (deep red)
-    return `hsl(${COUNTRY_HUE}, ${saturation}%, ${lightness}%)`;
-  };
-
-  const geoStyle = (feature?: { properties: { name: string; "ISO3166-1-Alpha-3": string } }) => {
-    const name = feature?.properties?.name ?? "";
-    const isoA3 = feature?.properties?.["ISO3166-1-Alpha-3"] ?? "";
-    const count = visitedCountries.get(name) ?? visitedCountries.get(isoA3) ?? 0;
-    const isVisited = count > 0;
-    // Scale against a fixed cap rather than the dataset max — the home base
-    // (e.g. Taiwan) has an order of magnitude more posts than anywhere else,
-    // so normalizing against it would flatten every other country into the
-    // same near-minimum shade. Countries at/above the cap render at full
-    // intensity; everything below spreads across the gradient on a log curve.
-    // Cap is well above the typical "visited a handful of times" range so
-    // the #2 country (e.g. China) still reads visibly lighter than the #1
-    // outlier (e.g. Taiwan) instead of both clipping to the same max shade.
-    const VISIT_CAP = 50;
-    const cappedCount = Math.min(count, VISIT_CAP);
-    const intensity = isVisited ? Math.log(cappedCount + 1) / Math.log(VISIT_CAP + 1) : 0;
-    return {
-      fillColor: isVisited ? countryFillColor(intensity) : "transparent",
-      weight: isVisited ? 1.5 : 0,
-      opacity: isVisited ? 0.7 : 0,
-      color: "#e63946",
-      // 半透明遮罩：讓底圖的國家/城市地名能透出來，同時保留造訪次數的深淺漸層。
-      fillOpacity: isVisited ? 0.5 : 0,
-    };
-  };
+  const geoStyle = (feature?: { properties: { name: string; "ISO3166-1-Alpha-3": string } }) =>
+    getCountryGeoStyle(feature, visitedCountries);
 
   const onEachCountry = useCallback((feature: Feature<Geometry, { name: string; "ISO3166-1-Alpha-3": string }>, layer: L.Layer) => {
     const name = feature?.properties?.name ?? "";
@@ -613,8 +580,6 @@ export default function MapView() {
     };
     fetchCategories();
   }, []);
-
-  const pct = ((displayCountryCount / TOTAL_COUNTRIES) * 100).toFixed(1);
 
   // With a date filter every tile is recomputed from `filteredBase` (i.e. from
   // basePoints alone), so the categories/race-stats requests are irrelevant and
