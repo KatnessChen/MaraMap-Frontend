@@ -21,6 +21,8 @@ yarn.lock
 /coverage
 /test-results
 /tests/e2e/.auth
+/playwright-report
+/blob-report
 
 # next.js
 /.next/
