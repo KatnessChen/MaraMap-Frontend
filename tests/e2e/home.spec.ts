@@ -10,17 +10,23 @@ test.describe('Home Page', () => {
     await expect(page).toHaveTitle(/MaraMap|Next.js/i);
   });
 
-  test('should display sidebar with branding', async ({ page }) => {
-    const sidebar = page.locator('aside');
-    await expect(sidebar).toBeVisible();
-    await expect(sidebar).toContainText('Davis & Rose');
-    await expect(sidebar).toContainText('環球跑旅');
+  test('should display header with branding', async ({ page }) => {
+    // The wordmark lives in the top <header> bar, not the sidebar — a stale
+    // assertion here (checking <aside>) previously masked that this test
+    // could never have passed on the current layout.
+    const header = page.locator('header');
+    await expect(header).toBeVisible();
+    await expect(header).toContainText('Davis & Rose');
+    await expect(header).toContainText('環球跑旅');
   });
 
   test('should display stat tiles', async ({ page }) => {
+    // Matches src/components/MapView.tsx's statItems labels directly —
+    // "百岳" was renamed to "登山" at some point and this assertion was
+    // never updated, so it always failed regardless of backend data.
     const sidebar = page.locator('aside');
     await expect(sidebar.locator('button', { hasText: '全馬' })).toBeVisible();
-    await expect(sidebar.locator('button', { hasText: '百岳' })).toBeVisible();
+    await expect(sidebar.locator('button', { hasText: '登山' })).toBeVisible();
   });
 
   test('should display visited countries section', async ({ page }) => {
