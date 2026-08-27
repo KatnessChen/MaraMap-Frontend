@@ -31,7 +31,6 @@ function LoginForm() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("maramap_admin_token", data.token);
-        localStorage.setItem("maramap_admin_login_time", Date.now().toString());
         router.push(redirect);
       } else {
         setError("帳號或密碼錯誤。");

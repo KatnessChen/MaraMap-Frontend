@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+import { useAdminAuth, getStoredToken, clearStoredToken } from "@/hooks/useAdminAuth";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -18,14 +19,10 @@ export default function AdminPersonalBestPage() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
 
-  // Same guard the other admin pages use: no token → login.
-  useEffect(() => {
-    const token = localStorage.getItem("maramap_admin_token");
-    if (!token) router.push("/admin/login");
-  }, [router]);
+  useAdminAuth();
 
   const recompute = async () => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) {
       router.push("/admin/login");
       return;
@@ -40,7 +37,7 @@ export default function AdminPersonalBestPage() {
         },
       );
       if (res.status === 401) {
-        localStorage.removeItem("maramap_admin_token");
+        clearStoredToken();
         router.push("/admin/login");
         return;
       }

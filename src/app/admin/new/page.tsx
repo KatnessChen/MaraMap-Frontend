@@ -11,6 +11,7 @@ import {
   CONTINENTS, getCountries, getCityOptions, ALL_COUNTRIES, ALL_CITY_OPTIONS,
   DISTANCE_KM_MAP, TIME_REGEX, isValidDate,
 } from "@/utils/locationData";
+import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -85,17 +86,7 @@ export default function NewPost() {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
 
-  const checkAuth = () => {
-    const token = localStorage.getItem("maramap_admin_token");
-    const loginTime = localStorage.getItem("maramap_admin_login_time");
-    if (!token || !loginTime) return null;
-    if (Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem("maramap_admin_token");
-      localStorage.removeItem("maramap_admin_login_time");
-      return null;
-    }
-    return token;
-  };
+  useAdminAuth();
 
   // ── Validation ──────────────────────────────────────────────
   const validate = (): { errors: FieldErrors; warnings: string[] } => {
@@ -143,7 +134,7 @@ export default function NewPost() {
       setGeocodeError("請先填寫國家或城市");
       return;
     }
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login?redirect=/admin/new"); return; }
 
     setIsGeocoding(true);
@@ -192,7 +183,7 @@ export default function NewPost() {
     }
     setWarnings([]);
 
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login?redirect=/admin/new"); return; }
 
     setIsSaving(true);
@@ -368,7 +359,7 @@ export default function NewPost() {
                 onMediaChange={setMedia}
                 coverImage={formData.cover_image}
                 onCoverChange={(uri) => setFormData((f) => ({ ...f, cover_image: uri }))}
-                getToken={checkAuth}
+                getToken={getStoredToken}
                 onAuthFail={() => router.push("/admin/login?redirect=/admin/new")}
               />
             </div>

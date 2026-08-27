@@ -11,6 +11,7 @@ import {
   CONTINENTS, getCountries, getCityOptions, ALL_COUNTRIES, ALL_CITY_OPTIONS,
   DISTANCE_KM_MAP, TIME_REGEX, isValidDate,
 } from "@/utils/locationData";
+import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -146,24 +147,10 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
 
-  const checkAuth = () => {
-    const token = localStorage.getItem("maramap_admin_token");
-    const loginTime = localStorage.getItem("maramap_admin_login_time");
-    if (!token || !loginTime) return null;
-    if (Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem("maramap_admin_token");
-      localStorage.removeItem("maramap_admin_login_time");
-      return null;
-    }
-    return token;
-  };
+  const { token } = useAdminAuth();
 
   useEffect(() => {
-    const token = checkAuth();
-    if (!token) {
-      router.push(`/admin/login?redirect=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
+    if (!token) return;
 
     const fetchPost = async () => {
       try {
@@ -222,7 +209,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       }
     };
     fetchPost();
-  }, [params, router]);
+  }, [token, params]);
 
   // ── Validation ──────────────────────────────────────────────
   const validate = (): { errors: FieldErrors; warnings: string[] } => {
@@ -282,7 +269,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
     setWarnings([]);
 
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
     if (!post) return;
 
@@ -331,7 +318,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const handleDelete = async () => {
     if (!post) return;
     if (!window.confirm(`確定要刪除「${post.title || "此文章"}」嗎？此操作無法復原。`)) return;
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
     try {
       const apiUrl = getApiBase();
@@ -359,7 +346,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
       setGeocodeError("請先填寫國家或城市");
       return;
     }
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
     setIsGeocoding(true);
@@ -412,7 +399,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   // Smart recommendations — same country + within ±14 days, not already in this trip.
   const fetchTripSuggestions = async () => {
     if (!post) return;
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) return;
     setIsLoadingSuggestions(true);
     try {
@@ -435,7 +422,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   };
 
   const handleAddToTrip = async (targetPostId: string) => {
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token || !post) return;
     const apiUrl = getApiBase();
     const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}/trip/add`, {
@@ -458,7 +445,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   };
 
   const handleRemoveFromTrip = async (targetPostId: string) => {
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token) return;
     const apiUrl = getApiBase();
     const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}/trip/remove`, {
@@ -480,7 +467,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   };
 
   const handleMakePrimary = async (targetPostId: string) => {
-    const token = checkAuth();
+    const token = getStoredToken();
     if (!token || !post) return;
     const apiUrl = getApiBase();
     const res = await fetch(`${apiUrl}/api/v1/posts/${targetPostId}/make-primary`, {
@@ -660,7 +647,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 onMediaChange={setMedia}
                 coverImage={formData.cover_image}
                 onCoverChange={(uri) => setFormData((f) => ({ ...f, cover_image: uri }))}
-                getToken={checkAuth}
+                getToken={getStoredToken}
                 onAuthFail={() => router.push("/admin/login")}
               />
             </div>

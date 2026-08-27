@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UploadCloud, Loader2, RotateCcw, Trash2, ChevronDown, ChevronUp, Info, Check } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
 
 interface ReviewMedia {
   url: string;
@@ -167,14 +168,16 @@ export default function AdminImportPage() {
     }
   }, []);
 
+  const { token } = useAdminAuth();
+
   useEffect(() => {
-    const token = localStorage.getItem("maramap_admin_token");
-    if (!token) { router.push("/admin/login"); return; }
-    void loadPending(token);
-  }, [router, loadPending]);
+    if (!token) return;
+    const load = async () => { await loadPending(token); };
+    void load();
+  }, [token, loadPending]);
 
   const resumeBatch = async (targetBatch: string) => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
     const res = await fetch(`${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/review`, {
@@ -196,7 +199,7 @@ export default function AdminImportPage() {
   };
 
   const cancelBatch = async (targetBatch: string) => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
     const state = pending.find((s) => s.batch === targetBatch);
@@ -248,13 +251,13 @@ export default function AdminImportPage() {
     } else if (event.type === "done") {
       setResult({ success: event.success, summary: event.summary });
       setPhase("done");
-      const token = localStorage.getItem("maramap_admin_token");
+      const token = getStoredToken();
       if (token) void loadPending(token);
     }
   };
 
   const startImport = async () => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
     if (!file) return;
 
@@ -305,7 +308,7 @@ export default function AdminImportPage() {
   // A batch whose prepare half failed keeps its zip in R2 — retry the parse
   // without re-uploading anything.
   const retryPrepare = async (targetBatch: string) => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
     setPhase("preparing");
@@ -332,7 +335,7 @@ export default function AdminImportPage() {
   };
 
   const confirmImport = async (targetBatch: string, categoryEdits: CategoryEdit[], skippedTimestamps: number[]) => {
-    const token = localStorage.getItem("maramap_admin_token");
+    const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
     setPhase("finalizing");

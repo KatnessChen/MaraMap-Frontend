@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, UploadCloud } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+import { useAdminAuth, clearStoredToken } from "@/hooks/useAdminAuth";
 
 interface ParticipantStats {
   distance_km: number | null;
@@ -143,24 +144,10 @@ export default function AdminDashboard() {
     setJumpValue("");
   };
 
-  // JWT 過期時後端會把請求默默當成公開訪問（隱藏文章被過濾掉），
-  // 所以進頁面就先驗 exp，過期直接導回登入頁。
-  const isTokenExpired = (token: string): boolean => {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return typeof payload.exp === "number" && payload.exp * 1000 < Date.now();
-    } catch {
-      return true;
-    }
-  };
+  const { token } = useAdminAuth();
 
   useEffect(() => {
-    const token = localStorage.getItem("maramap_admin_token");
-    if (!token || isTokenExpired(token)) {
-      localStorage.removeItem("maramap_admin_token");
-      router.push("/admin/login");
-      return;
-    }
+    if (!token) return;
 
     const fetchPosts = async () => {
       setIsLoading(true);
@@ -199,7 +186,7 @@ export default function AdminDashboard() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
-          localStorage.removeItem("maramap_admin_token");
+          clearStoredToken();
           router.push("/admin/login");
           return;
         }
@@ -225,10 +212,10 @@ export default function AdminDashboard() {
     };
 
     fetchPosts();
-  }, [page, pageSize, applied, router]);
+  }, [token, page, pageSize, applied, router]);
 
   const handleLogout = () => {
-    localStorage.removeItem("maramap_admin_token");
+    clearStoredToken();
     router.push("/admin/login");
   };
 
