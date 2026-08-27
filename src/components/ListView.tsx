@@ -44,9 +44,12 @@ export default function ListView({ points, isLoading, category, subCategory, tit
   }, [points]);
 
   useEffect(() => {
-    if (grouped.size === 0) return;
-    setOpenContinents(new Set(grouped.keys()));
-    setOpenCountries(new Set());
+    const expandAll = () => {
+      if (grouped.size === 0) return;
+      setOpenContinents(new Set(grouped.keys()));
+      setOpenCountries(new Set());
+    };
+    expandAll();
   }, [grouped]);
 
   const toggleContinent = (c: string) =>

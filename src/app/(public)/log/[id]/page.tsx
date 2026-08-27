@@ -537,9 +537,12 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    // 檢查是否具備管理員權限
-    const token = localStorage.getItem("maramap_admin_token");
-    if (token) setIsAdmin(true);
+    const checkAdmin = () => {
+      // 檢查是否具備管理員權限
+      const token = localStorage.getItem("maramap_admin_token");
+      if (token) setIsAdmin(true);
+    };
+    checkAdmin();
 
     const fetchPostAndNav = async () => {
       try {
