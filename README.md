@@ -82,7 +82,7 @@ commit, then runs the unit tests and aborts the push if they fail.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on push and PR to `develop` / `main`:
+`.github/workflows/ci.yml` runs on push and PR to `develop` / `master`:
 lint → unit tests → Playwright E2E → `bun run build`. Test results are published
 as PR checks via `dorny/test-reporter`.
 
