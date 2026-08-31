@@ -39,7 +39,7 @@ target will pass locally (backend happens to be running on your machine) and
 then fail or silently assert nothing in CI.
 
 Mock every backend call the page under test makes with `page.route()`,
-keyed on the actual resolved origin (`**://*:3001/api/v1/...`, since
+keyed on the actual resolved origin (`**://*:3016/api/v1/...`, since
 `src/utils/apiBase.ts` derives the port at runtime rather than reading an
 env var in dev). See `tests/e2e/fixtures/` for the established pattern —
 one fixture file per page/flow, exporting both the mock data and a

@@ -9,7 +9,7 @@
 //
 // The SSR fallback (127.0.0.1) only matters on the dev machine itself, where
 // the Next server and the backend share a host.
-const DEV_BACKEND_PORT = "3001";
+const DEV_BACKEND_PORT = "3016";
 
 export function getApiBase(): string {
   const configured = process.env.NEXT_PUBLIC_API_URL;
