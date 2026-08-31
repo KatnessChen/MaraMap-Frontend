@@ -12,6 +12,7 @@ import {
   DISTANCE_KM_MAP, TIME_REGEX, isValidDate,
 } from "@/utils/locationData";
 import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
+import { authFetch } from "@/utils/authFetch";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -144,9 +145,7 @@ export default function NewPost() {
       const params = new URLSearchParams();
       if (country?.trim()) params.set("country", country.trim());
       if (city?.trim()) params.set("city", city.trim());
-      const res = await fetch(`${apiUrl}/api/v1/geocode?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`${apiUrl}/api/v1/geocode?${params}`, token);
       if (res.ok) {
         const data: { lat: number | null; lng: number | null } = await res.json();
         if (data.lat != null && data.lng != null) {
@@ -191,9 +190,9 @@ export default function NewPost() {
 
     try {
       const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts`, {
+      const res = await authFetch(`${apiUrl}/api/v1/posts`, token, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formData.title,
           event_date: formData.event_date,

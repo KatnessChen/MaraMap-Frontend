@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON, useMap } from "react-leaflet";
-import L from "leaflet";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import type { GeoJsonObject, Feature, Geometry } from "geojson";
@@ -14,59 +13,12 @@ import ListView from "./ListView";
 import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
 import { getCountryGeoStyle } from "@/utils/mapStyle";
+import type { FlattenedPoint, GeoPoint } from "./map/leafletHelpers";
+import { FitBounds, createEventIcon, createClusterCustomIcon, MapResizer } from "./map/leafletHelpers";
+import type { DateFilter } from "./map/DateRangePicker";
+import { DateRangePicker, StatSkeleton } from "./map/DateRangePicker";
 
 const API_URL = getApiBase();
-
-interface FlattenedPoint {
-  id: string;
-  postId: string;
-  lat: number | null;
-  lng: number | null;
-  title: string;
-  date: string;
-  cat: string;
-  sub_cats: string[];
-  uri: string;
-  country?: string;
-  country_en?: string;
-  continent?: string;
-  city?: string;
-}
-
-// Points guaranteed to carry real coordinates (used for map markers/bounds).
-type GeoPoint = FlattenedPoint & { lat: number; lng: number };
-
-function FitBounds({ points }: { points: GeoPoint[] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (points.length === 0) return;
-    const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]));
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 10 });
-  }, [points, map]);
-  return null;
-}
-
-const createEventIcon = () => {
-  return L.divIcon({
-    className: "custom-div-icon",
-    html: `<div class="w-4 h-4 bg-brand rounded-full border-2 border-white shadow-[0_0_10px_rgba(230,57,70,0.5)]"></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
-};
-
-const createClusterCustomIcon = (cluster: { getChildCount: () => number }) => {
-  const count = cluster.getChildCount();
-  const size = Math.min(Math.max(28, 20 + Math.log2(count) * 4), 52);
-  const fontSize = Math.max(10, Math.round(size * 0.38));
-  return L.divIcon({
-    html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#e63946;border:2px solid rgba(255,255,255,0.5);box-shadow:0 0 20px rgba(230,57,70,0.4);">
-             <span style="color:white;font-size:${fontSize}px;font-weight:700;font-family:monospace;line-height:1;">${count}</span>
-           </div>`,
-    className: "custom-cluster-icon",
-    iconSize: L.point(size, size, true),
-  });
-};
 
 interface SubCategory {
   name: string;
@@ -91,198 +43,6 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string; Icon: LucideIcon }> = [
   { mode: 'timeline', label: '時間軸', Icon: History },
 ];
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-const selectCls = "font-mono text-sm bg-paper border border-line/60 px-2 py-1 text-ink focus:outline-none focus:border-brand/60 cursor-pointer";
-
-interface DateFilter {
-  startYear: number;
-  startMonth: number | null;
-  endYear: number | null;
-  endMonth: number | null;
-}
-
-// Placeholder shown in place of a stat while its source request is still in
-// flight. Sized in `ch`/`em` so it inherits the metrics of whatever number it
-// stands in for — including the container-query `clamp()` sizes in the
-// category grid — which keeps the box identical to the digits that replace it
-// and stops the panel from reflowing when the data lands.
-function StatSkeleton({ digits = 2 }: { digits?: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-block align-baseline rounded-sm bg-ink/10 animate-pulse"
-      style={{ width: `${digits}ch`, height: "0.72em" }}
-    />
-  );
-}
-
-function formatDateFilter(f: DateFilter, compact = false): string {
-  if (compact) {
-    const sy = String(f.startYear).slice(-2);
-    const sm = f.startMonth ? `/${f.startMonth}` : '';
-    const ey = f.endYear ? String(f.endYear).slice(-2) : null;
-    const em = f.endMonth ? `/${f.endMonth}` : '';
-    const start = `${sy}${sm}`;
-    const end = ey ? `${ey}${em}` : null;
-    return end && end !== start ? `${start}→${end}` : start;
-  }
-  const start = f.startMonth ? `${f.startYear}年${f.startMonth}月` : `${f.startYear}年`;
-  const end = f.endYear ? (f.endMonth ? `${f.endYear}年${f.endMonth}月` : `${f.endYear}年`) : null;
-  return end && end !== start ? `${start} → ${end}` : start;
-}
-
-function DateRangePicker({
-  availableYears,
-  applied,
-  onApply,
-  onClear,
-  compact = false,
-}: {
-  availableYears: number[];
-  applied: DateFilter | null;
-  onApply: (f: DateFilter) => void;
-  onClear: () => void;
-  compact?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [sy, setSy] = useState<number | null>(null);
-  const [sm, setSm] = useState<number | null>(null);
-  const [ey, setEy] = useState<number | null>(null);
-  const [em, setEm] = useState<number | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const togglePanel = () => {
-    if (open) { setOpen(false); return; }
-    setSy(applied?.startYear ?? null);
-    setSm(applied?.startMonth ?? null);
-    setEy(applied?.endYear ?? null);
-    setEm(applied?.endMonth ?? null);
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const endYears = sy ? availableYears.filter(y => y >= sy) : availableYears;
-  const endMonths = (ey && sy && ey === sy && sm) ? MONTHS.filter(m => m >= sm) : MONTHS;
-
-  const handleSyChange = (v: number | null) => {
-    setSy(v); setSm(null);
-    if (v && ey && ey < v) { setEy(null); setEm(null); }
-  };
-  const handleSmChange = (v: number | null) => {
-    setSm(v);
-    if (v && ey === sy && em && em < v) setEm(null);
-  };
-  const handleEyChange = (v: number | null) => { setEy(v); setEm(null); };
-
-  const handleApply = () => {
-    if (sy) { onApply({ startYear: sy, startMonth: sm, endYear: ey, endMonth: em }); }
-    else { onClear(); }
-    setOpen(false);
-  };
-  const handleClear = () => { setSy(null); setSm(null); setEy(null); setEm(null); };
-
-  return (
-    <div className="relative min-w-0">
-      <div className="flex items-center gap-1.5 min-w-0">
-        <button
-          onClick={togglePanel}
-          className={`font-mono text-base md:text-[13px] px-2.5 py-1 border transition-colors flex items-center gap-1.5 min-w-0 cursor-pointer ${
-            applied
-              ? 'border-brand/60 text-brand bg-white hover:bg-brand/5'
-              : 'border-line/60 text-ink/70 bg-white hover:text-ink hover:border-ink/40'
-          }`}
-        >
-          {/* Mobile keeps a short label — the three-way view toggle takes most
-              of the row on a 390px screen. */}
-          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true) : '期間'}</span>
-          <span className="hidden md:block truncate">{applied ? formatDateFilter(applied, compact) : '選擇期間'}</span>
-          <span className="opacity-70 text-xs shrink-0">▾</span>
-        </button>
-        {applied && (
-          <button
-            onClick={e => { e.stopPropagation(); onClear(); }}
-            className="font-mono text-sm text-ink/50 hover:text-ink transition-colors whitespace-nowrap shrink-0"
-          >
-            清除
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <div ref={panelRef} className="absolute top-full left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
-          <div className="flex flex-col gap-3 mb-5">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">起始</span>
-              <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={`${selectCls} flex-1`}>
-                <option value="">年</option>
-                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={sm ?? ''} onChange={e => handleSmChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">月</option>
-                {MONTHS.map(m => <option key={m} value={m}>{m}月</option>)}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">結束</span>
-              <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">年</option>
-                {endYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={em ?? ''} onChange={e => setEm(e.target.value ? Number(e.target.value) : null)} disabled={!ey} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">月</option>
-                {endMonths.map(m => <option key={m} value={m}>{m}月</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="flex items-center justify-between pt-4 border-t border-line/40">
-            <button onClick={handleClear} className="font-mono text-sm text-ink/60 hover:text-ink transition-colors underline underline-offset-2">
-              清空
-            </button>
-            <button
-              onClick={handleApply}
-              disabled={!sy}
-              className="font-mono text-sm px-5 py-1.5 bg-ink text-paper hover:bg-ink/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              套用
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MapResizer() {
-  const map = useMap();
-  useEffect(() => {
-    // Watch the map container's own size instead of taking `asideOpen` as a
-    // prop. Two wins: this component no longer depends on aside state (so the
-    // whole map subtree can be memoised and skip re-rendering on toggle), and
-    // invalidateSize is debounced to fire ONCE after the resize settles rather
-    // than eagerly on click. Eager invalidateSize forces the marker cluster to
-    // re-cluster synchronously (~1.5s block) right in the middle of the aside
-    // slide, which swallowed the animation. Letting leaflet's tiles visually
-    // stretch during the 300ms slide and correcting once afterwards keeps the
-    // animation on unblocked frames.
-    const el = map.getContainer();
-    let t: ReturnType<typeof setTimeout>;
-    const ro = new ResizeObserver(() => {
-      clearTimeout(t);
-      t = setTimeout(() => map.invalidateSize(), 160);
-    });
-    ro.observe(el);
-    return () => { ro.disconnect(); clearTimeout(t); };
-  }, [map]);
-  return null;
-}
 
 export default function MapView() {
   const [categories, setCategories] = useState<Category[]>([]);

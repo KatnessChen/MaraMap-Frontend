@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, 
 import { notFound } from "next/navigation";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
+import type { Post as PostBase } from "@/utils/postHelpers";
 
 
 // --- API Data Interfaces ---
@@ -41,13 +42,7 @@ interface MarathonMetadata {
   participants: Participant[];
 }
 
-interface Post {
-  id: string;
-  event_date: string;
-  title: string;
-  content: string;
-  category: string;
-  tags: string[];
+interface Post extends PostBase {
   cover_image?: string;
   media?: Media[];
   metadata?: MarathonMetadata | null;
