@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, UploadCloud } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, clearStoredToken } from "@/hooks/useAdminAuth";
+import { authFetch } from "@/utils/authFetch";
 
 interface ParticipantStats {
   distance_km: number | null;
@@ -18,7 +19,7 @@ interface Participant {
   stats: ParticipantStats;
 }
 
-interface Post {
+interface PostListItem {
   id: string;
   event_date: string;
   title: string;
@@ -36,13 +37,13 @@ interface Post {
 }
 
 interface ApiResponse {
-  data: Post[];
+  data: PostListItem[];
   meta: { total: number; limit: number; page?: number; last_page?: number; offset?: number };
 }
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostListItem[]>([]);
   const [meta, setMeta] = useState<ApiResponse["meta"] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
     ? ["海外馬", "國內馬", "超馬(44K+)", "高山馬", "九大馬", "普查", "大百岳", "小百岳", "海外登山"]
     : (SUB_CATEGORY_MAP[category] || []);
 
-  const getDavis = (post: Post) => {
+  const getDavis = (post: PostListItem) => {
     const davis = post.metadata?.participants?.find(p => p.name === "Davis");
     const hasTime = !!(davis?.time && davis.time !== '---' && davis.time !== 'N/A' && davis.time !== '0:00:00');
     return { davis, hasTime };
@@ -182,9 +183,7 @@ export default function AdminDashboard() {
           url = `${apiUrl}/api/v1/posts?${params.toString()}&showHidden=true`;
         }
 
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch(url, token);
         if (res.status === 401) {
           clearStoredToken();
           router.push("/admin/login");

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, UploadCloud, AlertCircle, Check, XCircle, Film } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
+import { authFetch } from "@/utils/authFetch";
 
 export interface MediaItem {
   uri: string;
@@ -115,12 +116,9 @@ export default function MediaManager({
           continue;
         }
         // 1) Ask the backend for a presigned PUT URL (bypasses Cloud Run 32MB).
-        const res = await fetch(`${apiUrl}/api/v1/posts/upload-url`, {
+        const res = await authFetch(`${apiUrl}/api/v1/posts/upload-url`, token, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contentType }),
         });
         if (res.status === 401) {

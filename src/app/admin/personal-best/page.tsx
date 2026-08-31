@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, getStoredToken, clearStoredToken } from "@/hooks/useAdminAuth";
+import { authFetch } from "@/utils/authFetch";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -29,12 +30,10 @@ export default function AdminPersonalBestPage() {
     }
     setStatus("loading");
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${getApiBase()}/api/v1/personal-best/recompute`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        token,
+        { method: "POST" },
       );
       if (res.status === 401) {
         clearStoredToken();
