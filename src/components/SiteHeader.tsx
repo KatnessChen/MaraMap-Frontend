@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy } from "lucide-react";
+import { Trophy, QrCode, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getApiBase } from "@/utils/apiBase";
+
+const NAV_LINKS = [
+  { href: "/personal-best", label: "最佳成績", Icon: Trophy },
+  { href: "/qrcode", label: "QR", Icon: QrCode },
+];
 
 export default function SiteHeader() {
   const pathname = usePathname();
   const [humanViews, setHumanViews] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${getApiBase()}/api/v1/stats/visits`)
@@ -17,9 +23,29 @@ export default function SiteHeader() {
       .catch(() => {});
   }, []);
 
+  // Closes on route change so the panel doesn't stay open after picking a link.
+  useEffect(() => {
+    const closeOnNavigate = () => setMenuOpen(false);
+    closeOnNavigate();
+  }, [pathname]);
+
+  const navLinkCls = (href: string) =>
+    `font-mono text-xs uppercase tracking-[0.2em] whitespace-nowrap flex items-center gap-1.5 transition-colors ${
+      pathname === href ? "text-brand" : "text-white hover:text-white/70"
+    }`;
+
   return (
     <header
-      className="shrink-0 h-14 flex items-center justify-between px-4 md:px-6 z-10 relative"
+      // z-[1000], not the old z-10: `relative` + any explicit z-index turns
+      // this header into its own stacking context, which caps every
+      // descendant's z-index (including the drawer's z-[1500] below) at
+      // whatever rank the header itself has among ITS OWN siblings — the
+      // drawer's local z-index never mattered against elements outside the
+      // header, only the header's own did. MapView's period-picker panel
+      // sits at z-[700] (src/components/MapView.tsx:220) with no
+      // stacking-context-creating ancestor of its own, so it was rendering
+      // above the entire header, drawer included, at the old z-10.
+      className="shrink-0 h-14 flex items-center justify-between px-4 md:px-6 z-[1000] relative"
       style={{
         backgroundColor: '#1c1c1c',
         backgroundImage: [
@@ -41,20 +67,70 @@ export default function SiteHeader() {
             累計 {humanViews.toLocaleString()} 次造訪
           </span>
         )}
-        <Link
-          href="/personal-best"
-          aria-label="最佳成績"
-          className={`font-mono text-xs uppercase tracking-[0.2em] whitespace-nowrap flex items-center gap-1.5 transition-colors max-[360px]:-m-3 max-[360px]:p-3 ${
-            pathname === "/personal-best" ? "text-brand" : "text-white/50 hover:text-white"
-          }`}
+
+        {/* Desktop: both links shown directly. */}
+        {NAV_LINKS.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} aria-label={label} className={`hidden md:flex ${navLinkCls(href)}`}>
+            <Icon size={12} className="shrink-0" />
+            <span>{label}</span>
+          </Link>
+        ))}
+
+        {/* Mobile: both links collapse behind a hamburger toggle instead. */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(v => !v)}
+          aria-label="選單"
+          aria-expanded={menuOpen}
+          className="md:hidden flex items-center justify-center -m-3 p-3 text-white/60 hover:text-white transition-colors"
         >
-          {/* Below 360px the wordmark alone fills the bar — drop to the icon
-              rather than let the label wrap or push the logo. The icon grows
-              and the link takes padding so the tap target stays usable. */}
-          <Trophy size={12} className="shrink-0 max-[360px]:size-[18px]" />
-          <span className="max-[360px]:hidden">最佳成績</span>
-        </Link>
+          <Menu size={18} />
+        </button>
       </nav>
+
+      {/* Backdrop — covers the whole viewport so any tap outside the drawer
+          closes it; sits one z-step below the drawer itself. Both stay
+          mounted (rather than conditionally rendered) so the transform/
+          opacity transitions actually animate instead of snapping. */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+        className={`md:hidden fixed inset-0 z-[1499] bg-black/50 transition-opacity duration-300 ${
+          menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      />
+
+      {/* Drawer — full-height, slides in from the right. z-[1500] is
+          deliberately above MapView's period-picker panel (z-[700],
+          src/components/MapView.tsx:220), the highest z-index this header
+          could otherwise sit under. */}
+      <div
+        className="md:hidden fixed inset-y-0 right-0 z-[1500] w-72 max-w-[80vw] bg-[#1c1c1c] border-l border-white/10 shadow-2xl transition-transform duration-300 ease-in-out"
+        style={{ transform: menuOpen ? "translateX(0)" : "translateX(100%)" }}
+      >
+        <div className="flex items-center justify-end h-14 px-4 border-b border-white/10">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            aria-label="關閉選單"
+            className="flex items-center justify-center -m-3 p-3 text-white/60 hover:text-white transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="py-2">
+          {NAV_LINKS.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 px-5 py-4 text-sm ${navLinkCls(href)}`}
+            >
+              <Icon size={16} className="shrink-0" />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </header>
   );
 }
