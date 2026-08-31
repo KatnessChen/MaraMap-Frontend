@@ -47,7 +47,7 @@ bun run lint              # lint
 
 ## Backend API
 
-All API calls point to `process.env.NEXT_PUBLIC_API_URL` (default: `http://127.0.0.1:3001`).
+All API calls point to `process.env.NEXT_PUBLIC_API_URL` (default: `http://127.0.0.1:3016`).
 
 ### Key Endpoints
 
@@ -76,7 +76,7 @@ All API calls point to `process.env.NEXT_PUBLIC_API_URL` (default: `http://127.0
 - Server Components fetch data directly and pass as props to Client Components
 - Client Components handle interactivity, infinite scroll, and state
 - Use `"use client"` only when necessary
-- Avoid hardcoding `http://127.0.0.1:3000` — always use `process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'`
+- Avoid hardcoding `http://127.0.0.1:3006` — always use `process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3016'`
 
 ---
 

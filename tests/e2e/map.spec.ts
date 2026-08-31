@@ -26,7 +26,7 @@ test.describe('Map Page', () => {
     if (await backLink.count() > 0) {
       await backLink.click();
       await page.waitForURL('/');
-      expect(page.url()).toBe('http://localhost:3000/');
+      expect(page.url()).toBe('http://localhost:3006/');
     }
   });
 });

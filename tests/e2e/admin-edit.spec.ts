@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { POST_ID, fixturePost, seedAdminToken, makeFakeAdminToken } from './fixtures/adminEditPost';
 
 const EDIT_PATH = `/admin/edit/${POST_ID}`;
-const POST_API_PATTERN = `**://*:3001/api/v1/posts/${POST_ID}`;
+const POST_API_PATTERN = `**://*:3016/api/v1/posts/${POST_ID}`;
 
 async function mockGetPost(page: import('@playwright/test').Page) {
   await page.route(POST_API_PATTERN, (route) => {

@@ -22,10 +22,10 @@ Pairs with [MaraMap-Backend](https://github.com/KatnessChen/MaraMap-Backend)
 
 ```bash
 bun install        # also installs the pre-push git hook (see Testing)
-bun run dev        # http://localhost:3000
+bun run dev        # http://localhost:3006
 ```
 
-The app needs the backend running on **port 3001** for anything data-driven.
+The app needs the backend running on **port 3016** for anything data-driven.
 
 ### Environment variables
 
@@ -38,8 +38,8 @@ they never reached a Vercel build in the first place).
 
 **Leave `NEXT_PUBLIC_API_URL` empty for local dev.** `src/utils/apiBase.ts` then
 derives the backend URL from the page's own hostname, so the app works from
-both the laptop (`localhost:3001`) *and* a phone on the same LAN
-(`<machine-LAN-IP>:3001`) with no hardcoded address to update when the IP changes.
+both the laptop (`localhost:3016`) *and* a phone on the same LAN
+(`<machine-LAN-IP>:3016`) with no hardcoded address to update when the IP changes.
 
 ## Project structure
 
@@ -71,7 +71,7 @@ src/
 ```bash
 bun run test          # Jest unit tests with coverage
 bun run test:watch
-bun run test:e2e      # Playwright (starts its own dev server on :3000)
+bun run test:e2e      # Playwright (starts its own dev server on :3006)
 bun run test:e2e:ui   # Playwright UI mode
 bun run lint
 ```

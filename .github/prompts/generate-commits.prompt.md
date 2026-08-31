@@ -216,7 +216,7 @@ After all commits are staged:
 - ✅ No merge conflicts
 - ✅ No debug `console.log` left in source
 - ✅ No hardcoded secrets or API keys
-- ✅ No hardcoded `http://127.0.0.1:3000` — must use `NEXT_PUBLIC_API_URL`
+- ✅ No hardcoded `http://127.0.0.1:3006` — must use `NEXT_PUBLIC_API_URL`
 - ✅ TypeScript compiles (`bun run build`)
 
 ---
