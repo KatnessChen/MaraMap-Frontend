@@ -14,7 +14,7 @@ import ListView from "./ListView";
 import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
 import { getCountryGeoStyle } from "@/utils/mapStyle";
-import { translateTaxonomyLabel, translateDistanceType, type Locale } from "@/utils/taxonomyTranslations";
+import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 import type { FlattenedPoint, GeoPoint } from "./map/leafletHelpers";
 import { FitBounds, createEventIcon, createClusterCustomIcon, MapResizer } from "./map/leafletHelpers";
 import type { DateFilter } from "./map/DateRangePicker";
@@ -240,7 +240,7 @@ export default function MapView() {
           className="block p-2 max-w-[200px] group"
         >
           <div className="font-mono text-xs text-brand uppercase mb-1">{translateTaxonomyLabel(pt.cat, locale)} / {pt.date}</div>
-          <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{pt.title}</h3>
+          <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{translatePairedName(pt.title, pt.title_en, locale)}</h3>
           {pt.uri && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />

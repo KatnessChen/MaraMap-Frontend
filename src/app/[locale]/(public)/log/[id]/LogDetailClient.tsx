@@ -3,12 +3,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
 import { notFound } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
+import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 import type { Post as PostBase } from "@/utils/postHelpers";
 
 
@@ -37,8 +40,13 @@ interface Participant {
 
 interface MarathonMetadata {
   race_name: string | null;
+  race_name_en?: string | null;
   country: string | null;
+  country_en?: string | null;
   city: string | null;
+  city_en?: string | null;
+  mountain_name?: string | null;
+  mountain_name_en?: string | null;
   participants: Participant[];
 }
 
@@ -47,15 +55,23 @@ interface Post extends PostBase {
   media?: Media[];
   metadata?: MarathonMetadata | null;
   trip_id?: string | null;
+  title_en?: string | null;
+  content_en?: string | null;
+  // 'pending' means a translation attempt is in flight for this post right
+  // now (either ours or another reader's) — see the trigger effect below.
+  content_status?: 'pending' | 'done' | 'failed' | null;
 }
 
 interface TripPost {
   postId: string;
   title: string;
+  title_en?: string | null;
   date: string;
   category: string;
   country: string | null;
+  country_en?: string | null;
   city: string | null;
+  city_en?: string | null;
   coverImage: string | null;
   isPrimary: boolean;
 }
@@ -102,22 +118,31 @@ function calculatePace(timeStr: string | null, distStr: string | null, distKm?: 
   } catch { return null; }
 }
 
-function getRaceTypeInfo(distName: string) {
-  if (distName === "超馬") 
-    return { label: "超", theme: "ultra", bg: "bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950", border: "border-zinc-600", text: "text-white/10", dataText: "text-white", labelColor: "text-zinc-400", shine: "bg-white/10" };
-  if (distName === "全馬") 
-    return { label: "全", theme: "gold", bg: "bg-gradient-to-br from-amber-100 via-amber-50 to-amber-400", border: "border-amber-500", text: "text-amber-900/10", dataText: "text-amber-950", labelColor: "text-amber-700/60", shine: "bg-white/40" };
-  if (distName === "半馬") 
-    return { label: "半", theme: "silver", bg: "bg-gradient-to-br from-slate-100 via-white to-slate-400", border: "border-slate-400", text: "text-slate-900/10", dataText: "text-slate-900", labelColor: "text-slate-600/60", shine: "bg-white/50" };
-  return { label: "跑", theme: "rose", bg: "bg-gradient-to-br from-rose-100 via-rose-50 to-rose-300", border: "border-rose-400", text: "text-rose-900/10", dataText: "text-rose-950", labelColor: "text-rose-700/60", shine: "bg-white/40" };
+const RACE_LABEL_CHAR: Record<Locale, Record<string, string>> = {
+  zh: { 超馬: "超", 全馬: "全", 半馬: "半", 跑步: "跑" },
+  en: { 超馬: "U", 全馬: "F", 半馬: "H", 跑步: "R" },
+};
+
+function getRaceTypeInfo(distName: string, locale: Locale) {
+  const label = RACE_LABEL_CHAR[locale][distName] ?? RACE_LABEL_CHAR[locale]["跑步"];
+  if (distName === "超馬")
+    return { label, theme: "ultra", bg: "bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950", border: "border-zinc-600", text: "text-white/10", dataText: "text-white", labelColor: "text-zinc-400", shine: "bg-white/10" };
+  if (distName === "全馬")
+    return { label, theme: "gold", bg: "bg-gradient-to-br from-amber-100 via-amber-50 to-amber-400", border: "border-amber-500", text: "text-amber-900/10", dataText: "text-amber-950", labelColor: "text-amber-700/60", shine: "bg-white/40" };
+  if (distName === "半馬")
+    return { label, theme: "silver", bg: "bg-gradient-to-br from-slate-100 via-white to-slate-400", border: "border-slate-400", text: "text-slate-900/10", dataText: "text-slate-900", labelColor: "text-slate-600/60", shine: "bg-white/50" };
+  return { label, theme: "rose", bg: "bg-gradient-to-br from-rose-100 via-rose-50 to-rose-300", border: "border-rose-400", text: "text-rose-900/10", dataText: "text-rose-950", labelColor: "text-rose-700/60", shine: "bg-white/40" };
 }
 
-function getDisplayTitle(post: Post) {
-  return post.title || "MaraMap 運動日誌";
+function getDisplayTitle(post: Post, fallback: string, locale: Locale) {
+  return translatePairedName(post.title, post.title_en, locale) || fallback;
 }
 
-function getDisplayContent(post: Post) {
-  return post.content;
+// Never blank per the i18n plan's fallback rule: an English reader who hits
+// an untranslated post sees the Chinese original (with a notice above the
+// article, added by the caller) rather than nothing.
+function getDisplayContent(post: Post, locale: Locale) {
+  return translatePairedName(post.content, post.content_en, locale);
 }
 
 function extractCoordinates(media: Media[] | undefined) {
@@ -520,7 +545,9 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
   );
 }
 
-export default function LogDetail({ params }: { params: Promise<{ id: string }> }) {
+export default function LogDetailClient({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const t = useTranslations("LogDetail");
+  const locale = useLocale() as Locale;
   const searchParams = useSearchParams();
   const previewMode = searchParams.get('preview') === 'true';
   const [post, setPost] = useState<Post | null>(null);
@@ -541,7 +568,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
 
     const fetchPostAndNav = async () => {
       try {
-        const { id } = await (params as Promise<{ id: string }>);
+        const { id } = await params;
         const apiUrl = getApiBase();
         const url = new URL(`${apiUrl}/api/v1/posts/${id}`);
         if (previewMode) {
@@ -549,8 +576,31 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         }
         const res = await fetch(url.toString(), { cache: 'no-store' });
         if (!res.ok) { setIsLoading(false); return; }
-        const data = await res.json();
+        const data: Post = await res.json();
         setPost(data);
+        // English readers only: kick off the lazy first-view translation as a
+        // SEPARATE request the browser awaits itself (never blocking the
+        // page's own load, and safe on Cloud Run precisely because it's the
+        // browser — not a detached server-side task — holding this open).
+        // First-ever view of a post pays a few seconds' latency here; every
+        // later view (this reader's refresh, anyone else's, a crawler) reads
+        // the cache this call fills in and returns instantly.
+        if (locale === "en" && data.content_status !== "done") {
+          fetch(`${apiUrl}/api/v1/posts/${data.id}/translate`, { method: "POST" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((result: { status: string; content?: string; title?: string } | null) => {
+              if (result?.status === "done" && result.content) {
+                setPost((prev) =>
+                  prev
+                    ? { ...prev, content_en: result.content, title_en: result.title ?? prev.title_en, content_status: "done" }
+                    : prev,
+                );
+              } else if (result?.status === "pending") {
+                setPost((prev) => (prev ? { ...prev, content_status: "pending" } : prev));
+              }
+            })
+            .catch(() => {});
+        }
         if (data.trip_id) {
           const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${data.trip_id}`);
           if (tripRes.ok) {
@@ -565,7 +615,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
       }
     };
     fetchPostAndNav();
-  }, [params, previewMode]);
+  }, [params, previewMode, locale]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -576,14 +626,17 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
     return () => el.removeEventListener("scroll", toggleVisibility);
   }, [isLoading]);
 
-  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg text-ink">正在載入紀錄...</div>;
+  if (isLoading) return <div className="min-h-screen bg-paper flex items-center justify-center font-sans text-lg text-ink">{t("loadingRecord")}</div>;
   if (!post) notFound();
 
-  const title = getDisplayTitle(post);
-  const content = getDisplayContent(post);
+  const title = getDisplayTitle(post, t("untitledFallback"), locale);
+  const content = getDisplayContent(post, locale);
+  const isUntranslated = locale === "en" && post.content_status !== "done";
   const coords = extractCoordinates(post.media);
-  const locationLabel = post.metadata 
-    ? (post.metadata.country && post.metadata.city ? `${post.metadata.country}·${formatCityName(post.metadata.city, post.metadata.country)}` : (post.metadata.race_name || '探索軌跡'))
+  const locationLabel = post.metadata
+    ? (post.metadata.country && post.metadata.city
+        ? `${translatePairedName(post.metadata.country, post.metadata.country_en, locale)}·${translatePairedName(formatCityName(post.metadata.city, post.metadata.country), post.metadata.city_en, locale)}`
+        : (translatePairedName(post.metadata.race_name || "", post.metadata.race_name_en, locale) || t("exploringTrail")))
     : null;
 
   return (
@@ -602,32 +655,35 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
         <div className="absolute inset-0 bg-gradient-to-t from-paper/40 to-transparent" />
         {coords && <div className="absolute bottom-6 right-6 bg-ink text-white font-mono text-sm px-4 py-1.5 tracking-widest shadow-2xl">{coords}</div>}
         
-        {/* 管理員快速編輯按鈕 */}
+        {/* 管理員快速編輯按鈕 — plain next/link, not the locale-aware one: /admin
+            is intentionally outside the [locale] segment (single-language,
+            see src/i18n/routing.ts), so this must always go to /admin/edit/...
+            with no /en prefix even when viewing the English article. */}
         {isAdmin && (
-          <Link 
+          <NextLink
             href={`/admin/edit/${post.id}`}
             className="absolute top-6 right-6 z-[1000] bg-brand text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center gap-2 group"
           >
             <Edit2 size={20} />
-            <span className="font-sans text-sm font-bold max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 whitespace-nowrap">編輯此篇</span>
-          </Link>
+            <span className="font-sans text-sm font-bold max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 whitespace-nowrap">{t("editThisPost")}</span>
+          </NextLink>
         )}
       </div>
 
       <div className="max-w-4xl mx-auto -mt-16 relative z-10">
         <div className="bg-paper p-8 md:p-16 shadow-[0_-20px_60px_rgba(0,0,0,0.08)] border-t border-line">
           <Link href="/" scroll={false} className="inline-flex items-center gap-2 text-ink/60 hover:text-brand font-sans text-base font-black mb-10 transition-colors">
-            <ArrowLeft size={18} /> 回到首頁
+            <ArrowLeft size={18} /> {t("backHome")}
           </Link>
-          
+
           <header className="mb-16">
             <div className="font-sans text-sm md:text-base text-brand font-black uppercase tracking-[0.2em] mb-6 flex flex-wrap gap-3 items-center">
-              <span>{post.category || '日誌'}</span>
+              <span>{post.category ? translateTaxonomyLabel(post.category, locale) : t("journalFallback")}</span>
               <span className="text-line">/</span>
               <span>{post.event_date}</span>
               {locationLabel && ( <> <span className="text-line">/</span> <span className="text-ink/60">{locationLabel}</span> </> )}
             </div>
-            <h1 className="font-serif text-3xl md:text-5xl font-black leading-[1.2] text-ink mb-10 tracking-tight">{title}</h1>
+            <h1 className="font-sans text-2xl md:text-4xl font-bold leading-[1.2] text-ink tracking-tight">{title}</h1>
             
             {post.metadata && post.metadata.participants && Array.isArray(post.metadata.participants) && (
               <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -635,7 +691,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                   const hasTime = !!(p.time && p.time !== '---' && p.time !== 'N/A' && p.time !== '0:00:00');
                   const normalizedDist = getNormalizedDistance(p.distance, p.stats?.distance_km);
                   const displayPace = hasTime ? calculatePace(p.time, p.distance, p.stats?.distance_km) : null;
-                  const info = getRaceTypeInfo(normalizedDist);
+                  const info = getRaceTypeInfo(normalizedDist, locale);
 
                   return (
                     <div key={idx} className={`group relative overflow-hidden p-8 border-2 shadow-xl transition-all duration-500 hover:-translate-y-1 ${info.bg} ${info.border}`}>
@@ -648,7 +704,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                         {/* Header: name + distance badge */}
                         <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-5">
                           <span className={`font-serif text-3xl font-black italic tracking-tighter leading-none ${info.dataText}`}>{p.name}</span>
-                          <span className={`font-sans text-base font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{normalizedDist}</span>
+                          <span className={`font-sans text-base font-black uppercase tracking-widest ${info.labelColor} pt-1`}>{translateDistanceType(normalizedDist, locale)}</span>
                         </div>
 
                         {/* Cumulative counts */}
@@ -656,20 +712,20 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                           <div className="flex flex-wrap gap-5 mb-7">
                             {p.stats?.FM_count && (
                               <div className="flex flex-col">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>全馬累計</span>
-                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.FM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>{t("cumulativeFM")}</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">{t("raceOrdinal", { count: p.stats.FM_count })}</span>
                               </div>
                             )}
                             {p.stats?.HM_count && (
                               <div className="flex flex-col border-l border-black/10 pl-5">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>半馬累計</span>
-                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.HM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>{t("cumulativeHM")}</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">{t("raceOrdinal", { count: p.stats.HM_count })}</span>
                               </div>
                             )}
                             {p.stats?.UM_count && (
                               <div className="flex flex-col border-l border-black/10 pl-5">
-                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>超馬累計</span>
-                                <span className="font-mono text-base font-black leading-none text-brand">第 {p.stats.UM_count} 場</span>
+                                <span className={`font-sans text-xs uppercase font-black opacity-40 leading-none mb-3 ${info.dataText}`}>{t("cumulativeUM")}</span>
+                                <span className="font-mono text-base font-black leading-none text-brand">{t("raceOrdinal", { count: p.stats.UM_count })}</span>
                               </div>
                             )}
                           </div>
@@ -680,7 +736,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                           <div className="flex flex-col">
                             <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
                               <Timer size={14} />
-                              <span className="font-sans text-xs uppercase font-black tracking-widest">完賽時間</span>
+                              <span className="font-sans text-xs uppercase font-black tracking-widest">{t("finishTime")}</span>
                             </div>
                             {hasTime ? (
                               <span className={`font-mono text-3xl font-black tabular-nums leading-none ${info.dataText}`}>{p.time}</span>
@@ -692,7 +748,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                             <div className="flex flex-col">
                               <div className={`flex items-center gap-2 opacity-40 mb-2 ${info.dataText}`}>
                                 <Gauge size={14} />
-                                <span className="font-sans text-xs uppercase font-black tracking-widest">平均配速</span>
+                                <span className="font-sans text-xs uppercase font-black tracking-widest">{t("averagePace")}</span>
                               </div>
                               <span className="font-mono text-3xl font-black italic tabular-nums leading-none text-brand">{displayPace}</span>
                             </div>
@@ -706,12 +762,17 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
             )}
           </header>
 
+          {isUntranslated && (
+            <div className="mb-10 border border-brand/30 bg-brand/5 px-5 py-3 font-sans text-sm text-ink/70">
+              {post.content_status === "pending" ? t("translationPending") : t("notTranslatedYet")}
+            </div>
+          )}
+
           <article className="prose max-w-none">
             {content.split('\n\n').map((paragraph, index) => {
               const pText = paragraph.trim();
               if (!pText) return null;
-              if (index === 0) return <p key={index} className="font-sans text-lg md:text-xl text-ink leading-relaxed text-justify mb-10"><span className="float-left font-serif text-6xl md:text-7xl leading-[0.8] pt-2 pr-4 pb-0 text-brand font-black">{pText.charAt(0)}</span>{pText.slice(1)}</p>;
-              return <p key={index} className="font-sans text-lg md:text-xl text-ink-light leading-[1.8] text-justify mb-8 whitespace-pre-wrap">{pText}</p>;
+              return <p key={index} className="font-sans text-lg md:text-xl text-ink leading-[1.8] mb-8 whitespace-pre-wrap">{pText}</p>;
             })}
           </article>
 
@@ -723,7 +784,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                 {images.length > 0 && (
                   <div className="mt-20 mb-12">
                     <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                      精彩照片 <span className="font-mono text-sm font-normal">({images.length})</span>
+                      {t("photos")} <span className="font-mono text-sm font-normal">({images.length})</span>
                     </h3>
                     <MediaCarousel items={images} onOpen={i => setLightbox({ items: images, idx: i })} />
                   </div>
@@ -731,7 +792,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                 {videos.length > 0 && (
                   <div className="mt-12 mb-12">
                     <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                      影片 <span className="font-mono text-sm font-normal">({videos.length})</span>
+                      {t("videos")} <span className="font-mono text-sm font-normal">({videos.length})</span>
                     </h3>
                     <MediaCarousel items={videos} onOpen={i => setLightbox({ items: videos, idx: i })} />
                   </div>
@@ -743,7 +804,7 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
           {tripPosts.length > 0 && (
             <div className="mt-20 mb-12">
               <h3 className="font-sans text-base text-ink/60 font-black uppercase tracking-widest mb-8 border-b border-line pb-4 flex items-center gap-3">
-                同行足跡 <span className="font-mono text-sm font-normal">({tripPosts.length})</span>
+                {t("companionTrail")} <span className="font-mono text-sm font-normal">({tripPosts.length})</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {tripPosts.map((tp) => (
@@ -752,19 +813,25 @@ export default function LogDetail({ params }: { params: Promise<{ id: string }> 
                     href={`/log/${tp.postId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group flex gap-4 border border-line hover:border-brand transition-colors p-3"
+                    className="group flex gap-4 border border-line hover:border-brand transition-colors"
                   >
-                    <div className="w-20 h-20 shrink-0 overflow-hidden bg-paper-dark border border-line">
+                    {/* No h-20 — the fixed height left a gap below the thumbnail
+                        whenever the text column (2-line title + category/date +
+                        city) grew taller than 80px. min-h-20 + the container's
+                        default align-items:stretch lets the image fill exactly
+                        as much height as the text needs, so it always bleeds
+                        flush to the card's top/left/bottom with no gap. */}
+                    <div className="w-20 min-h-20 shrink-0 overflow-hidden bg-paper-dark">
                       {tp.coverImage
                         ? /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={tp.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        : <div className="w-full h-full flex items-center justify-center text-ink/50 font-mono text-xs">{tp.category}</div>
+                        : <div className="w-full h-full flex items-center justify-center text-ink/50 font-mono text-xs">{translateTaxonomyLabel(tp.category, locale)}</div>
                       }
                     </div>
-                    <div className="flex flex-col justify-center min-w-0">
-                      <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{tp.category} · {tp.date}</span>
-                      <span className="font-serif font-bold text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{tp.title}</span>
-                      {tp.city && <span className="font-mono text-xs text-ink/60 mt-1">{formatCityName(tp.city, tp.country)}</span>}
+                    <div className="flex flex-col justify-center min-w-0 py-3 pr-3">
+                      <span className="font-mono text-xs text-brand uppercase tracking-widest mb-1">{translateTaxonomyLabel(tp.category, locale)} · {tp.date}</span>
+                      <span className="font-sans font-normal text-base text-ink group-hover:text-brand transition-colors leading-snug line-clamp-2">{translatePairedName(tp.title, tp.title_en, locale) || tp.title}</span>
+                      {tp.city && <span className="font-mono text-xs text-ink/60 mt-1">{translatePairedName(formatCityName(tp.city, tp.country), tp.city_en, locale)}</span>}
                     </div>
                   </Link>
                 ))}

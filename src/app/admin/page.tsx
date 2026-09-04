@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, UploadCloud } from "lucide-react";
+import { EyeOff, Search, Loader2, ArrowLeft, LogOut, Calendar, Filter, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, X, PlusCircle, UploadCloud, Globe2, Languages } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, clearStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch } from "@/utils/authFetch";
@@ -247,6 +247,12 @@ export default function AdminDashboard() {
               </Link>
               <Link href="/admin/import" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="匯入 Facebook 資料">
                 <UploadCloud size={18} /> <span className="hidden sm:inline">匯入資料</span>
+              </Link>
+              <Link href="/admin/locations" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="編輯城市英文名稱">
+                <Globe2 size={18} /> <span className="hidden sm:inline">城市翻譯</span>
+              </Link>
+              <Link href="/admin/glossary" className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="審核賽事/山岳英文名稱">
+                <Languages size={18} /> <span className="hidden sm:inline">名稱審核</span>
               </Link>
               <button onClick={handleLogout} className="inline-flex items-center gap-2 px-4 py-2.5 bg-ink/5 text-ink/60 hover:bg-brand hover:text-white font-sans text-sm font-bold rounded-full transition-all" title="登出系統">
                 <LogOut size={18} /> <span className="hidden sm:inline">登出</span>

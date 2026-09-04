@@ -41,7 +41,6 @@ interface FormData {
   sub_categories: string[];
   tags: string;
   is_hidden: boolean;
-  is_personal_best: boolean;
   cover_image: string;
   metadata: {
     race_name: string | null;
@@ -74,7 +73,6 @@ export default function NewPost() {
     sub_categories: [],
     tags: "",
     is_hidden: true, // Default hidden: newly-created posts stay private until reviewed.
-    is_personal_best: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [], fallback_lat: null, fallback_lng: null },
   });
@@ -201,7 +199,6 @@ export default function NewPost() {
           sub_categories: formData.sub_categories,
           tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
           is_hidden: formData.is_hidden,
-          is_personal_best: formData.is_personal_best,
           cover_image: formData.cover_image,
           media,
           metadata: formData.metadata,
@@ -517,27 +514,6 @@ export default function NewPost() {
                 </div>
               </div>
             </div>
-
-            {/* PB flag — 馬拉松限定 */}
-            {formData.category === "馬拉松" && (
-              <div className="space-y-6">
-                <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                  <Activity size={24} className="text-brand" /> 個人最佳成績
-                </label>
-                <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
-                  <input
-                    type="checkbox"
-                    id="is_personal_best"
-                    checked={formData.is_personal_best}
-                    onChange={e => setFormData({ ...formData, is_personal_best: e.target.checked })}
-                    className="w-7 h-7 accent-brand cursor-pointer"
-                  />
-                  <label htmlFor="is_personal_best" className="font-sans text-lg font-black cursor-pointer select-none">
-                    此場曾創個人最佳成績
-                  </label>
-                </div>
-              </div>
-            )}
 
             {/* Participants */}
             <div className="space-y-6">

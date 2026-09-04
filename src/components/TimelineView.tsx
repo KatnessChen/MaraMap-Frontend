@@ -11,6 +11,7 @@ interface TimelinePoint {
   id: string;
   postId: string;
   title: string;
+  title_en?: string | null;
   date: string;
   cat: string;
   country?: string | null;
@@ -136,7 +137,7 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                             )}
                           </div>
                           <p className="font-sans text-base text-ink leading-snug group-hover:text-brand transition-colors line-clamp-2">
-                            {evt.title}
+                            {translatePairedName(evt.title, evt.title_en, locale)}
                           </p>
                         </div>
                       </Link>

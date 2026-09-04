@@ -66,11 +66,13 @@ export interface TripSuggestion {
 export interface Post extends PostBase {
   sub_categories: string[];
   is_hidden: boolean;
-  is_personal_best: boolean;
   cover_image?: string;
   trip_id?: string | null;
   media: Media[];
   metadata?: MarathonMetadata | null;
+  title_en?: string | null;
+  content_en?: string | null;
+  content_status?: "pending" | "done" | "failed" | null;
 }
 
 export interface FormData {
@@ -81,7 +83,6 @@ export interface FormData {
   sub_categories: string[];
   tags: string;
   is_hidden: boolean;
-  is_personal_best: boolean;
   cover_image: string;
   metadata: {
     race_name: string | null;

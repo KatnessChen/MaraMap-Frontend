@@ -10,6 +10,7 @@ export interface FlattenedPoint {
   lat: number | null;
   lng: number | null;
   title: string;
+  title_en?: string | null;
   date: string;
   cat: string;
   sub_cats: string[];

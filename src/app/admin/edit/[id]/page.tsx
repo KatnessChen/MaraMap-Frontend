@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Languages } from "lucide-react";
 import Combobox from "@/components/admin/Combobox";
 import MediaManager from "@/components/admin/MediaManager";
 import { getApiBase } from "@/utils/apiBase";
@@ -28,7 +28,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     sub_categories: [],
     tags: "",
     is_hidden: false,
-    is_personal_best: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [], fallback_lat: null, fallback_lng: null },
   });
@@ -41,6 +40,15 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState("");
+
+  // English translation — a separate DB row (post_translations), not part of
+  // formData/the main PATCH payload, so it has its own save action.
+  const [titleEn, setTitleEn] = useState("");
+  const [contentEn, setContentEn] = useState("");
+  const [contentStatus, setContentStatus] = useState<Post["content_status"]>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [isSavingTranslation, setIsSavingTranslation] = useState(false);
+  const [translationFeedback, setTranslationFeedback] = useState("");
 
   const { token } = useAdminAuth();
 
@@ -61,6 +69,9 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
           const data: Post = await res.json();
           setPost(data);
           setMedia(Array.isArray(data.media) ? data.media : []);
+          setTitleEn(data.title_en || "");
+          setContentEn(data.content_en || "");
+          setContentStatus(data.content_status ?? null);
           setFormData({
             title: data.title || "",
             event_date: data.event_date || "",
@@ -69,7 +80,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
             sub_categories: data.sub_categories || [],
             tags: (data.tags || []).join(", "),
             is_hidden: data.is_hidden || false,
-            is_personal_best: data.is_personal_best === true,
             cover_image: data.cover_image || "",
             metadata: {
               race_name: data.metadata?.race_name || "",
@@ -270,6 +280,67 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  // ── English translation ─────────────────────────────────────
+  // Same endpoint the public article page's lazy first-view trigger calls —
+  // this button just lets the admin warm the cache on demand (right after
+  // import, before an English reader shows up) instead of waiting.
+  const handleTranslateNow = async () => {
+    if (!post) return;
+    setIsTranslating(true);
+    setTranslationFeedback("");
+    try {
+      const apiUrl = getApiBase();
+      const res = await fetch(`${apiUrl}/api/v1/posts/${post.id}/translate`, { method: "POST" });
+      if (res.ok) {
+        const result: { status: string; content?: string; title?: string } = await res.json();
+        if (result.status === "done") {
+          setTitleEn(result.title || titleEn);
+          setContentEn(result.content || contentEn);
+          setContentStatus("done");
+          setTranslationFeedback("翻譯完成。");
+        } else if (result.status === "pending") {
+          setTranslationFeedback("已有翻譯正在進行中，請稍後重新整理。");
+        } else {
+          setTranslationFeedback("翻譯失敗，請稍後再試。");
+        }
+      } else {
+        setTranslationFeedback("翻譯請求失敗，請稍後再試。");
+      }
+    } catch {
+      setTranslationFeedback("連線失敗，請檢查網路狀態。");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleSaveTranslation = async () => {
+    if (!post) return;
+    const token = getStoredToken();
+    if (!token) { router.push("/admin/login"); return; }
+    setIsSavingTranslation(true);
+    setTranslationFeedback("");
+    try {
+      const apiUrl = getApiBase();
+      const res = await authFetch(`${apiUrl}/api/v1/posts/${post.id}/translations/en`, token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: titleEn, content: contentEn }),
+      });
+      if (res.ok) {
+        setContentStatus("done");
+        setTranslationFeedback("英文校對已儲存。");
+      } else if (res.status === 401) {
+        router.push("/admin/login");
+      } else {
+        setTranslationFeedback("儲存失敗，請稍後再試。");
+      }
+    } catch {
+      setTranslationFeedback("連線失敗，請檢查網路狀態。");
+    } finally {
+      setIsSavingTranslation(false);
+    }
+  };
+
   // ── Participant helpers ───────────────────────────────────────
   const updateParticipant = (index: number, field: string, value: string | number | null) => {
     const newParticipants = [...formData.metadata.participants] as (Participant & Record<string, unknown>)[];
@@ -450,6 +521,63 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
               />
               {errors.content && <p className="text-brand text-sm font-sans font-bold flex items-center gap-1"><AlertCircle size={14} />{errors.content}</p>}
             </div>
+
+            {/* English translation — separate row (post_translations), own save action */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-line pb-4 flex-wrap gap-3">
+                <label className="flex items-center gap-3 font-serif font-black text-3xl">
+                  <Languages size={28} className="text-brand" /> 英文翻譯
+                </label>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs uppercase tracking-widest text-ink/40">
+                    {contentStatus === "done" ? "已翻譯" : contentStatus === "pending" ? "翻譯中" : contentStatus === "failed" ? "翻譯失敗" : "尚未翻譯"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleTranslateNow}
+                    disabled={isTranslating}
+                    className="inline-flex items-center gap-2 px-4 py-2 border-2 border-brand text-brand hover:bg-brand hover:text-white font-sans text-sm font-black transition-all rounded-full disabled:opacity-40"
+                  >
+                    {isTranslating ? <Loader2 className="animate-spin" size={14} /> : <Languages size={14} />}
+                    {isTranslating ? "翻譯中…" : "立即翻譯"}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block font-sans text-xs font-black text-ink/40 uppercase tracking-widest mb-2">英文標題</label>
+                  <input
+                    type="text"
+                    value={titleEn}
+                    onChange={e => setTitleEn(e.target.value)}
+                    className="w-full bg-white border border-line p-4 font-serif font-bold text-xl focus:outline-none focus:border-brand shadow-sm"
+                    placeholder="尚未翻譯"
+                  />
+                </div>
+                <div>
+                  <label className="block font-sans text-xs font-black text-ink/40 uppercase tracking-widest mb-2">英文內文</label>
+                  <textarea
+                    value={contentEn}
+                    onChange={e => setContentEn(e.target.value)}
+                    rows={12}
+                    className="w-full bg-white border border-line p-4 font-sans text-base leading-relaxed focus:outline-none focus:border-brand whitespace-pre-wrap shadow-sm"
+                    placeholder="尚未翻譯"
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleSaveTranslation}
+                    disabled={isSavingTranslation}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink text-paper hover:bg-brand font-sans text-sm font-black transition-all rounded-full disabled:opacity-40"
+                  >
+                    {isSavingTranslation ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                    {isSavingTranslation ? "儲存中…" : "儲存英文校對"}
+                  </button>
+                  {translationFeedback && <span className="font-sans text-sm text-ink/60">{translationFeedback}</span>}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ── Right column ── */}
@@ -590,27 +718,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
                 </div>
               </div>
             </div>
-
-            {/* PB flag — 馬拉松限定 */}
-            {formData.category === "馬拉松" && (
-              <div className="space-y-6">
-                <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                  <Activity size={24} className="text-brand" /> 個人最佳成績
-                </label>
-                <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
-                  <input
-                    type="checkbox"
-                    id="is_personal_best"
-                    checked={formData.is_personal_best}
-                    onChange={e => setFormData({ ...formData, is_personal_best: e.target.checked })}
-                    className="w-7 h-7 accent-brand cursor-pointer"
-                  />
-                  <label htmlFor="is_personal_best" className="font-sans text-lg font-black cursor-pointer select-none">
-                    此場曾創個人最佳成績
-                  </label>
-                </div>
-              </div>
-            )}
 
             {/* Participants */}
             <div className="space-y-6">
