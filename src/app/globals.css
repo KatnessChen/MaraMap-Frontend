@@ -13,6 +13,17 @@
   --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+/* English pages swap the monospace "technical readout" font for a
+   proportional one. On zh pages font-mono only ever touched digits and
+   short Latin tags (JetBrains Mono has no CJK glyphs), but Layer 1 i18n put
+   full English words/phrases into those same font-mono slots (category
+   chips, section headers, stat labels) — a code-editor mono face reads
+   wrong at that point. Scoped to `[data-locale="en"]` (see
+   src/app/[locale]/layout.tsx) so the zh experience is untouched. */
+[data-locale="en"] {
+  --font-mono: "Space Grotesk", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
 /* 強制取消任何系統預設的深色模式影響 */
 :root {
   color-scheme: light;

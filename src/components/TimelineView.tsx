@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowDownUp } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { formatCityName } from "@/utils/formatLocation";
+import { translatePairedName, translateTaxonomyLabel, type Locale } from "@/utils/taxonomyTranslations";
 
 interface TimelinePoint {
   id: string;
@@ -15,6 +17,7 @@ interface TimelinePoint {
   country_en?: string | null;
   continent?: string | null;
   city?: string | null;
+  city_en?: string | null;
 }
 
 interface TimelineViewProps {
@@ -25,9 +28,11 @@ interface TimelineViewProps {
   titleMode?: 'countries' | null;
 }
 
-function monthLabel(date: string): string {
-  const m = new Date(date).getMonth() + 1;
-  return Number.isNaN(m) ? '' : `${m}月`;
+function monthLabel(date: string, locale: Locale): string {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  if (locale === 'en') return d.toLocaleDateString('en-US', { month: 'short' });
+  return `${d.getMonth() + 1}月`;
 }
 
 function dayLabel(date: string): string {
@@ -36,6 +41,8 @@ function dayLabel(date: string): string {
 }
 
 export default function TimelineView({ points, isLoading, category, subCategory, titleMode }: TimelineViewProps) {
+  const t = useTranslations("TimelineView");
+  const locale = useLocale() as Locale;
   const [sortDesc, setSortDesc] = useState(true);
 
   // Grouped by year, newest first by default. Points arrive already filtered
@@ -60,16 +67,18 @@ export default function TimelineView({ points, isLoading, category, subCategory,
       {/* Header */}
       <div className="relative z-10 shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-line bg-paper shadow-[0_4px_14px_-6px_rgba(0,0,0,0.18)]">
         <p className="font-serif text-xl font-bold text-ink/80">
-          {!category ? (titleMode === 'countries' ? '到訪國家' : '所有文章') : subCategory ?? category}
+          {!category
+            ? (titleMode === 'countries' ? t('visitedCountries') : t('allPosts'))
+            : translateTaxonomyLabel(subCategory ?? category, locale)}
           <span className="ml-2 text-ink tabular-nums">({points.length})</span>
         </p>
         <button
           onClick={() => setSortDesc(d => !d)}
           className="flex items-center gap-1.5 font-mono text-sm text-ink/60 hover:text-ink tracking-widest px-2 py-1 -mr-2 transition-colors cursor-pointer"
-          aria-label="切換排序方向"
+          aria-label={t('toggleSortDirection')}
         >
           <ArrowDownUp size={14} />
-          {sortDesc ? '由新到舊' : '由舊到新'}
+          {sortDesc ? t('newestFirst') : t('oldestFirst')}
         </button>
       </div>
 
@@ -99,7 +108,8 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                 <span className="absolute left-[5rem] md:left-[5.5rem] top-0 bottom-0 w-px bg-line" aria-hidden />
 
                 {entries.map(evt => {
-                  const country = evt.country || evt.country_en || '';
+                  const countryZh = evt.country || evt.country_en || '';
+                  const country = translatePairedName(countryZh, evt.country_en, locale);
                   return (
                     <li key={evt.id} className="relative">
                       <Link
@@ -111,17 +121,17 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                         {/* Date column — deliberately the lighter of the two:
                             the title carries the weight, the date supports it. */}
                         <div className="w-14 shrink-0 flex flex-col items-end pr-4">
-                          <span className="font-mono text-sm text-ink/60 tabular-nums leading-none">{monthLabel(evt.date)}</span>
+                          <span className="font-mono text-sm text-ink/60 tabular-nums leading-none">{monthLabel(evt.date, locale)}</span>
                           <span className="font-mono font-normal text-lg text-ink/80 tabular-nums leading-none mt-1">{dayLabel(evt.date)}</span>
                         </div>
 
                         {/* Content */}
                         <div className="min-w-0 flex-1 pl-8">
                           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 mb-1">
-                            <span className="font-mono text-sm text-ink">{evt.cat}</span>
+                            <span className="font-mono text-sm text-ink">{translateTaxonomyLabel(evt.cat, locale)}</span>
                             {country && (
                               <span className="font-mono text-sm text-ink/60">
-                                {country}{evt.city ? `·${formatCityName(evt.city, country)}` : ''}
+                                {country}{evt.city ? ` · ${translatePairedName(formatCityName(evt.city, countryZh), evt.city_en, locale)}` : ''}
                               </span>
                             )}
                           </div>

@@ -1,17 +1,25 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Trophy, QrCode, Menu, X } from "lucide-react";
+import { Link, usePathname } from "@/i18n/navigation";
+import { Trophy, QrCode, Languages, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 
 const NAV_LINKS = [
-  { href: "/personal-best", label: "最佳成績", Icon: Trophy },
-  { href: "/qrcode", label: "QR", Icon: QrCode },
+  { href: "/personal-best", key: "personalBest", Icon: Trophy } as const,
+  { href: "/qrcode", key: "qrCode", Icon: QrCode } as const,
 ];
 
+// Language names are shown in their own script regardless of the current
+// locale (an "EN" toggle wouldn't help a reader who can't read "英文") —
+// intentionally not run through t().
+const LOCALE_LABEL = { zh: "中文", en: "EN" } as const;
+
 export default function SiteHeader() {
+  const t = useTranslations("SiteHeader");
+  const locale = useLocale() as keyof typeof LOCALE_LABEL;
+  const otherLocale = locale === "en" ? "zh" : "en";
   const pathname = usePathname();
   const [humanViews, setHumanViews] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,7 +53,7 @@ export default function SiteHeader() {
       // sits at z-[700] (src/components/MapView.tsx:220) with no
       // stacking-context-creating ancestor of its own, so it was rendering
       // above the entire header, drawer included, at the old z-10.
-      className="shrink-0 h-14 flex items-center justify-between px-4 md:px-6 z-[1000] relative"
+      className="shrink-0 min-h-14 flex items-center justify-between px-4 md:px-6 z-[1000] relative"
       style={{
         backgroundColor: '#1c1c1c',
         backgroundImage: [
@@ -54,33 +62,53 @@ export default function SiteHeader() {
         ].join(', '),
       }}
     >
-      <Link href="/" className="site-header-logo flex items-center gap-2.5 whitespace-nowrap">
-        <span className="site-header-english font-serif font-black italic text-[clamp(0.95rem,3.9vw,1.25rem)] text-brand">Davis &amp; Rose</span>
+      <Link href="/" className="site-header-logo flex flex-wrap items-baseline gap-x-2.5 gap-y-0 leading-tight py-1">
+        <span className="site-header-english font-serif font-black italic text-[clamp(0.95rem,3.9vw,1.25rem)] text-brand whitespace-nowrap">Davis &amp; Rose</span>
         {/* Separator is desktop-only — on mobile the bar is tight enough that
             the two wordmarks read better with just the gap between them. */}
         <span className="hidden md:inline-block text-white/25 text-[clamp(0.85rem,3.4vw,1.25rem)] font-thin" style={{ transform: 'rotate(12deg)' }}>/</span>
-        <span className="site-header-chinese font-serif font-black text-[clamp(0.9rem,3.7vw,1.25rem)] text-white tracking-[0.08em] sm:tracking-[0.12em] md:tracking-[0.15em]">環球跑旅</span>
+        {/* whitespace-nowrap keeps each wordmark on one line as a unit; the
+            parent's flex-wrap lets the pair drop to a second line instead of
+            overflowing when a long translation (e.g. "World Running Log")
+            doesn't fit next to "Davis & Rose" on a narrow phone. */}
+        <span className="site-header-chinese font-serif font-black text-[clamp(0.9rem,3.7vw,1.25rem)] text-white tracking-[0.08em] sm:tracking-[0.12em] md:tracking-[0.15em] whitespace-nowrap">{t("wordmark")}</span>
       </Link>
       <nav className="flex shrink-0 items-center gap-5 pl-3">
         {humanViews !== null && (
           <span className="hidden md:block font-mono text-xs text-white/40 tracking-widest whitespace-nowrap text-right">
-            累計 {humanViews.toLocaleString()} 次造訪
+            {t("totalVisits", { count: humanViews.toLocaleString() })}
           </span>
         )}
 
         {/* Desktop: both links shown directly. */}
-        {NAV_LINKS.map(({ href, label, Icon }) => (
-          <Link key={href} href={href} aria-label={label} className={`hidden md:flex ${navLinkCls(href)}`}>
+        {NAV_LINKS.map(({ href, key, Icon }) => (
+          <Link key={href} href={href} aria-label={t(key)} className={`hidden md:flex ${navLinkCls(href)}`}>
             <Icon size={12} className="shrink-0" />
-            <span>{label}</span>
+            <span>{t(key)}</span>
           </Link>
         ))}
+
+        {/* Language switcher — always visible (not folded into the mobile
+            drawer): a reader stuck on the wrong language needs this in one
+            tap, not three. `locale` on Link forces that locale's href
+            regardless of the current one; `pathname` (from next-intl) is
+            already locale-stripped with real params filled in, so this
+            round-trips correctly from any page, including /log/[id]. */}
+        <Link
+          href={pathname}
+          locale={otherLocale}
+          aria-label={t("switchLocale", { locale: LOCALE_LABEL[otherLocale] })}
+          className="font-mono text-xs uppercase tracking-[0.2em] whitespace-nowrap flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+        >
+          <Languages size={12} className="shrink-0" />
+          <span>{LOCALE_LABEL[otherLocale]}</span>
+        </Link>
 
         {/* Mobile: both links collapse behind a hamburger toggle instead. */}
         <button
           type="button"
           onClick={() => setMenuOpen(v => !v)}
-          aria-label="選單"
+          aria-label={t("menu")}
           aria-expanded={menuOpen}
           className="md:hidden flex items-center justify-center -m-3 p-3 text-white/60 hover:text-white transition-colors"
         >
@@ -112,21 +140,21 @@ export default function SiteHeader() {
           <button
             type="button"
             onClick={() => setMenuOpen(false)}
-            aria-label="關閉選單"
+            aria-label={t("closeMenu")}
             className="flex items-center justify-center -m-3 p-3 text-white/60 hover:text-white transition-colors"
           >
             <X size={18} />
           </button>
         </div>
         <div className="py-2">
-          {NAV_LINKS.map(({ href, label, Icon }) => (
+          {NAV_LINKS.map(({ href, key, Icon }) => (
             <Link
               key={href}
               href={href}
               className={`flex items-center gap-3 px-5 py-4 text-sm ${navLinkCls(href)}`}
             >
               <Icon size={16} className="shrink-0" />
-              <span>{label}</span>
+              <span>{t(key)}</span>
             </Link>
           ))}
         </div>

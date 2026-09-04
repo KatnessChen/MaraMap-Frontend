@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@/utils/taxonomyTranslations";
 
 export interface DateFilter {
   startYear: number;
@@ -27,7 +29,7 @@ export function StatSkeleton({ digits = 2 }: { digits?: number }) {
   );
 }
 
-export function formatDateFilter(f: DateFilter, compact = false): string {
+export function formatDateFilter(f: DateFilter, compact = false, locale: Locale = 'zh'): string {
   if (compact) {
     const sy = String(f.startYear).slice(-2);
     const sm = f.startMonth ? `/${f.startMonth}` : '';
@@ -37,9 +39,21 @@ export function formatDateFilter(f: DateFilter, compact = false): string {
     const end = ey ? `${ey}${em}` : null;
     return end && end !== start ? `${start}→${end}` : start;
   }
-  const start = f.startMonth ? `${f.startYear}年${f.startMonth}月` : `${f.startYear}年`;
-  const end = f.endYear ? (f.endMonth ? `${f.endYear}年${f.endMonth}月` : `${f.endYear}年`) : null;
+  const fmt = (year: number, month: number | null) => {
+    if (locale === 'en') {
+      return month ? `${MONTH_ABBR_EN[month - 1]} ${year}` : String(year);
+    }
+    return month ? `${year}年${month}月` : `${year}年`;
+  };
+  const start = fmt(f.startYear, f.startMonth);
+  const end = f.endYear ? fmt(f.endYear, f.endMonth) : null;
   return end && end !== start ? `${start} → ${end}` : start;
+}
+
+const MONTH_ABBR_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthOptionLabel(m: number, locale: Locale): string {
+  return locale === 'en' ? MONTH_ABBR_EN[m - 1] : `${m}月`;
 }
 
 export function DateRangePicker({
@@ -55,6 +69,8 @@ export function DateRangePicker({
   onClear: () => void;
   compact?: boolean;
 }) {
+  const t = useTranslations("DateRangePicker");
+  const locale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
   const [sy, setSy] = useState<number | null>(null);
   const [sm, setSm] = useState<number | null>(null);
@@ -113,8 +129,8 @@ export function DateRangePicker({
         >
           {/* Mobile keeps a short label — the three-way view toggle takes most
               of the row on a 390px screen. */}
-          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true) : '期間'}</span>
-          <span className="hidden md:block truncate">{applied ? formatDateFilter(applied, compact) : '選擇期間'}</span>
+          <span className="truncate md:hidden">{applied ? formatDateFilter(applied, true, locale) : t('periodShort')}</span>
+          <span className="hidden md:block truncate">{applied ? formatDateFilter(applied, compact, locale) : t('selectPeriod')}</span>
           <span className="opacity-70 text-xs shrink-0">▾</span>
         </button>
         {applied && (
@@ -122,7 +138,7 @@ export function DateRangePicker({
             onClick={e => { e.stopPropagation(); onClear(); }}
             className="font-mono text-sm text-ink/50 hover:text-ink transition-colors whitespace-nowrap shrink-0"
           >
-            清除
+            {t('clear')}
           </button>
         )}
       </div>
@@ -131,38 +147,38 @@ export function DateRangePicker({
         <div ref={panelRef} className="absolute top-full left-0 z-[700] bg-paper border border-line shadow-xl p-5 w-[280px]">
           <div className="flex flex-col gap-3 mb-5">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">起始</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">{t('from')}</span>
               <select value={sy ?? ''} onChange={e => handleSyChange(e.target.value ? Number(e.target.value) : null)} className={`${selectCls} flex-1`}>
-                <option value="">年</option>
+                <option value="">{t('year')}</option>
                 {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <select value={sm ?? ''} onChange={e => handleSmChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">月</option>
-                {MONTHS.map(m => <option key={m} value={m}>{m}月</option>)}
+                <option value="">{t('month')}</option>
+                {MONTHS.map(m => <option key={m} value={m}>{monthOptionLabel(m, locale)}</option>)}
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">結束</span>
+              <span className="font-mono text-sm uppercase tracking-[0.2em] text-ink/60 w-12 shrink-0 whitespace-nowrap">{t('to')}</span>
               <select value={ey ?? ''} onChange={e => handleEyChange(e.target.value ? Number(e.target.value) : null)} disabled={!sy} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">年</option>
+                <option value="">{t('year')}</option>
                 {endYears.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <select value={em ?? ''} onChange={e => setEm(e.target.value ? Number(e.target.value) : null)} disabled={!ey} className={`${selectCls} flex-1 disabled:opacity-30 disabled:cursor-not-allowed`}>
-                <option value="">月</option>
-                {endMonths.map(m => <option key={m} value={m}>{m}月</option>)}
+                <option value="">{t('month')}</option>
+                {endMonths.map(m => <option key={m} value={m}>{monthOptionLabel(m, locale)}</option>)}
               </select>
             </div>
           </div>
           <div className="flex items-center justify-between pt-4 border-t border-line/40">
             <button onClick={handleClear} className="font-mono text-sm text-ink/60 hover:text-ink transition-colors underline underline-offset-2">
-              清空
+              {t('reset')}
             </button>
             <button
               onClick={handleApply}
               disabled={!sy}
               className="font-mono text-sm px-5 py-1.5 bg-ink text-paper hover:bg-ink/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              套用
+              {t('apply')}
             </button>
           </div>
         </div>

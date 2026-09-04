@@ -1,0 +1,102 @@
+{
+  "Metadata": {
+    "title": "MaraMap // A Running Geography Log",
+    "description": "Geography written in pace, years measured in footsteps."
+  },
+  "SiteHeader": {
+    "wordmark": "World Running Log",
+    "personalBest": "Personal Best",
+    "qrCode": "QR",
+    "totalVisits": "{count} total visits",
+    "menu": "Menu",
+    "closeMenu": "Close menu",
+    "switchLocale": "Switch to {locale}"
+  },
+  "QrCode": {
+    "backHome": "Back to home",
+    "qrCodeAlt": "MaraMap website QR code"
+  },
+  "ListView": {
+    "visitedCountries": "Visited Countries",
+    "allPosts": "All Posts",
+    "toggleAll": "Expand/collapse all",
+    "otherContinent": "Other",
+    "unknownCountry": "Unknown"
+  },
+  "TimelineView": {
+    "visitedCountries": "Visited Countries",
+    "allPosts": "All Posts",
+    "toggleSortDirection": "Toggle sort direction",
+    "newestFirst": "Newest first",
+    "oldestFirst": "Oldest first"
+  },
+  "CountryModal": {
+    "eyebrow": "MaraMap Footprints",
+    "recordCount": "{count} records",
+    "loading": "Loading...",
+    "noRaces": "No race records found",
+    "readFullRecord": "Read full record"
+  },
+  "PersonalBest": {
+    "backHome": "Back to home",
+    "pageTitle": "Personal Best",
+    "noRecordsYet": "No personal best records yet",
+    "noDerivableRecords": "No derivable records for this athlete yet",
+    "recordHistory": "Record-Breaking History",
+    "longestDistance": "Longest Distance",
+    "fastestTime": "Fastest Time",
+    "timed": "Timed",
+    "firstTime": "First time",
+    "brokeRecordBy": "Broke record by {delta}",
+    "currentBest": "Current Best"
+  },
+  "MapView": {
+    "map": "Map",
+    "list": "List",
+    "timeline": "Timeline",
+    "unitRace": "races",
+    "unitPost": "posts",
+    "unitPeak": "peaks",
+    "unitCountry": "countries",
+    "unitRaceOverseas": "overseas",
+    "countriesVisited": "Countries Visited",
+    "overseasMarathons": "Overseas Marathons",
+    "allPosts": "All Posts",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "totalVisits": "{count} total visits",
+    "chipMarathon": "Marathon",
+    "chipOverseas": "Overseas",
+    "chipMajors": "Majors+"
+  },
+  "LogDetail": {
+    "loadingRecord": "Loading record...",
+    "untitledFallback": "MaraMap Running Journal",
+    "exploringTrail": "Exploring the Trail",
+    "editThisPost": "Edit this post",
+    "backHome": "Back to home",
+    "journalFallback": "Journal",
+    "cumulativeFM": "Full Marathons to Date",
+    "cumulativeHM": "Half Marathons to Date",
+    "cumulativeUM": "Ultras to Date",
+    "raceOrdinal": "Race #{count}",
+    "finishTime": "Finish Time",
+    "averagePace": "Average Pace",
+    "photos": "Photos",
+    "videos": "Videos",
+    "companionTrail": "Companion Trail",
+    "notTranslatedYet": "This article hasn't been translated to English yet — showing the original Chinese text.",
+    "translationPending": "Translating to English — check back in a moment."
+  },
+  "DateRangePicker": {
+    "periodShort": "Dates",
+    "selectPeriod": "Select Dates",
+    "clear": "Clear",
+    "from": "From",
+    "to": "To",
+    "year": "Year",
+    "month": "Month",
+    "reset": "Reset",
+    "apply": "Apply"
+  }
+}

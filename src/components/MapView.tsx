@@ -3,16 +3,18 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { GeoJsonObject, Feature, Geometry } from "geojson";
 import { ArrowRight, ChevronLeft, History, List as ListIcon, Map as MapIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import MarkerClusterGroup from "react-leaflet-cluster";
+import { useLocale, useTranslations } from "next-intl";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
 import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
 import { getCountryGeoStyle } from "@/utils/mapStyle";
+import { translateTaxonomyLabel, translateDistanceType, type Locale } from "@/utils/taxonomyTranslations";
 import type { FlattenedPoint, GeoPoint } from "./map/leafletHelpers";
 import { FitBounds, createEventIcon, createClusterCustomIcon, MapResizer } from "./map/leafletHelpers";
 import type { DateFilter } from "./map/DateRangePicker";
@@ -37,14 +39,16 @@ interface RaceStats {
 
 type ViewMode = 'map' | 'list' | 'timeline';
 
-const VIEW_MODES: Array<{ mode: ViewMode; label: string; Icon: LucideIcon }> = [
-  { mode: 'map', label: '地圖', Icon: MapIcon },
-  { mode: 'list', label: '列表', Icon: ListIcon },
-  { mode: 'timeline', label: '時間軸', Icon: History },
+const VIEW_MODES: Array<{ mode: ViewMode; key: 'map' | 'list' | 'timeline'; Icon: LucideIcon }> = [
+  { mode: 'map', key: 'map', Icon: MapIcon },
+  { mode: 'list', key: 'list', Icon: ListIcon },
+  { mode: 'timeline', key: 'timeline', Icon: History },
 ];
 
 
 export default function MapView() {
+  const t = useTranslations("MapView");
+  const locale = useLocale() as Locale;
   const [categories, setCategories] = useState<Category[]>([]);
   // null = 「所有文章」. The map opens on everything; defaulting to 馬拉松 meant
   // 旅遊/登山 posts were silently absent until the visitor found the filter.
@@ -53,6 +57,7 @@ export default function MapView() {
   const [isLoading, setIsLoading] = useState(true);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [selectedCountryEn, setSelectedCountryEn] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
   // The hero/grid numbers come from three independent requests (locations,
   // categories, race stats). `isLoading` only covers locations, so categories-
@@ -146,13 +151,19 @@ export default function MapView() {
     return filteredBase.filter(p => p.cat === '登山').length;
   }, [dateFilter, hikingCount, filteredBase]);
 
-  const statItems = useMemo<Array<{ label: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
-    { label: "全馬",  unit: "場", value: displayFMCount,          cat: "馬拉松", sub: null      },
-    { label: "海外馬", unit: "場", value: displayOverseasCount,   cat: "馬拉松", sub: "海外馬"  },
-    { label: "九大馬", unit: "場", value: displayNineMajorsCount,  cat: "馬拉松", sub: "九大馬"  },
-    { label: "旅遊",  unit: "篇", value: displayTravelCount,      cat: "旅遊",   sub: null      },
-    { label: "登山",  unit: "座", value: displayHikingCount,      cat: "登山",   sub: null      },
-  ], [displayFMCount, displayOverseasCount, displayNineMajorsCount, displayTravelCount, displayHikingCount]);
+  // `chipLabel` is a shorter form for the mobile pill row only (`label` is
+  // used on desktop, where the sidebar tile wraps onto multiple lines).
+  // In zh these are already short (全馬/海外馬/九大馬), so chipLabel only
+  // needs to differ from label in en — English "Full/Overseas/World Marathon
+  // Majors+" blew the pills onto a horizontally-scrolling, clipped row at
+  // 390px (see docs/I18N_PLAN.md's Layer 1 width-regression notes).
+  const statItems = useMemo<Array<{ label: string; chipLabel: string; unit: string; value: number; cat: string; sub: string | null }>>(() => [
+    { label: translateDistanceType("全馬", locale),  chipLabel: locale === 'en' ? t('chipMarathon') : translateDistanceType("全馬", locale), unit: t("unitRace"), value: displayFMCount,          cat: "馬拉松", sub: null      },
+    { label: translateTaxonomyLabel("海外馬", locale), chipLabel: locale === 'en' ? t('chipOverseas') : translateTaxonomyLabel("海外馬", locale), unit: t("unitRace"), value: displayOverseasCount,   cat: "馬拉松", sub: "海外馬"  },
+    { label: translateTaxonomyLabel("九大馬", locale), chipLabel: locale === 'en' ? t('chipMajors') : translateTaxonomyLabel("九大馬", locale), unit: t("unitRace"), value: displayNineMajorsCount,  cat: "馬拉松", sub: "九大馬"  },
+    { label: translateTaxonomyLabel("旅遊", locale),  chipLabel: translateTaxonomyLabel("旅遊", locale), unit: t("unitPost"), value: displayTravelCount,      cat: "旅遊",   sub: null      },
+    { label: translateTaxonomyLabel("登山", locale),  chipLabel: translateTaxonomyLabel("登山", locale), unit: t("unitPeak"), value: displayHikingCount,      cat: "登山",   sub: null      },
+  ], [displayFMCount, displayOverseasCount, displayNineMajorsCount, displayTravelCount, displayHikingCount, locale, t]);
 
   // Points for the map layer: category/sub-category filtered, geo-required.
   // Derived client-side from basePoints instead of a separate network call —
@@ -228,7 +239,7 @@ export default function MapView() {
           rel="noopener noreferrer"
           className="block p-2 max-w-[200px] group"
         >
-          <div className="font-mono text-xs text-brand uppercase mb-1">{pt.cat} / {pt.date}</div>
+          <div className="font-mono text-xs text-brand uppercase mb-1">{translateTaxonomyLabel(pt.cat, locale)} / {pt.date}</div>
           <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{pt.title}</h3>
           {pt.uri && (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -242,7 +253,7 @@ export default function MapView() {
     </Marker>
       ))}
     </MarkerClusterGroup>
-  ), [points]);
+  ), [points, locale]);
 
   const handleFilterClick = useCallback((cat: string, sub: string | null) => {
     setListTitleMode(null);
@@ -276,7 +287,10 @@ export default function MapView() {
     if (!visitedCountries.has(name) && !visitedCountries.has(isoA3)) return;
     layer.on("click", () => {
       const match = points.find((p) => p.country_en === name || p.country_en === isoA3);
-      if (match?.country) setSelectedCountry(match.country.trim());
+      if (match?.country) {
+        setSelectedCountry(match.country.trim());
+        setSelectedCountryEn(match.country_en ?? null);
+      }
     });
   }, [visitedCountries, points]);
 
@@ -371,11 +385,11 @@ export default function MapView() {
           />
         </div>
         <div className="shrink-0 flex items-center border border-line/60 rounded-full bg-white">
-          {VIEW_MODES.map(({ mode, label, Icon }) => (
+          {VIEW_MODES.map(({ mode, key, Icon }) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              aria-label={label}
+              aria-label={t(key)}
               className={`flex items-center justify-center px-3.5 py-2 max-[360px]:py-3.5 rounded-full transition-colors cursor-pointer ${viewMode === mode ? 'bg-ink text-paper' : 'text-ink/60 hover:text-ink'}`}
             >
               {/* Below 360px three Chinese labels plus the date picker overflow
@@ -383,7 +397,7 @@ export default function MapView() {
               <Icon size={16} className="hidden max-[360px]:block shrink-0" />
               {/* Tracking stays off: these labels are Chinese, and letter-spacing
                   built for Latin caps just pushes the glyphs apart. */}
-              <span className="font-mono text-xs leading-none whitespace-nowrap max-[360px]:hidden">{label}</span>
+              <span className="font-mono text-xs leading-none whitespace-nowrap max-[360px]:hidden">{t(key)}</span>
             </button>
           ))}
         </div>
@@ -412,9 +426,8 @@ export default function MapView() {
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
                   {statsLoading ? <StatSkeleton /> : displayCountryCount}
                 </span>
-                <span className="font-serif text-lg text-ink/40 pb-0.5">國</span>
               </div>
-              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">已到訪國家</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">{t("countriesVisited")}</p>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
@@ -424,9 +437,8 @@ export default function MapView() {
                 <span className="font-mono font-bold text-5xl tabular-nums leading-none text-brand">
                   {statsLoading ? <StatSkeleton /> : displayOverseasCount}
                 </span>
-                <span className="font-serif text-lg text-ink/40 pb-0.5">場</span>
               </div>
-              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">海外馬拉松</p>
+              <p className="font-mono text-xs tracking-[0.25em] text-ink/60">{t("overseasMarathons")}</p>
             </button>
           </div>
         </div>
@@ -449,13 +461,13 @@ export default function MapView() {
                 {statsLoading ? <StatSkeleton digits={3} /> : displayTotalPostCount}
               </span>
               <span className={`font-serif font-bold [font-size:clamp(0.875rem,17cqh,1.25rem)] ${activeCategory === null ? "text-brand/70" : "text-ink/50"}`}>
-                篇
+                {t("unitPost")}
               </span>
             </div>
             <span className={`font-mono font-bold tracking-widest leading-tight [font-size:clamp(0.75rem,13cqh,1rem)] ${
               activeCategory === null ? "text-brand" : "text-ink/70 group-hover:text-ink"
             }`}>
-              所有文章
+              {t("allPosts")}
             </span>
           </button>
           {statItems.map(({ label, unit, value, cat, sub }) => {
@@ -503,7 +515,7 @@ export default function MapView() {
       <button
         onClick={() => setAsideOpen(o => !o)}
         className={`hidden md:flex absolute top-1/2 -translate-y-1/2 z-[550] w-5 h-14 bg-paper border border-line rounded-md items-center justify-center shadow-sm transition-[left] duration-300 ease-in-out cursor-pointer ${asideOpen ? 'left-[19.375rem]' : 'left-1'}`}
-        aria-label={asideOpen ? '收合側欄' : '展開側欄'}
+        aria-label={asideOpen ? t('collapseSidebar') : t('expandSidebar')}
       >
         <ChevronLeft size={13} className={`text-ink/50 transition-transform duration-300 ${asideOpen ? '' : 'rotate-180'}`} />
       </button>
@@ -584,21 +596,21 @@ export default function MapView() {
               className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{statsLoading ? <StatSkeleton /> : displayCountryCount}</span>
-              <span className="font-serif text-base text-ink/60">國</span>
+              <span className="font-serif text-base text-ink/60">{t("unitCountry")}</span>
             </button>
             <button
               onClick={() => { setActiveCategory('馬拉松'); setActiveSubCategory('海外馬'); setViewMode('list'); setListTitleMode(null); }}
               className="flex shrink-0 items-baseline gap-1 whitespace-nowrap active:opacity-60 transition-opacity"
             >
               <span className="font-mono font-bold text-3xl tabular-nums leading-none text-brand">{statsLoading ? <StatSkeleton /> : displayOverseasCount}</span>
-              <span className="font-serif text-base text-ink/60">場海外馬</span>
+              <span className="font-serif text-base text-ink/60">{t("unitRaceOverseas")}</span>
             </button>
             {/* The counter yields first on narrow screens — the two stat
                 buttons must never be squeezed into per-character wrapping —
                 and drops out entirely below 360px. */}
             {humanViews !== null && (
               <span className="self-end pb-0.5 ml-auto min-w-0 truncate font-mono text-[12px] text-ink/40 tracking-[0.01em] whitespace-nowrap text-right max-[360px]:hidden">
-                累計 {humanViews.toLocaleString()} 次造訪
+                {t("totalVisits", { count: humanViews.toLocaleString() })}
               </span>
             )}
           </div>
@@ -613,10 +625,10 @@ export default function MapView() {
                   : "border-line bg-paper text-ink/60 active:bg-ink/5"
               }`}
             >
-              <span>所有文章</span>
+              <span>{t("allPosts")}</span>
               <span className="font-bold tabular-nums">{statsLoading ? <StatSkeleton digits={3} /> : displayTotalPostCount}</span>
             </button>
-            {statItems.map(({ label, value, cat, sub }) => {
+            {statItems.map(({ label, chipLabel, value, cat, sub }) => {
               const isActive = activeCategory === cat && activeSubCategory === sub;
               return (
                 <button
@@ -628,7 +640,7 @@ export default function MapView() {
                       : "border-line bg-paper text-ink/60 active:bg-ink/5"
                   }`}
                 >
-                  <span>{label}</span>
+                  <span>{chipLabel}</span>
                   <span className="font-bold tabular-nums">{statsLoading ? <StatSkeleton /> : value}</span>
                 </button>
               );
@@ -644,7 +656,8 @@ export default function MapView() {
       {selectedCountry && (
         <CountryModal
           country={selectedCountry}
-          onClose={() => setSelectedCountry(null)}
+          countryEn={selectedCountryEn}
+          onClose={() => { setSelectedCountry(null); setSelectedCountryEn(null); }}
         />
       )}
 

@@ -1,0 +1,102 @@
+{
+  "Metadata": {
+    "title": "MaraMap // 運動地理日誌",
+    "description": "以配速書寫地理，用腳步丈量歲月。"
+  },
+  "SiteHeader": {
+    "wordmark": "環球跑旅",
+    "personalBest": "最佳成績",
+    "qrCode": "QR",
+    "totalVisits": "累計 {count} 次造訪",
+    "menu": "選單",
+    "closeMenu": "關閉選單",
+    "switchLocale": "切換為 {locale}"
+  },
+  "QrCode": {
+    "backHome": "回到首頁",
+    "qrCodeAlt": "MaraMap 網站 QR Code"
+  },
+  "ListView": {
+    "visitedCountries": "到訪國家",
+    "allPosts": "所有文章",
+    "toggleAll": "全部展開/收合",
+    "otherContinent": "其他",
+    "unknownCountry": "未知"
+  },
+  "TimelineView": {
+    "visitedCountries": "到訪國家",
+    "allPosts": "所有文章",
+    "toggleSortDirection": "切換排序方向",
+    "newestFirst": "由新到舊",
+    "oldestFirst": "由舊到新"
+  },
+  "CountryModal": {
+    "eyebrow": "MaraMap 足跡",
+    "recordCount": "共 {count} 筆紀錄",
+    "loading": "載入中...",
+    "noRaces": "查無賽事資料",
+    "readFullRecord": "閱讀完整紀錄"
+  },
+  "PersonalBest": {
+    "backHome": "回到首頁",
+    "pageTitle": "個人最佳成績",
+    "noRecordsYet": "尚無 Personal Best 紀錄",
+    "noDerivableRecords": "此選手尚無可推算的紀錄",
+    "recordHistory": "破紀錄歷程",
+    "longestDistance": "最遠距離",
+    "fastestTime": "最快時間",
+    "timed": "計時",
+    "firstTime": "首次",
+    "brokeRecordBy": "破紀錄 {delta}",
+    "currentBest": "目前最佳"
+  },
+  "MapView": {
+    "map": "地圖",
+    "list": "列表",
+    "timeline": "時間軸",
+    "unitRace": "場",
+    "unitPost": "篇",
+    "unitPeak": "座",
+    "unitCountry": "國",
+    "unitRaceOverseas": "場海外馬",
+    "countriesVisited": "已到訪國家",
+    "overseasMarathons": "海外馬拉松",
+    "allPosts": "所有文章",
+    "collapseSidebar": "收合側欄",
+    "expandSidebar": "展開側欄",
+    "totalVisits": "累計 {count} 次造訪",
+    "chipMarathon": "全馬",
+    "chipOverseas": "海外馬",
+    "chipMajors": "九大馬"
+  },
+  "LogDetail": {
+    "loadingRecord": "正在載入紀錄...",
+    "untitledFallback": "MaraMap 運動日誌",
+    "exploringTrail": "探索軌跡",
+    "editThisPost": "編輯此篇",
+    "backHome": "回到首頁",
+    "journalFallback": "日誌",
+    "cumulativeFM": "全馬累計",
+    "cumulativeHM": "半馬累計",
+    "cumulativeUM": "超馬累計",
+    "raceOrdinal": "第 {count} 場",
+    "finishTime": "完賽時間",
+    "averagePace": "平均配速",
+    "photos": "精彩照片",
+    "videos": "影片",
+    "companionTrail": "同行足跡",
+    "notTranslatedYet": "本文尚未有英文版，暫時顯示中文原文。",
+    "translationPending": "英文版翻譯中，請稍後重新整理查看。"
+  },
+  "DateRangePicker": {
+    "periodShort": "期間",
+    "selectPeriod": "選擇期間",
+    "clear": "清除",
+    "from": "起始",
+    "to": "結束",
+    "year": "年",
+    "month": "月",
+    "reset": "清空",
+    "apply": "套用"
+  }
+}
