@@ -9,6 +9,11 @@ const isTaiwan = (country?: string | null) =>
 /**
  * 顯示城市名時去掉台灣的「市」/「縣」單位。
  * 非台灣、空值、或無單位者原樣回傳。
+ *
+ * English city names come from the backend's `city_en` field now (see
+ * docs/I18N_PLAN.md — computed server-side from `city_translations`, editable
+ * via /admin/locations) rather than a frontend lookup — combine this with
+ * `translatePairedName(formatCityName(city, country), cityEn, locale)`.
  */
 export function formatCityName(city?: string | null, country?: string | null): string {
   const name = (city ?? "").trim();

@@ -1,24 +1,28 @@
 "use client";
 
 import { useEffect, useState, useMemo, type CSSProperties } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Trophy, ArrowLeft } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
+import { translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 
 const API_URL = getApiBase();
 
 // Fixed display order; timed buckets get a descriptive suffix.
 const BUCKET_ORDER = ["半馬", "全馬", "50K", "100K", "6H", "12H"];
-const BUCKET_LABEL: Record<string, string> = {
-  "6H": "6H 計時賽",
-  "12H": "12H 計時賽",
+const BUCKET_LABEL_SUFFIX: Record<Locale, Record<string, string>> = {
+  zh: { "6H": "6H 計時賽", "12H": "12H 計時賽" },
+  en: { "6H": "6H Time Trial", "12H": "12H Time Trial" },
 };
 
 interface Milestone {
   date: string;
   raceName: string | null;
+  raceNameEn: string | null;
   postId: string;
   country: string | null;
+  countryEn: string | null;
   display: string;
   delta: string | null;
 }
@@ -50,7 +54,9 @@ const ROSE_OVERRIDE: ParticipantData = {
         display: "3:21:23",
         date: "2018-07-01",
         raceName: "2018 黃金海岸馬拉松",
+        raceNameEn: "2018 Gold Coast Marathon",
         country: "澳洲",
+        countryEn: "Australia",
         postId: "f020d666-f94a-4ece-89c7-099e6df46ffb",
       },
       progression: [
@@ -58,7 +64,9 @@ const ROSE_OVERRIDE: ParticipantData = {
           display: "3:21:23",
           date: "2018-07-01",
           raceName: "2018 黃金海岸馬拉松",
+          raceNameEn: "2018 Gold Coast Marathon",
           country: "澳洲",
+          countryEn: "Australia",
           postId: "f020d666-f94a-4ece-89c7-099e6df46ffb",
           delta: null,
         },
@@ -67,8 +75,8 @@ const ROSE_OVERRIDE: ParticipantData = {
   },
 };
 
-function bucketLabel(bucket: string) {
-  return BUCKET_LABEL[bucket] ?? bucket;
+function bucketLabel(bucket: string, locale: Locale) {
+  return BUCKET_LABEL_SUFFIX[locale][bucket] ?? translateDistanceType(bucket, locale);
 }
 
 // Per-bucket medal face. Each is a light→deep→light metallic/enamel body with a
@@ -128,8 +136,10 @@ const ENGRAVE: CSSProperties = { textShadow: "0 1px 0 rgba(255,255,255,0.55)" };
 
 // Compact tile for the "medal wall" — every distance's best at a glance.
 function MedalTile({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
+  const t = useTranslations("PersonalBest");
+  const locale = useLocale() as Locale;
   const isTimed = rec.mode === "distance";
-  const modeHint = isTimed ? "最遠距離" : "最快時間";
+  const modeHint = isTimed ? t("longestDistance") : t("fastestTime");
   return (
     <Link
       href={`/log/${rec.best.postId}`}
@@ -142,8 +152,8 @@ function MedalTile({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
         className="font-mono text-xs font-bold uppercase tracking-[0.2em]"
         style={ENGRAVE}
       >
-        {bucket}
-        {isTimed && <span className="ml-1 opacity-70">計時</span>}
+        {translateDistanceType(bucket, locale)}
+        {isTimed && <span className="ml-1 opacity-70">{t("timed")}</span>}
       </span>
       <span
         className="mt-2 font-serif font-black text-2xl md:text-[1.75rem] tabular-nums leading-none"
@@ -162,10 +172,12 @@ function MedalTile({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
 }
 
 function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
+  const t = useTranslations("PersonalBest");
+  const locale = useLocale() as Locale;
   // Every milestone is an improvement over the previous record; the newest is
   // last. Show newest → oldest so the current best reads first.
   const rows = [...rec.progression].reverse();
-  const modeHint = rec.mode === "time" ? "最快時間" : "最遠距離";
+  const modeHint = rec.mode === "time" ? t("fastestTime") : t("longestDistance");
 
   return (
     <section className="border border-line bg-white">
@@ -173,7 +185,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
       <div className="flex items-baseline justify-between gap-3 px-5 py-4 border-b border-line/60">
         <div className="flex items-baseline gap-3">
           <h2 className="font-serif font-black text-xl text-ink">
-            {bucketLabel(bucket)}
+            {bucketLabel(bucket, locale)}
           </h2>
           <span className="font-mono text-sm text-ink/50">{modeHint}</span>
         </div>
@@ -205,22 +217,22 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                     {m.display}
                   </span>
                   <span className="mt-1 font-mono text-sm text-ink/60">
-                    {isFirst ? "首次" : `破紀錄 ${m.delta}`}
+                    {isFirst ? t("firstTime") : t("brokeRecordBy", { delta: m.delta! })}
                   </span>
                 </div>
                 {/* race + date */}
                 <div className="min-w-0 flex-1">
                   <p className="font-sans text-base font-bold text-ink/85 group-hover:text-brand transition-colors line-clamp-1 mb-1">
-                    {m.raceName || "—"}
+                    {translatePairedName(m.raceName || "", m.raceNameEn, locale) || "—"}
                   </p>
                   <p className="font-mono text-sm text-ink/55">
                     {m.date}
-                    {m.country ? ` · ${m.country}` : ""}
+                    {m.country ? ` · ${translatePairedName(m.country, m.countryEn, locale)}` : ""}
                   </p>
                 </div>
                 {isCurrent && (
                   <span className="shrink-0 font-sans text-base font-bold text-brand border border-brand/40 rounded-full px-3 py-1">
-                    目前最佳
+                    {t("currentBest")}
                   </span>
                 )}
               </Link>
@@ -233,6 +245,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
 }
 
 export default function PersonalBestPage() {
+  const t = useTranslations("PersonalBest");
   const [data, setData] = useState<PBResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeParticipant, setActiveParticipant] = useState<string>("Davis");
@@ -281,13 +294,13 @@ export default function PersonalBestPage() {
           href="/"
           className="inline-flex items-center gap-2 text-ink/60 hover:text-brand font-sans text-base font-black mb-10 transition-colors"
         >
-          <ArrowLeft size={18} /> 回到首頁
+          <ArrowLeft size={18} /> {t("backHome")}
         </Link>
         {/* Wide mono tracking is a Latin device — on Chinese it just pushes the
             glyphs apart and reads as broken. Headings use the serif face at a
             legible size instead; the audience skews older. */}
         <h1 className="flex items-center gap-3 font-serif font-black text-3xl text-ink mb-3">
-          <Trophy size={24} className="text-brand shrink-0" /> 個人最佳成績
+          <Trophy size={24} className="text-brand shrink-0" /> {t("pageTitle")}
         </h1>
 
         {isLoading ? (
@@ -296,7 +309,7 @@ export default function PersonalBestPage() {
           </div>
         ) : !data || participants.length === 0 ? (
           <div className="flex items-center justify-center h-48 font-sans text-base text-ink/60">
-            尚無 Personal Best 紀錄
+            {t("noRecordsYet")}
           </div>
         ) : (
           <div className="space-y-8">
@@ -320,7 +333,7 @@ export default function PersonalBestPage() {
 
             {orderedBuckets.length === 0 ? (
               <div className="flex items-center justify-center h-32 font-mono text-base text-ink/50">
-                此選手尚無可推算的紀錄
+                {t("noDerivableRecords")}
               </div>
             ) : (
               <>
@@ -338,7 +351,7 @@ export default function PersonalBestPage() {
                 {/* Full record-breaking history per distance */}
                 <div className="space-y-6 pt-4">
                   <h2 className="font-serif font-black text-2xl text-ink">
-                    破紀錄歷程
+                    {t("recordHistory")}
                   </h2>
                   {orderedBuckets.map((bucket) => (
                     <RecordSection

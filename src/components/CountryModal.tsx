@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { X, ArrowRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
+import { translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 
 interface Participant {
   name: string;
@@ -20,6 +22,7 @@ interface CountryRace {
   category: string;
   raceName: string | null;
   city: string | null;
+  city_en: string | null;
   participants: Participant[];
 }
 
@@ -34,10 +37,15 @@ function getRaceType(distance: string | null, distanceKm: number | null): string
 
 interface CountryModalProps {
   country: string;
+  // Display-only — the fetch below keys strictly on `country` (zh), which
+  // is what /locations/by-country filters against.
+  countryEn?: string | null;
   onClose: () => void;
 }
 
-export default function CountryModal({ country, onClose }: CountryModalProps) {
+export default function CountryModal({ country, countryEn, onClose }: CountryModalProps) {
+  const t = useTranslations("CountryModal");
+  const locale = useLocale() as Locale;
   const [races, setRaces] = useState<CountryRace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,12 +91,12 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
         <div className="flex items-start justify-between px-6 py-6 border-b-2 border-line shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
           <div>
             <p className="font-mono text-xs text-brand uppercase tracking-[0.3em] mb-2">
-              MaraMap 足跡
+              {t("eyebrow")}
             </p>
-            <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">{country}</h2>
+            <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">{translatePairedName(country, countryEn, locale)}</h2>
             {!isLoading && (
               <p className="font-mono text-sm text-ink/60 mt-1">
-                共 {races.length} 筆紀錄
+                {t("recordCount", { count: races.length })}
               </p>
             )}
           </div>
@@ -104,11 +112,11 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
         <div>
           {isLoading ? (
             <div className="flex items-center justify-center py-16 font-mono text-sm text-ink/60 animate-pulse">
-              載入中...
+              {t("loading")}
             </div>
           ) : races.length === 0 ? (
             <div className="flex items-center justify-center py-16 font-mono text-sm text-ink/40">
-              查無賽事資料
+              {t("noRaces")}
             </div>
           ) : (
             <ul className="divide-y divide-line">
@@ -126,7 +134,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                       <>
                         <span className="text-ink/40">·</span>
                         <span className="font-mono text-sm text-ink/70">
-                          {formatCityName(race.city, country)}
+                          {translatePairedName(formatCityName(race.city, country), race.city_en, locale)}
                         </span>
                       </>
                     )}
@@ -155,7 +163,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                               {p.name}
                             </span>
                             <span className="font-mono text-sm bg-ink/5 px-2 py-0.5 text-ink/60">
-                              {raceType}
+                              {translateDistanceType(raceType, locale)}
                             </span>
                             {hasTime && (
                               <span className="font-mono text-base font-bold text-ink tabular-nums">
@@ -175,7 +183,7 @@ export default function CountryModal({ country, onClose }: CountryModalProps) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-mono text-ink/60 hover:text-brand transition-colors cursor-pointer"
                   >
-                    閱讀完整紀錄 <ArrowRight size={13} />
+                    {t("readFullRecord")} <ArrowRight size={13} />
                   </Link>
                 </li>
               ))}

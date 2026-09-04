@@ -12,6 +12,7 @@ import {
   DISTANCE_KM_MAP, TIME_REGEX, isValidDate,
 } from "@/utils/locationData";
 import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
+import { authFetch } from "@/utils/authFetch";
 
 interface ParticipantStats {
   FM_count: number | null;
@@ -40,7 +41,6 @@ interface FormData {
   sub_categories: string[];
   tags: string;
   is_hidden: boolean;
-  is_personal_best: boolean;
   cover_image: string;
   metadata: {
     race_name: string | null;
@@ -73,7 +73,6 @@ export default function NewPost() {
     sub_categories: [],
     tags: "",
     is_hidden: true, // Default hidden: newly-created posts stay private until reviewed.
-    is_personal_best: false,
     cover_image: "",
     metadata: { race_name: "", continent: "", country: "", city: "", participants: [], fallback_lat: null, fallback_lng: null },
   });
@@ -144,9 +143,7 @@ export default function NewPost() {
       const params = new URLSearchParams();
       if (country?.trim()) params.set("country", country.trim());
       if (city?.trim()) params.set("city", city.trim());
-      const res = await fetch(`${apiUrl}/api/v1/geocode?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`${apiUrl}/api/v1/geocode?${params}`, token);
       if (res.ok) {
         const data: { lat: number | null; lng: number | null } = await res.json();
         if (data.lat != null && data.lng != null) {
@@ -191,9 +188,9 @@ export default function NewPost() {
 
     try {
       const apiUrl = getApiBase();
-      const res = await fetch(`${apiUrl}/api/v1/posts`, {
+      const res = await authFetch(`${apiUrl}/api/v1/posts`, token, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formData.title,
           event_date: formData.event_date,
@@ -202,7 +199,6 @@ export default function NewPost() {
           sub_categories: formData.sub_categories,
           tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
           is_hidden: formData.is_hidden,
-          is_personal_best: formData.is_personal_best,
           cover_image: formData.cover_image,
           media,
           metadata: formData.metadata,
@@ -518,27 +514,6 @@ export default function NewPost() {
                 </div>
               </div>
             </div>
-
-            {/* PB flag — 馬拉松限定 */}
-            {formData.category === "馬拉松" && (
-              <div className="space-y-6">
-                <label className="flex items-center gap-3 font-serif font-black text-2xl border-b border-line pb-4">
-                  <Activity size={24} className="text-brand" /> 個人最佳成績
-                </label>
-                <div className="flex items-center gap-5 p-6 border-2 border-line bg-white rounded-lg shadow-sm">
-                  <input
-                    type="checkbox"
-                    id="is_personal_best"
-                    checked={formData.is_personal_best}
-                    onChange={e => setFormData({ ...formData, is_personal_best: e.target.checked })}
-                    className="w-7 h-7 accent-brand cursor-pointer"
-                  />
-                  <label htmlFor="is_personal_best" className="font-sans text-lg font-black cursor-pointer select-none">
-                    此場曾創個人最佳成績
-                  </label>
-                </div>
-              </div>
-            )}
 
             {/* Participants */}
             <div className="space-y-6">

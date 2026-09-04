@@ -1,32 +1,25 @@
 import { test, expect } from '@playwright/test';
+import { mockHomeStatsApi } from './fixtures/homeStats';
 
+// /map is a thin server-side redirect to `/` (see src/app/map/page.tsx) — the
+// page actually under test here is home's MapView, so mock its backend calls
+// the same way home.spec.ts does rather than relying on a live API. See
+// CLAUDE.md's "E2E tests must never depend on a real backend".
 test.describe('Map Page', () => {
   test.beforeEach(async ({ page }) => {
+    await mockHomeStatsApi(page);
     await page.goto('/map');
   });
 
-  test('should load map page successfully', async ({ page }) => {
-    await expect(page).toHaveTitle(/MaraMap|Next.js/i);
+  test('redirects to the home page', async ({ page }) => {
+    await expect(page).toHaveURL('/');
   });
 
-  test('should display map container', async ({ page }) => {
-    // Wait for map to load
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const mapContainer = page.locator('[class*="map"]', { hasText: /Map/ }).first();
-    
-    // Check if page has main content
-    const main = page.locator('main');
-    await expect(main).toBeVisible();
+  test('renders the map container after redirect', async ({ page }) => {
+    await expect(page.locator('.leaflet-container')).toBeVisible();
   });
 
-  test('should have back button to home', async ({ page }) => {
-    const backLink = page.locator('a:has-text("Back")');
-    
-    // If back button exists, test navigation
-    if (await backLink.count() > 0) {
-      await backLink.click();
-      await page.waitForURL('/');
-      expect(page.url()).toBe('http://localhost:3006/');
-    }
+  test('renders map markers from the mocked location data', async ({ page }) => {
+    await expect(page.locator('.leaflet-marker-icon').first()).toBeVisible();
   });
 });

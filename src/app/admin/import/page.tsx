@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, UploadCloud, Loader2, RotateCcw, Trash2, ChevronDown, ChevronUp, Info, Check } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
+import { authFetch, authHeaders } from "@/utils/authFetch";
 
 interface ReviewMedia {
   url: string;
@@ -157,9 +158,7 @@ export default function AdminImportPage() {
   // An unfinished batch survives a page close, so offer to pick it back up.
   const loadPending = useCallback(async (token: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/admin/fb-import/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`${getApiBase()}/api/v1/admin/fb-import/pending`, token);
       if (!res.ok) return;
       const data = await res.json();
       setPending(data.batches ?? []);
@@ -180,9 +179,7 @@ export default function AdminImportPage() {
     const token = getStoredToken();
     if (!token) { router.push("/admin/login"); return; }
 
-    const res = await fetch(`${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/review`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await authFetch(`${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/review`, token);
     if (!res.ok) {
       appendLine(`❌ 無法載入批次 ${targetBatch}（HTTP ${res.status}）`);
       return;
@@ -213,9 +210,8 @@ export default function AdminImportPage() {
 
     setCancelling(targetBatch);
     try {
-      const res = await fetch(`${getApiBase()}/api/v1/admin/fb-import/${targetBatch}`, {
+      const res = await authFetch(`${getApiBase()}/api/v1/admin/fb-import/${targetBatch}`, token, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -273,9 +269,8 @@ export default function AdminImportPage() {
     try {
       // 1. Ask the backend for a presigned URL, then PUT the zip straight to
       //    R2 — Cloud Run's request body cap (32MB) never sees the file.
-      const urlRes = await fetch(`${getApiBase()}/api/v1/admin/fb-import/upload-url`, {
+      const urlRes = await authFetch(`${getApiBase()}/api/v1/admin/fb-import/upload-url`, token, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!urlRes.ok) throw new Error(`無法取得上傳位址（HTTP ${urlRes.status}）`);
       const { batch: newBatch, url } = (await urlRes.json()) as { batch: string; url: string };
@@ -294,7 +289,7 @@ export default function AdminImportPage() {
       setPhase("preparing");
       await streamPipeline(
         `${getApiBase()}/api/v1/admin/fb-import/${newBatch}/prepare`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+        { method: "POST", headers: authHeaders(token) },
         handleEvent,
         appendLine,
       );
@@ -323,7 +318,7 @@ export default function AdminImportPage() {
     try {
       await streamPipeline(
         `${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/prepare`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+        { method: "POST", headers: authHeaders(token) },
         handleEvent,
         appendLine,
       );
@@ -346,7 +341,7 @@ export default function AdminImportPage() {
         `${getApiBase()}/api/v1/admin/fb-import/${targetBatch}/confirm`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: authHeaders(token, { "Content-Type": "application/json" }),
           body: JSON.stringify({ edits: categoryEdits, skipped: skippedTimestamps }),
         },
         handleEvent,

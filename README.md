@@ -111,7 +111,9 @@ visual there. The thumbnail rail renders an icon tile instead of a `<video>`
 lightbox uses `preload="none"` because every slide in the strip is rendered at
 once. See [`docs/VIDEO_PLAN.md`](./docs/VIDEO_PLAN.md).
 
-**Three lockfiles are present** (`bun.lock`, `pnpm-lock.yaml`,
-`package-lock.json`). CI and the git hooks use **Bun** — that is the source of
-truth. A past package-manager switch dropped the Vercel build cache and
-contributed to a build failure, so be deliberate about which one you touch.
+**Bun is the only supported package manager.** `package.json`'s
+`packageManager` field pins the exact version and a `preinstall` hook
+(`npx only-allow bun`) blocks `npm`/`pnpm`/`yarn` install attempts, so a
+second lockfile can't reappear. A past package-manager switch dropped the
+Vercel build cache and contributed to a build failure — that's the incident
+this guards against.
