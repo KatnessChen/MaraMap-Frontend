@@ -34,10 +34,15 @@ function CountryCombobox({
   const [open, setOpen] = useState(false);
 
   // Keeps the input's display text in sync when the parent resets the
-  // selection (e.g. after a successful "新增").
-  useEffect(() => {
+  // selection (e.g. after a successful "新增") — adjusted during render
+  // rather than in an effect (React's recommended pattern for "reset local
+  // state when a prop changes": https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes),
+  // since setState-in-an-effect causes an extra render pass for no benefit here.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value);
-  }, [value]);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

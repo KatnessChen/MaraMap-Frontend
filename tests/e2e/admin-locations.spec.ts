@@ -44,11 +44,13 @@ test.describe('Admin locations page — loaded with a valid session', () => {
     for (const c of fixtureCities) {
       await expect(page.locator('tr', { hasText: c.zh }).first()).toBeVisible();
     }
-    // No standalone country table — country names only surface as <option>s
-    // in the "所屬國家" select.
-    const countrySelect = page.locator('select').first();
+    // No standalone country table — country names only surface as options in
+    // the "所屬國家" combobox's dropdown once it's focused (it's a searchable
+    // text input + button list, not a native <select> — see CountryCombobox
+    // in admin/locations/page.tsx).
+    await page.getByPlaceholder('所屬國家').click();
     for (const c of fixtureCountries) {
-      await expect(countrySelect.locator('option', { hasText: c.zh })).toHaveCount(1);
+      await expect(page.getByRole('button', { name: c.zh, exact: true })).toBeVisible();
     }
   });
 
@@ -66,7 +68,8 @@ test.describe('Admin locations page — loaded with a valid session', () => {
     });
 
     await page.goto(LOCATIONS_PATH);
-    await page.locator('select').first().selectOption('日本');
+    await page.getByPlaceholder('所屬國家').click();
+    await page.getByRole('button', { name: '日本', exact: true }).click();
     await page.getByPlaceholder('中文城市名').fill('大阪');
     await page.getByPlaceholder('English name').fill('Osaka');
     await page.getByRole('button', { name: '新增' }).click();
