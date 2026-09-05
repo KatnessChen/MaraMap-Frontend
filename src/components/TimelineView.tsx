@@ -6,6 +6,7 @@ import { ArrowDownUp } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatCityName } from "@/utils/formatLocation";
 import { translatePairedName, translateTaxonomyLabel, type Locale } from "@/utils/taxonomyTranslations";
+import { getCountryFlag } from "@/utils/countryFlag";
 
 interface TimelinePoint {
   id: string;
@@ -111,6 +112,7 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                 {entries.map(evt => {
                   const countryZh = evt.country || evt.country_en || '';
                   const country = translatePairedName(countryZh, evt.country_en, locale);
+                  const countryFlag = getCountryFlag(countryZh);
                   return (
                     <li key={evt.id} className="relative">
                       <Link
@@ -132,6 +134,7 @@ export default function TimelineView({ points, isLoading, category, subCategory,
                             <span className="font-mono text-sm text-ink">{translateTaxonomyLabel(evt.cat, locale)}</span>
                             {country && (
                               <span className="font-mono text-sm text-ink/60">
+                                {countryFlag && <span className="mr-[10px]">{countryFlag}</span>}
                                 {country}{evt.city ? ` · ${translatePairedName(formatCityName(evt.city, countryZh), evt.city_en, locale)}` : ''}
                               </span>
                             )}

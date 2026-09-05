@@ -6,6 +6,7 @@ import { ChevronDown, ChevronsDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatCityName } from "@/utils/formatLocation";
 import { translateContinent, translatePairedName, translateTaxonomyLabel, type Locale } from "@/utils/taxonomyTranslations";
+import { getCountryFlag } from "@/utils/countryFlag";
 
 const FALLBACK_CONTINENT = '其他';
 const FALLBACK_COUNTRY = '未知';
@@ -178,6 +179,7 @@ export default function ListView({ points, isLoading, category, subCategory, tit
                       .map(([country, group]) => {
                         const countryKey = `${continent}::${country}`;
                         const countryOpen = openCountries.has(countryKey);
+                        const countryFlag = country === FALLBACK_COUNTRY ? "" : getCountryFlag(country);
                         const countryDisplay = country === FALLBACK_COUNTRY
                           ? t('unknownCountry')
                           : translatePairedName(country, group.countryEn, locale);
@@ -191,6 +193,7 @@ export default function ListView({ points, isLoading, category, subCategory, tit
                             >
                               <ChevronDown size={13} className={`text-ink/50 shrink-0 transition-transform duration-200 ${countryOpen ? "rotate-0" : "-rotate-90"}`} />
                               <span className="font-mono text-base text-ink/80">
+                                {countryFlag && <span className="mr-[10px]">{countryFlag}</span>}
                                 {countryDisplay}
                               </span>
                               <span className="font-mono text-sm text-ink/50 tabular-nums">

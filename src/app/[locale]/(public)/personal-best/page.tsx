@@ -6,6 +6,7 @@ import { Trophy, ArrowLeft } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
+import { getCountryFlag } from "@/utils/countryFlag";
 
 const API_URL = getApiBase();
 
@@ -199,6 +200,7 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
         {rows.map((m, i) => {
           const isCurrent = i === 0;
           const isFirst = m.delta === null;
+          const countryFlag = m.country ? getCountryFlag(m.country) : "";
           return (
             <li key={m.postId + m.date}>
               <Link
@@ -227,7 +229,13 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                   </p>
                   <p className="font-mono text-sm text-ink/55">
                     {m.date}
-                    {m.country ? ` · ${translatePairedName(m.country, m.countryEn, locale)}` : ""}
+                    {m.country && (
+                      <>
+                        {" · "}
+                        {countryFlag && <span className="mr-[10px]">{countryFlag}</span>}
+                        {translatePairedName(m.country, m.countryEn, locale)}
+                      </>
+                    )}
                   </p>
                 </div>
                 {isCurrent && (

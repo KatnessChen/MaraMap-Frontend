@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
 import { translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
+import { getCountryFlag } from "@/utils/countryFlag";
 
 interface Participant {
   name: string;
@@ -18,9 +19,11 @@ interface Participant {
 interface CountryRace {
   postId: string;
   title: string;
+  title_en?: string | null;
   date: string;
   category: string;
   raceName: string | null;
+  raceNameEn?: string | null;
   city: string | null;
   city_en: string | null;
   participants: Participant[];
@@ -73,6 +76,8 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const flag = getCountryFlag(country);
+
   return (
     <div className="fixed inset-0 z-[2000]">
       {/* Backdrop — 固定不動，點擊關閉 */}
@@ -93,7 +98,10 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
             <p className="font-mono text-xs text-brand uppercase tracking-[0.3em] mb-2">
               {t("eyebrow")}
             </p>
-            <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">{translatePairedName(country, countryEn, locale)}</h2>
+            <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">
+              {flag && <span className="mr-[10px]">{flag}</span>}
+              {translatePairedName(country, countryEn, locale)}
+            </h2>
             {!isLoading && (
               <p className="font-mono text-sm text-ink/60 mt-1">
                 {t("recordCount", { count: races.length })}
@@ -147,7 +155,9 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
                     rel="noopener noreferrer"
                     className="block font-serif font-bold text-xl text-ink mb-3 leading-snug hover:text-brand transition-colors cursor-pointer"
                   >
-                    {race.raceName || race.title}
+                    {race.raceName
+                      ? translatePairedName(race.raceName, race.raceNameEn, locale)
+                      : translatePairedName(race.title, race.title_en, locale)}
                   </Link>
 
                   {/* Participants */}
