@@ -6,12 +6,13 @@ import { createPortal } from "react-dom";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play } from "lucide-react";
+import { ArrowLeft, ArrowUp, Timer, Gauge, Edit2, ChevronLeft, ChevronRight, X, Maximize2, Play, Loader2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
 import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
+import { getCountryFlag } from "@/utils/countryFlag";
 import type { Post as PostBase } from "@/utils/postHelpers";
 
 
@@ -556,15 +557,59 @@ export default function LogDetailClient({ params }: { params: Promise<{ locale: 
   const [isAdmin, setIsAdmin] = useState(false);
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);
   const [lightbox, setLightbox] = useState<{ items: Media[]; idx: number } | null>(null);
+  // Set only if the paragraph-by-paragraph translation poll below gives up
+  // (too many rounds without reaching "done") — stops the loading icon from
+  // spinning forever on a genuinely stuck translation.
+  const [translationGaveUp, setTranslationGaveUp] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+  // Guards against starting a second concurrent polling loop for the same
+  // post — React's dev-mode Strict Mode double-invokes this effect on
+  // mount (cleanup then re-run), and without this the two invocations each
+  // start their own loop, doubling every Gemini call. The ref persists
+  // across that double-invoke (same component instance), so whichever
+  // invocation's async code reaches this check first wins; there's no
+  // `await` between the check and the write, so the two can't interleave.
+  const pollingPostIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const checkAdmin = () => {
       // 檢查是否具備管理員權限
       const token = localStorage.getItem("maramap_admin_token");
       if (token) setIsAdmin(true);
     };
     checkAdmin();
+
+    // Each call translates at most one paragraph and returns the joined
+    // content so far — see TranslationsService.triggerContentTranslation.
+    // Polling like this (rather than one big request) is what lets the
+    // reader watch paragraphs appear one at a time instead of waiting for
+    // the whole article to finish before anything shows up.
+    const MAX_POLL_ROUNDS = 60;
+    const pollTranslation = async (apiUrl: string, postId: string) => {
+      for (let i = 0; i < MAX_POLL_ROUNDS && !cancelled; i++) {
+        let result: { status: string; content?: string; title?: string } | null = null;
+        try {
+          const res = await fetch(`${apiUrl}/api/v1/posts/${postId}/translate`, { method: "POST" });
+          result = res.ok ? await res.json() : null;
+        } catch {
+          break;
+        }
+        if (cancelled || !result) break;
+        setPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                content_en: result.content ?? prev.content_en,
+                title_en: result.title ?? prev.title_en,
+                content_status: result.status === "done" ? "done" : "pending",
+              }
+            : prev,
+        );
+        if (result.status === "done") return;
+      }
+      if (!cancelled) setTranslationGaveUp(true);
+    };
 
     const fetchPostAndNav = async () => {
       try {
@@ -579,27 +624,15 @@ export default function LogDetailClient({ params }: { params: Promise<{ locale: 
         const data: Post = await res.json();
         setPost(data);
         // English readers only: kick off the lazy first-view translation as a
-        // SEPARATE request the browser awaits itself (never blocking the
-        // page's own load, and safe on Cloud Run precisely because it's the
-        // browser — not a detached server-side task — holding this open).
-        // First-ever view of a post pays a few seconds' latency here; every
-        // later view (this reader's refresh, anyone else's, a crawler) reads
-        // the cache this call fills in and returns instantly.
-        if (locale === "en" && data.content_status !== "done") {
-          fetch(`${apiUrl}/api/v1/posts/${data.id}/translate`, { method: "POST" })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((result: { status: string; content?: string; title?: string } | null) => {
-              if (result?.status === "done" && result.content) {
-                setPost((prev) =>
-                  prev
-                    ? { ...prev, content_en: result.content, title_en: result.title ?? prev.title_en, content_status: "done" }
-                    : prev,
-                );
-              } else if (result?.status === "pending") {
-                setPost((prev) => (prev ? { ...prev, content_status: "pending" } : prev));
-              }
-            })
-            .catch(() => {});
+        // SEPARATE request chain the browser awaits itself (never blocking
+        // the page's own load, and safe on Cloud Run precisely because it's
+        // the browser — not a detached server-side task — holding this
+        // open). First-ever view of a post pays this cost paragraph by
+        // paragraph; every later view (this reader's refresh, anyone else's,
+        // a crawler) reads the cache this fills in and returns instantly.
+        if (locale === "en" && data.content_status !== "done" && pollingPostIdRef.current !== data.id) {
+          pollingPostIdRef.current = data.id;
+          pollTranslation(apiUrl, data.id);
         }
         if (data.trip_id) {
           const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${data.trip_id}`);
@@ -615,6 +648,10 @@ export default function LogDetailClient({ params }: { params: Promise<{ locale: 
       }
     };
     fetchPostAndNav();
+
+    return () => {
+      cancelled = true;
+    };
   }, [params, previewMode, locale]);
 
   useEffect(() => {
@@ -630,12 +667,19 @@ export default function LogDetailClient({ params }: { params: Promise<{ locale: 
   if (!post) notFound();
 
   const title = getDisplayTitle(post, t("untitledFallback"), locale);
-  const content = getDisplayContent(post, locale);
   const isUntranslated = locale === "en" && post.content_status !== "done";
+  // While a translation is actively being polled for, show only whatever
+  // paragraphs have come back so far (possibly none yet) rather than
+  // falling back to the Chinese original — a reader shouldn't see the zh
+  // article flash before the first English paragraph lands. Once polling
+  // gives up (translationGaveUp), fall back to zh via getDisplayContent
+  // rather than leaving the article permanently blank.
+  const content = isUntranslated && !translationGaveUp ? (post.content_en || "") : getDisplayContent(post, locale);
   const coords = extractCoordinates(post.media);
+  const countryFlag = post.metadata?.country ? getCountryFlag(post.metadata.country) : "";
   const locationLabel = post.metadata
     ? (post.metadata.country && post.metadata.city
-        ? `${translatePairedName(post.metadata.country, post.metadata.country_en, locale)}·${translatePairedName(formatCityName(post.metadata.city, post.metadata.country), post.metadata.city_en, locale)}`
+        ? <>{countryFlag && <span className="mr-[10px]">{countryFlag}</span>}{translatePairedName(post.metadata.country, post.metadata.country_en, locale)}·{translatePairedName(formatCityName(post.metadata.city, post.metadata.country), post.metadata.city_en, locale)}</>
         : (translatePairedName(post.metadata.race_name || "", post.metadata.race_name_en, locale) || t("exploringTrail")))
     : null;
 
@@ -762,18 +806,18 @@ export default function LogDetailClient({ params }: { params: Promise<{ locale: 
             )}
           </header>
 
-          {isUntranslated && (
-            <div className="mb-10 border border-brand/30 bg-brand/5 px-5 py-3 font-sans text-sm text-ink/70">
-              {post.content_status === "pending" ? t("translationPending") : t("notTranslatedYet")}
-            </div>
-          )}
-
           <article className="prose max-w-none">
             {content.split('\n\n').map((paragraph, index) => {
               const pText = paragraph.trim();
               if (!pText) return null;
               return <p key={index} className="font-sans text-lg md:text-xl text-ink leading-[1.8] mb-8 whitespace-pre-wrap">{pText}</p>;
             })}
+            {isUntranslated && !translationGaveUp && (
+              <div className="flex items-center justify-center gap-2 py-6 font-sans text-sm text-ink/50" role="status">
+                <Loader2 className="animate-spin text-brand/60" size={18} />
+                <span>{t("translatingLabel")}</span>
+              </div>
+            )}
           </article>
 
           {post.media && post.media.length > 0 && (() => {
