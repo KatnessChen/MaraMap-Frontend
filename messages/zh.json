@@ -85,8 +85,7 @@
     "photos": "精彩照片",
     "videos": "影片",
     "companionTrail": "同行足跡",
-    "notTranslatedYet": "本文尚未有英文版，暫時顯示中文原文。",
-    "translationPending": "英文版翻譯中，請稍後重新整理查看。"
+    "translatingLabel": "Translating…"
   },
   "DateRangePicker": {
     "periodShort": "期間",

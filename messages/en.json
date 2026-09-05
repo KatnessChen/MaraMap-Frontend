@@ -85,8 +85,7 @@
     "photos": "Photos",
     "videos": "Videos",
     "companionTrail": "Companion Trail",
-    "notTranslatedYet": "This article hasn't been translated to English yet — showing the original Chinese text.",
-    "translationPending": "Translating to English — check back in a moment."
+    "translatingLabel": "Translating…"
   },
   "DateRangePicker": {
     "periodShort": "Dates",
