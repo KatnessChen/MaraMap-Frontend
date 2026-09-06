@@ -238,11 +238,6 @@ function RecordSection({ bucket, rec }: { bucket: string; rec: RecordBucket }) {
                     )}
                   </p>
                 </div>
-                {isCurrent && (
-                  <span className="shrink-0 font-sans text-base font-bold text-brand border border-brand/40 rounded-full px-3 py-1">
-                    {t("currentBest")}
-                  </span>
-                )}
               </Link>
             </li>
           );

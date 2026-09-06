@@ -47,8 +47,7 @@
     "fastestTime": "最快時間",
     "timed": "計時",
     "firstTime": "首次",
-    "brokeRecordBy": "破紀錄 {delta}",
-    "currentBest": "目前最佳"
+    "brokeRecordBy": "破紀錄 {delta}"
   },
   "MapView": {
     "map": "地圖",
