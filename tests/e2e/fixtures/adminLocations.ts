@@ -6,8 +6,8 @@ export const fixtureCountries = [
 ];
 
 export const fixtureCities = [
-  { country_zh: "台灣", zh: "台北", en: "Taipei" },
-  { country_zh: "日本", zh: "東京", en: "Tokyo" },
+  { country_zh: "台灣", zh: "台北", en: "Taipei", source: "human", needs_review: false },
+  { country_zh: "日本", zh: "東京", en: "Tokyo", source: "human", needs_review: false },
 ];
 
 // Re-exported from the sibling fixture rather than duplicated — both admin

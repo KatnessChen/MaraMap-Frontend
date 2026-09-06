@@ -47,8 +47,7 @@
     "fastestTime": "Fastest Time",
     "timed": "Timed",
     "firstTime": "First time",
-    "brokeRecordBy": "Broke record by {delta}",
-    "currentBest": "Current Best"
+    "brokeRecordBy": "Broke record by {delta}"
   },
   "MapView": {
     "map": "Map",

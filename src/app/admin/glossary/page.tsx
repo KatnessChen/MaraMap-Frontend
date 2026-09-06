@@ -31,6 +31,9 @@ function GlossaryEditRow({
 }) {
   const [en, setEn] = useState(row.en);
   const dirty = en.trim() !== row.en && en.trim() !== "";
+  // A needs_review row can be saved as-is (no edit required) to confirm the
+  // AI's guess was already correct — saving always clears the flag either way.
+  const canSave = en.trim() !== "" && (dirty || row.needs_review);
 
   return (
     <tr className="border-b border-line/40">
@@ -47,7 +50,7 @@ function GlossaryEditRow({
       <td className="py-2 pr-4 whitespace-nowrap">
         {row.needs_review ? (
           <span className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5">
-            <AlertTriangle size={11} /> 待審核 · {row.source}
+            <AlertTriangle size={11} /> 待審核
           </span>
         ) : (
           <span className="font-mono text-[11px] uppercase tracking-widest text-ink/30">{row.source}</span>
@@ -56,7 +59,7 @@ function GlossaryEditRow({
       <td className="py-2 pr-2 text-right whitespace-nowrap">
         <button
           onClick={() => onSave(row.zh, en.trim())}
-          disabled={!dirty || busy}
+          disabled={!canSave || busy}
           className="p-1.5 text-ink/50 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           title="儲存（會標記為已審核）"
         >

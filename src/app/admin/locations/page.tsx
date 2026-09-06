@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Save, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Loader2, Search, AlertTriangle, Sparkles } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, clearStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch } from "@/utils/authFetch";
@@ -17,6 +17,8 @@ interface CityRow {
   country_zh: string;
   zh: string;
   en: string;
+  source: string;
+  needs_review: boolean;
 }
 
 type Feedback = { type: "success" | "error"; msg: string } | null;
@@ -113,6 +115,9 @@ function CityEditRow({
 }) {
   const [en, setEn] = useState(row.en);
   const dirty = en.trim() !== row.en && en.trim() !== "";
+  // A needs_review row can be saved as-is (no edit required) to confirm the
+  // AI's guess was already correct — saving always clears the flag either way.
+  const canSave = en.trim() !== "" && (dirty || row.needs_review);
 
   return (
     <tr className="border-b border-line/40">
@@ -125,12 +130,21 @@ function CityEditRow({
           className="w-full font-mono text-sm px-2 py-1 border border-line/60 bg-paper focus:outline-none focus:border-brand/60"
         />
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        {row.needs_review ? (
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5">
+            <AlertTriangle size={11} /> 待審核
+          </span>
+        ) : (
+          <span className="font-mono text-[11px] uppercase tracking-widest text-ink/30">{row.source}</span>
+        )}
+      </td>
       <td className="py-2 pr-2 text-right whitespace-nowrap">
         <button
           onClick={() => onSave(row.country_zh, row.zh, en.trim())}
-          disabled={!dirty || busy}
+          disabled={!canSave || busy}
           className="p-1.5 text-ink/50 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="儲存"
+          title="儲存（會標記為已審核）"
         >
           <Save size={15} />
         </button>
@@ -161,6 +175,8 @@ export default function AdminLocationsPage() {
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const [citySearch, setCitySearch] = useState("");
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [resolvingMissing, setResolvingMissing] = useState(false);
 
   const [newCityCountry, setNewCityCountry] = useState("");
   const [newCityZh, setNewCityZh] = useState("");
@@ -204,20 +220,23 @@ export default function AdminLocationsPage() {
     return () => clearTimeout(t);
   }, [feedback]);
 
+  const needsReviewCount = useMemo(() => cities.filter((c) => c.needs_review).length, [cities]);
+
   const filteredCities = useMemo(() => {
     const q = citySearch.trim().toLowerCase();
-    const base = !q
+    let base = !q
       ? cities
       : cities.filter(
           (c) => c.zh.includes(q) || c.en.toLowerCase().includes(q) || c.country_zh.includes(q),
         );
+    if (needsReviewOnly) base = base.filter((c) => c.needs_review);
     // Taiwan cities surface first (most-edited group day to day); everything
     // else keeps its original relative order — .filter() preserves order,
     // so this is a stable partition, not a re-sort.
     const taiwan = base.filter((c) => c.country_zh === "台灣");
     const rest = base.filter((c) => c.country_zh !== "台灣");
     return [...taiwan, ...rest];
-  }, [cities, citySearch]);
+  }, [cities, citySearch, needsReviewOnly]);
 
   const saveCity = async (countryZh: string, zh: string, en: string) => {
     if (!token || !en) return;
@@ -230,8 +249,12 @@ export default function AdminLocationsPage() {
       });
       if (res.status === 401) return handleUnauthorized();
       if (!res.ok) throw new Error();
+      // A human save always clears needs_review server-side — reflect that
+      // immediately rather than waiting for a reload.
       setCities((prev) =>
-        prev.map((c) => (c.country_zh === countryZh && c.zh === zh ? { ...c, en } : c)),
+        prev.map((c) =>
+          c.country_zh === countryZh && c.zh === zh ? { ...c, en, source: "human", needs_review: false } : c,
+        ),
       );
       setFeedback({ type: "success", msg: `已更新「${zh}」` });
     } catch {
@@ -276,10 +299,11 @@ export default function AdminLocationsPage() {
       });
       if (res.status === 401) return handleUnauthorized();
       if (!res.ok) throw new Error();
+      const newRow: CityRow = { country_zh: countryZh, zh, en, source: "human", needs_review: false };
       setCities((prev) =>
         prev.some((c) => c.country_zh === countryZh && c.zh === zh)
-          ? prev.map((c) => (c.country_zh === countryZh && c.zh === zh ? { country_zh: countryZh, zh, en } : c))
-          : [...prev, { country_zh: countryZh, zh, en }].sort((a, b) =>
+          ? prev.map((c) => (c.country_zh === countryZh && c.zh === zh ? newRow : c))
+          : [...prev, newRow].sort((a, b) =>
               a.country_zh === b.country_zh ? a.zh.localeCompare(b.zh) : a.country_zh.localeCompare(b.country_zh),
             ),
       );
@@ -290,6 +314,38 @@ export default function AdminLocationsPage() {
       setFeedback({ type: "error", msg: "新增失敗" });
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Finds every (country, city) pair actually used in posts but missing
+  // from city_translations, and asks Gemini to fill in an English name for
+  // each (flagged needs_review — see AlertTriangle badge above). Re-fetches
+  // the full city list afterward rather than patching state locally, since
+  // the endpoint doesn't return which rows it touched.
+  const resolveMissingCities = async () => {
+    if (!token) return;
+    setResolvingMissing(true);
+    try {
+      const res = await authFetch(
+        `${api}/api/v1/admin/location-translations/cities/resolve-missing`,
+        token,
+        { method: "POST" },
+      );
+      if (res.status === 401) return handleUnauthorized();
+      if (!res.ok) throw new Error();
+      const { count } = (await res.json()) as { count: number };
+      if (count === 0) {
+        setFeedback({ type: "success", msg: "沒有找到缺少英文的城市" });
+      } else {
+        const citiesRes = await authFetch(`${api}/api/v1/admin/location-translations/cities`, token);
+        if (citiesRes.ok) setCities(await citiesRes.json());
+        setNeedsReviewOnly(true);
+        setFeedback({ type: "success", msg: `已用 AI 補上 ${count} 個城市的英文，請確認待審核清單` });
+      }
+    } catch {
+      setFeedback({ type: "error", msg: "批次翻譯失敗" });
+    } finally {
+      setResolvingMissing(false);
     }
   };
 
@@ -327,9 +383,29 @@ export default function AdminLocationsPage() {
           </div>
         ) : (
           <section>
-            <h2 className="font-serif font-black text-xl text-ink mb-4">
-              城市 <span className="font-mono text-sm text-ink/40">({cities.length})</span>
-            </h2>
+            <div className="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+              <h2 className="font-serif font-black text-xl text-ink">
+                城市 <span className="font-mono text-sm text-ink/40">({cities.length})</span>
+              </h2>
+              {needsReviewCount > 0 && !needsReviewOnly && (
+                <button
+                  onClick={() => setNeedsReviewOnly(true)}
+                  className="font-mono text-xs text-amber-700 hover:underline"
+                >
+                  {needsReviewCount} 筆待審核
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={resolveMissingCities}
+              disabled={resolvingMissing || busy}
+              className="inline-flex items-center gap-1.5 mb-4 px-4 py-2 border-2 border-brand text-brand hover:bg-brand hover:text-white disabled:opacity-30 disabled:cursor-not-allowed font-sans text-sm font-bold transition-colors"
+              title="找出文章裡實際用到、但還沒有英文對照的城市，用 AI 批次補上（會標記為待審核）"
+            >
+              {resolvingMissing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              找出並批次翻譯缺少英文的城市
+            </button>
 
             <div className="flex flex-wrap gap-2 mb-4">
               <CountryCombobox countries={countries} value={newCityCountry} onChange={setNewCityCountry} />
@@ -354,14 +430,25 @@ export default function AdminLocationsPage() {
               </button>
             </div>
 
-            <div className="relative mb-3">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" />
-              <input
-                value={citySearch}
-                onChange={(e) => setCitySearch(e.target.value)}
-                placeholder="搜尋城市或國家…"
-                className="w-full font-mono text-sm pl-9 pr-3 py-2 border border-line/60 bg-white focus:outline-none focus:border-brand/60"
-              />
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="relative flex-1 min-w-[10rem]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" />
+                <input
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
+                  placeholder="搜尋城市或國家…"
+                  className="w-full font-mono text-sm pl-9 pr-3 py-2 border border-line/60 bg-white focus:outline-none focus:border-brand/60"
+                />
+              </div>
+              <label className="inline-flex items-center gap-2 font-sans text-sm text-ink/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={needsReviewOnly}
+                  onChange={(e) => setNeedsReviewOnly(e.target.checked)}
+                  className="accent-brand"
+                />
+                只顯示待審核
+              </label>
             </div>
 
             <div className="bg-white border border-line max-h-[32rem] overflow-y-auto">
@@ -378,7 +465,7 @@ export default function AdminLocationsPage() {
                   ))}
                   {filteredCities.length === 0 && (
                     <tr>
-                      <td className="px-4 py-8 text-center font-mono text-sm text-ink/40" colSpan={4}>
+                      <td className="px-4 py-8 text-center font-mono text-sm text-ink/40" colSpan={5}>
                         查無符合的城市
                       </td>
                     </tr>
