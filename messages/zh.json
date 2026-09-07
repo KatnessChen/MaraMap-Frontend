@@ -7,6 +7,7 @@
     "wordmark": "環球跑旅",
     "personalBest": "最佳成績",
     "qrCode": "QR",
+    "contact": "聯絡我們",
     "totalVisits": "累計 {count} 次造訪",
     "menu": "選單",
     "closeMenu": "關閉選單",
@@ -15,6 +16,13 @@
   "QrCode": {
     "backHome": "回到首頁",
     "qrCodeAlt": "MaraMap 網站 QR Code"
+  },
+  "Contact": {
+    "backHome": "回到首頁",
+    "pageTitle": "Davis & Rose Contact",
+    "photoAlt": "Davis 與 Rose 的合照",
+    "country": "台灣",
+    "emailLabel": "Email"
   },
   "ListView": {
     "visitedCountries": "到訪國家",

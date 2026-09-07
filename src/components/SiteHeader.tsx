@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, usePathname } from "@/i18n/navigation";
-import { Trophy, QrCode, Languages, Menu, X } from "lucide-react";
+import { Trophy, QrCode, Mail, Languages, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
@@ -9,6 +9,7 @@ import { getApiBase } from "@/utils/apiBase";
 const NAV_LINKS = [
   { href: "/personal-best", key: "personalBest", Icon: Trophy } as const,
   { href: "/qrcode", key: "qrCode", Icon: QrCode } as const,
+  { href: "/contact", key: "contact", Icon: Mail } as const,
 ];
 
 // Language names are shown in their own script regardless of the current
