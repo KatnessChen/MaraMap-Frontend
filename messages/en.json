@@ -7,6 +7,7 @@
     "wordmark": "World Running Log",
     "personalBest": "Personal Best",
     "qrCode": "QR",
+    "contact": "Contact Us",
     "totalVisits": "{count} total visits",
     "menu": "Menu",
     "closeMenu": "Close menu",
@@ -15,6 +16,13 @@
   "QrCode": {
     "backHome": "Back to home",
     "qrCodeAlt": "MaraMap website QR code"
+  },
+  "Contact": {
+    "backHome": "Back to home",
+    "pageTitle": "Davis & Rose Contact",
+    "photoAlt": "Photo of Davis and Rose",
+    "country": "Taiwan",
+    "emailLabel": "Email"
   },
   "ListView": {
     "visitedCountries": "Visited Countries",
