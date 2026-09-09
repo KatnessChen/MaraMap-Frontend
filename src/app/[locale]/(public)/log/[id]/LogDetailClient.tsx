@@ -51,7 +51,7 @@ interface MarathonMetadata {
   participants: Participant[];
 }
 
-interface Post extends PostBase {
+export interface Post extends PostBase {
   cover_image?: string;
   media?: Media[];
   metadata?: MarathonMetadata | null;
@@ -546,13 +546,26 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
   );
 }
 
-export default function LogDetailClient({ params }: { params: Promise<{ locale: string; id: string }> }) {
+export default function LogDetailClient({
+  params,
+  initialPost,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+  // Seeded by page.tsx's server-side fetch so the article's real title/body
+  // is present in the initial HTML — crawlers that don't execute JS (most
+  // AI agents) otherwise only ever see the loading placeholder this
+  // component used to render before its own client-side fetch resolved.
+  // Left undefined for the preview-mode case (page.tsx only fetches the
+  // public version), in which case this falls back to the pre-existing
+  // fetch-on-mount behavior below.
+  initialPost?: Post | null;
+}) {
   const t = useTranslations("LogDetail");
   const locale = useLocale() as Locale;
   const searchParams = useSearchParams();
   const previewMode = searchParams.get('preview') === 'true';
-  const [post, setPost] = useState<Post | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [post, setPost] = useState<Post | null>(initialPost ?? null);
+  const [isLoading, setIsLoading] = useState(!initialPost);
   const [isVisible, setIsVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [tripPosts, setTripPosts] = useState<TripPost[]>([]);

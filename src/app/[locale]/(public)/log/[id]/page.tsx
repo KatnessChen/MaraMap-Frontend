@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 import { getApiBase } from "@/utils/apiBase";
-import LogDetailClient from "./LogDetailClient";
+import { SITE_URL } from "@/utils/siteUrl";
+import LogDetailClient, { type Post } from "./LogDetailClient";
 
-interface MetaPost {
-  title: string;
-  title_en?: string | null;
-  content: string;
-  content_en?: string | null;
-  content_status?: "pending" | "done" | "failed" | null;
-  cover_image?: string;
-}
-
-async function fetchPostForMetadata(id: string): Promise<MetaPost | null> {
+// Shared by generateMetadata and the page component below — Next.js
+// memoizes identical fetch() calls (same URL + options) within one request,
+// so fetching the full post twice costs one network round trip, not two.
+async function fetchPost(id: string): Promise<Post | null> {
   try {
     const res = await fetch(`${getApiBase()}/api/v1/posts/${id}`, {
       // Metadata shouldn't itself trigger the lazy translation side-effect —
@@ -40,7 +35,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale, id } = await params;
-  const post = await fetchPostForMetadata(id);
+  const post = await fetchPost(id);
   if (!post) return {};
 
   const isEn = locale === "en";
@@ -80,10 +75,92 @@ export async function generateMetadata({
   };
 }
 
-export default function LogDetailPage({
+// JSON-LD for the article — lets a crawler read the race's actual facts
+// (name, date, location, finish time) as structured data instead of having
+// to parse them back out of the prose. Same zh-default/en-if-translated
+// selection generateMetadata already uses above, so the structured data
+// never disagrees with what's visibly on the page.
+function buildJsonLd(post: Post, locale: string, id: string) {
+  const isEn = locale === "en";
+  const path = isEn ? `/en/log/${id}` : `/log/${id}`;
+  const url = `${SITE_URL}${path}`;
+  const title = isEn && post.title_en ? post.title_en : post.title;
+  const articleBody = isEn && post.content_en ? post.content_en : post.content;
+
+  const raceName =
+    (isEn && post.metadata?.race_name_en) || post.metadata?.race_name;
+  const country =
+    (isEn && post.metadata?.country_en) || post.metadata?.country;
+  const city = (isEn && post.metadata?.city_en) || post.metadata?.city;
+
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: title,
+    url,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    datePublished: post.event_date,
+    inLanguage: isEn ? "en" : "zh-TW",
+    image: post.cover_image ? [post.cover_image] : undefined,
+    articleBody,
+    author: { "@type": "Person", name: "Davis & Rose" },
+    publisher: { "@type": "Organization", name: "MaraMap", url: SITE_URL },
+  };
+
+  // Only marathon posts with an actual race name get the SportsEvent facet —
+  // a travel/hiking post's metadata shares the same shape but isn't a race.
+  if (post.category === "馬拉松" && raceName) {
+    jsonLd.about = {
+      "@type": "SportsEvent",
+      name: raceName,
+      startDate: post.event_date,
+      location:
+        country || city
+          ? {
+              "@type": "Place",
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: city || undefined,
+                addressCountry: country || undefined,
+              },
+            }
+          : undefined,
+    };
+  }
+
+  return jsonLd;
+}
+
+export default async function LogDetailPage({
   params,
 }: {
   params: Promise<{ locale: string; id: string }>;
 }) {
-  return <LogDetailClient params={params} />;
+  const { locale, id } = await params;
+  // Only the public (non-preview) version is fetched here — preview mode is
+  // an admin-only draft view driven by a client-side query param, so it
+  // keeps going through LogDetailClient's own fetch-on-mount, same as
+  // before. A post that isn't public yet (or doesn't exist) resolves to
+  // null here, and LogDetailClient falls back to its pre-existing loading
+  // state while its own effect fetches (or 404s).
+  const initialPost = await fetchPost(id);
+
+  return (
+    <>
+      {initialPost && (
+        <script
+          type="application/ld+json"
+          // JSON.stringify doesn't escape "<", so a stray "</script>" inside
+          // post content could otherwise break out of this tag.
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(buildJsonLd(initialPost, locale, id)).replace(
+              /</g,
+              "\\u003c",
+            ),
+          }}
+        />
+      )}
+      <LogDetailClient params={params} initialPost={initialPost} />
+    </>
+  );
 }

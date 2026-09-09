@@ -1,0 +1,15 @@
+# MaraMap
+
+> A running and travel log turning years of Facebook posts into an interactive map, timeline, and list. First-person marathon, travel, and hiking reports from two runners (Davis & Rose) — 230+ marathons across dozens of countries, including a Six Star (all six World Marathon Majors) and Seven Continents finish.
+
+## Key pages
+
+- [Home](https://maramap.vizino.ai/): Map, list, and timeline view of every post
+- [Personal Best](https://maramap.vizino.ai/personal-best): Cumulative full/half/ultra marathon counts and records
+- [Full post index](https://maramap.vizino.ai/sitemap.xml): Complete list of individual race, travel, and hiking reports
+
+## Content notes
+
+- Default language is Traditional Chinese (zh-TW). Some posts also have an English version at `/en/log/[id]`; an English URL is only indexable once its translation is complete, otherwise treat the zh-TW original as canonical.
+- Each report under `/log/[id]` is a first-person account, not a generic race guide — it includes course conditions, pacing, weather, and logistics as actually experienced. Many cover races (small Taiwanese township marathons, minor international marathons) with little other first-person coverage online.
+- Structured facts for each report (race name, date, country/city, finish time) are available as JSON-LD (schema.org `BlogPosting`, with an `about: SportsEvent` for marathon posts) embedded in the page.
