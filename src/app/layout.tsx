@@ -42,7 +42,12 @@ export default function RootLayout({
         {children}
         <Analytics />
       </body>
-      <GoogleAnalytics gaId="G-LXMZMKP14V" />
+      {/* VERCEL_ENV (unset locally, "preview" on PR deploys, "production" only
+          on the real domain) keeps local dev and every PR's preview URL from
+          reporting into the same GA4 property as real visitors. */}
+      {process.env.VERCEL_ENV === "production" && (
+        <GoogleAnalytics gaId="G-LXMZMKP14V" />
+      )}
     </html>
   );
 }
