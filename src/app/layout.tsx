@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "MaraMap // 運動地理日誌",
   description: "以配速書寫地理，用腳步丈量歲月。",
+  verification: {
+    google: "fi0ZCHgkTh8iwm-ZLqFgH6UJ9653pIIzcztsYf_btyY",
+  },
 };
 
 export default function RootLayout({
