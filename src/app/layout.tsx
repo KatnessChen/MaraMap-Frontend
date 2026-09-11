@@ -52,13 +52,20 @@ export default function RootLayout({
             media="print", so flipping the attribute later doesn't change
             that). `display=swap` in the URL still governs the swap-in of
             each individual @font-face once the CSS does apply. <noscript>
-            covers the (here, negligible) case of JS disabled. */}
+            covers the (here, negligible) case of JS disabled.
+            `suppressHydrationWarning` is required, not optional: the inline
+            script mutates this element's `media` attribute on the raw DOM
+            before React hydrates, so by the time hydration runs the live DOM
+            already says "all" while the server-rendered tree says "print" —
+            a real, expected mismatch (not a bug to chase), and without this
+            prop React logs a hydration-mismatch error for it every load. */}
         <link rel="preload" as="style" href={GOOGLE_FONTS_HREF} />
         <link
           rel="stylesheet"
           href={GOOGLE_FONTS_HREF}
           media="print"
           id="google-fonts-css"
+          suppressHydrationWarning
         />
         <script
           dangerouslySetInnerHTML={{
