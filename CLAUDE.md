@@ -25,6 +25,7 @@ folder every time:
 | [`docs/CHATBOT_PLAN.md`](./docs/CHATBOT_PLAN.md) | AI chatbot plan | The (not-yet-built) chatbot feature |
 | [`docs/I18N_PLAN.md`](./docs/I18N_PLAN.md) | English localisation plan | i18n/localization work |
 | [`docs/SPEC.md`](./docs/SPEC.md) | Chrome extension spec (separate ingestion front-end) | The browser-extension ingestion tool |
+| [`docs/SEO_DISCOVERABILITY.md`](./docs/SEO_DISCOVERABILITY.md) | Search Console, Bing/IndexNow, GA4 config and why each is set up the way it is | robots/sitemap/metadata, analytics, or anything about AI-crawler visibility |
 
 Also read [`README.md`](./README.md)'s "Decisions worth knowing before you
 change things" section — those are hard-won constraints (image optimizer,

@@ -29,7 +29,32 @@ export function FitBounds({ points }: { points: GeoPoint[] }) {
   useEffect(() => {
     if (points.length === 0) return;
     const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]));
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 10 });
+    const fit = () => map.fitBounds(bounds, { padding: [60, 60], maxZoom: 10 });
+
+    const { x, y } = map.getSize();
+    if (x > 0 && y > 0) {
+      fit();
+      return;
+    }
+    // The container can genuinely measure 0x0 right here: this map now
+    // mounts via its own nested dynamic import (see LeafletMap.tsx) instead
+    // of in the same tick as the rest of the page, so this effect can run
+    // before the surrounding flex layout has settled. fitBounds() against a
+    // 0x0 viewport doesn't error — it silently clamps to `maxZoom`, which
+    // looked like the map loading into a random zoomed-in, empty patch of
+    // ocean. Wait for the first real size via the same signal MapResizer
+    // uses instead of guessing at a delay.
+    const el = map.getContainer();
+    const ro = new ResizeObserver(() => {
+      const size = map.getSize();
+      if (size.x > 0 && size.y > 0) {
+        map.invalidateSize();
+        fit();
+        ro.disconnect();
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [points, map]);
   return null;
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { getApiBase } from "@/utils/apiBase";
 import { SITE_URL } from "@/utils/siteUrl";
 import LogDetailClient, { type Post } from "./LogDetailClient";
@@ -6,9 +7,23 @@ import LogDetailClient, { type Post } from "./LogDetailClient";
 // Shared by generateMetadata and the page component below — Next.js
 // memoizes identical fetch() calls (same URL + options) within one request,
 // so fetching the full post twice costs one network round trip, not two.
+//
+// Forwards the real visitor's User-Agent (and IP) as custom headers: this
+// fetch is a server-to-server call from Vercel to Cloud Run, so without
+// forwarding, the backend's crawler-log middleware only ever sees Next.js's
+// own fetch client as the caller — never the actual crawler that hit this
+// page — which is why crawler_visits stayed empty despite real AI-crawler
+// traffic showing up in Cloudflare. See docs/SEO_DISCOVERABILITY.md.
 async function fetchPost(id: string): Promise<Post | null> {
   try {
+    const incoming = await headers();
+    const originalUserAgent = incoming.get("user-agent");
+    const originalIp = incoming.get("x-forwarded-for");
     const res = await fetch(`${getApiBase()}/api/v1/posts/${id}`, {
+      headers: {
+        ...(originalUserAgent && { "X-Original-User-Agent": originalUserAgent }),
+        ...(originalIp && { "X-Original-Ip": originalIp }),
+      },
       // Metadata shouldn't itself trigger the lazy translation side-effect —
       // that's LogDetailClient's job via its dedicated /translate call. This
       // is a plain read.
