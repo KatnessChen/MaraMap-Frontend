@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className="bg-paper text-ink font-sans antialiased selection:bg-brand selection:text-white">
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
       {/* VERCEL_ENV (unset locally, "preview" on PR deploys, "production" only
           on the real domain) keeps local dev and every PR's preview URL from
