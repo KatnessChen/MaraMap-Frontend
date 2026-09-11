@@ -4,7 +4,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { Trophy, QrCode, Mail, Languages, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getApiBase } from "@/utils/apiBase";
+import { useHumanViews } from "@/hooks/useHumanViews";
 
 const NAV_LINKS = [
   { href: "/personal-best", key: "personalBest", Icon: Trophy } as const,
@@ -22,15 +22,8 @@ export default function SiteHeader() {
   const locale = useLocale() as keyof typeof LOCALE_LABEL;
   const otherLocale = locale === "en" ? "zh" : "en";
   const pathname = usePathname();
-  const [humanViews, setHumanViews] = useState<number | null>(null);
+  const humanViews = useHumanViews();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    fetch(`${getApiBase()}/api/v1/stats/visits`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setHumanViews(d.total_human); })
-      .catch(() => {});
-  }, []);
 
   // Closes on route change so the panel doesn't stay open after picking a link.
   useEffect(() => {

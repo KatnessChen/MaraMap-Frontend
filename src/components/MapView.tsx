@@ -1,24 +1,32 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, GeoJSON } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import { Link } from "@/i18n/navigation";
-import type { GeoJsonObject, Feature, Geometry } from "geojson";
-import { ArrowRight, ChevronLeft, History, List as ListIcon, Map as MapIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { feature } from "topojson-client";
+import type { Topology } from "topojson-specification";
+import type { FeatureCollection } from "geojson";
+import { ChevronLeft, History, List as ListIcon, Map as MapIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import { useLocale, useTranslations } from "next-intl";
 import CountryModal from "./CountryModal";
 import ListView from "./ListView";
 import TimelineView from "./TimelineView";
 import { getApiBase } from "@/utils/apiBase";
-import { getCountryGeoStyle } from "@/utils/mapStyle";
-import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
+import { useHumanViews } from "@/hooks/useHumanViews";
+import { translateTaxonomyLabel, translateDistanceType, type Locale } from "@/utils/taxonomyTranslations";
 import type { FlattenedPoint, GeoPoint } from "./map/leafletHelpers";
-import { FitBounds, createEventIcon, createClusterCustomIcon, MapResizer } from "./map/leafletHelpers";
 import type { DateFilter } from "./map/DateRangePicker";
 import { DateRangePicker, StatSkeleton } from "./map/DateRangePicker";
+
+// Leaflet touches `window` at module load time, so the map itself has to
+// stay client-only — but everything else in this component (aside, hero
+// stats, date picker, view toggle) doesn't, and used to wait for this chunk
+// anyway because the *whole* page was `dynamic(..., {ssr:false})`. Scoping
+// ssr:false to just the map lets the rest of the page server-render.
+const LeafletMap = dynamic(() => import("./map/LeafletMap"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-paper" />,
+});
 
 const API_URL = getApiBase();
 
@@ -55,20 +63,19 @@ export default function MapView() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
+  const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [selectedCountryEn, setSelectedCountryEn] = useState<string | null>(null);
   const [raceStats, setRaceStats] = useState<RaceStats | null>(null);
-  // The hero/grid numbers come from three independent requests (locations,
-  // categories, race stats). `isLoading` only covers locations, so categories-
-  // and stats-derived tiles used to render a bare 0 until their own request
-  // landed. Tracked separately so the skeleton covers all three.
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [raceStatsLoading, setRaceStatsLoading] = useState(true);
+  // The hero/grid numbers come from two independent requests (locations,
+  // home-summary). `isLoading` only covers locations, so summary-derived
+  // tiles used to render a bare 0 until their own request landed. Tracked
+  // separately so the skeleton covers both.
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [listTitleMode, setListTitleMode] = useState<'countries' | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
-  const [humanViews, setHumanViews] = useState<number | null>(null);
+  const humanViews = useHumanViews();
   const [basePoints, setBasePoints] = useState<FlattenedPoint[]>([]);
   const [asideOpen, setAsideOpen] = useState(true);
 
@@ -214,47 +221,6 @@ export default function MapView() {
     return map;
   }, [points]);
 
-  // Marker elements are memoised on `points` alone: without this, every
-  // unrelated re-render (e.g. collapsing the aside) rebuilt a few hundred
-  // Marker/Popup elements and blocked the main thread long enough to swallow
-  // the panel's slide animation.
-  const markerLayer = useMemo(() => (
-    <MarkerClusterGroup
-      chunkedLoading
-      iconCreateFunction={createClusterCustomIcon}
-      maxClusterRadius={60}
-      showCoverageOnHover={false}
-      spiderfyOnMaxZoom={true}
-    >
-      {points.map((pt) => (
-    <Marker
-      key={pt.id}
-      position={[pt.lat, pt.lng]}
-      icon={createEventIcon()}
-    >
-      <Popup className="custom-popup">
-        <Link
-          href={`/log/${pt.postId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block p-2 max-w-[200px] group"
-        >
-          <div className="font-mono text-xs text-brand uppercase mb-1">{translateTaxonomyLabel(pt.cat, locale)} / {pt.date}</div>
-          <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{translatePairedName(pt.title, pt.title_en, locale)}</h3>
-          {pt.uri && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />
-          )}
-          <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink group-hover:text-brand transition-colors">
-            VIEW LOG <ArrowRight size={12} />
-          </span>
-        </Link>
-      </Popup>
-    </Marker>
-      ))}
-    </MarkerClusterGroup>
-  ), [points, locale]);
-
   const handleFilterClick = useCallback((cat: string, sub: string | null) => {
     setListTitleMode(null);
     const isActive = activeCategory === cat && activeSubCategory === sub;
@@ -270,55 +236,30 @@ export default function MapView() {
   }, [activeCategory, activeSubCategory]);
 
   useEffect(() => {
+    // Deferred until the locations fetch has settled: this file is 500KB+
+    // gzipped and only draws country borders/choropleth colour, which matters
+    // less than the markers themselves. Firing it after `isLoading` flips
+    // false keeps it from competing for bandwidth with the map's load-bearing
+    // request during the critical first render.
+    if (isLoading) return;
     // Self-hosted in public/ rather than fetched live from GitHub at runtime —
     // the homepage's core visual shouldn't depend on an external host staying up.
-    fetch("/countries.geojson")
+    // TopoJSON (shared borders stored once, +15% geometry simplification via
+    // mapshaper) instead of a raw GeoJSON FeatureCollection: 552KB gzip → 59KB
+    // for a choropleth that never needs full 1:10m coastline precision.
+    // `feature()` expands it back into a GeoJSON FeatureCollection at runtime,
+    // which is all react-leaflet's <GeoJSON> understands.
+    fetch("/countries.topo.json")
       .then(res => res.json())
-      .then(data => setGeoData(data))
-      .catch(err => console.error("Failed to fetch GeoJSON:", err));
-  }, []);
-
-  const geoStyle = (feature?: { properties: { name: string; "ISO3166-1-Alpha-3": string } }) =>
-    getCountryGeoStyle(feature, visitedCountries);
-
-  const onEachCountry = useCallback((feature: Feature<Geometry, { name: string; "ISO3166-1-Alpha-3": string }>, layer: L.Layer) => {
-    const name = feature?.properties?.name ?? "";
-    const isoA3 = feature?.properties?.["ISO3166-1-Alpha-3"] ?? "";
-    if (!visitedCountries.has(name) && !visitedCountries.has(isoA3)) return;
-    layer.on("click", () => {
-      const match = points.find((p) => p.country_en === name || p.country_en === isoA3);
-      if (match?.country) {
-        setSelectedCountry(match.country.trim());
-        setSelectedCountryEn(match.country_en ?? null);
-      }
-    });
-  }, [visitedCountries, points]);
-
-  useEffect(() => {
-    const fetchRaceStats = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/v1/stats?participant=Davis`);
-        if (!res.ok) return;
-        const davis = await res.json();
-        setRaceStats({ totalFM: davis.fm_count || 0 });
-      } catch (err) {
-        console.error("Failed to fetch race stats:", err);
-      } finally {
-        // Also clears on the `!res.ok` early return and on error: a failed
-        // request must fall through to the real (zero) value rather than
-        // leave the tile shimmering forever.
-        setRaceStatsLoading(false);
-      }
-    };
-    fetchRaceStats();
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/v1/stats/visits`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setHumanViews(d.total_human); })
-      .catch(() => {});
-  }, []);
+      .then((topology: Topology) => {
+        const collection = feature(
+          topology,
+          topology.objects.countries,
+        ) as unknown as FeatureCollection;
+        setGeoData(collection);
+      })
+      .catch(err => console.error("Failed to fetch country TopoJSON:", err));
+  }, [isLoading]);
 
   useEffect(() => {
     const fetchBasePoints = async () => {
@@ -339,28 +280,32 @@ export default function MapView() {
   }, []);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    // Categories and Davis's race stats used to be two separate requests;
+    // merged backend-side into one (`/home-summary`) since they're both
+    // small, homepage-only, and were firing in the same breath anyway.
+    const fetchHomeSummary = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/v1/categories`);
+        const res = await fetch(`${API_URL}/api/v1/home-summary`);
         if (res.ok) {
-          const data: Category[] = await res.json();
-          setCategories(data);
+          const data: { categories: Category[]; totalFM: number } = await res.json();
+          setCategories(data.categories);
+          setRaceStats({ totalFM: data.totalFM });
         }
       } catch (error) {
-        console.error("Failed to fetch categories:", error);
+        console.error("Failed to fetch home summary:", error);
       } finally {
-        setCategoriesLoading(false);
+        setSummaryLoading(false);
       }
     };
-    fetchCategories();
+    fetchHomeSummary();
   }, []);
 
   // With a date filter every tile is recomputed from `filteredBase` (i.e. from
-  // basePoints alone), so the categories/race-stats requests are irrelevant and
-  // only the locations fetch can still be pending.
+  // basePoints alone), so the summary request is irrelevant and only the
+  // locations fetch can still be pending.
   const statsLoading = dateFilter
     ? isLoading
-    : isLoading || categoriesLoading || raceStatsLoading;
+    : isLoading || summaryLoading;
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0 w-full overflow-hidden">
@@ -553,38 +498,16 @@ export default function MapView() {
               Generating Spatial Log...
             </div>
           )}
-        <MapContainer
-          center={[20, 0]}
-          zoom={2}
-          minZoom={2}
-          maxBounds={[[-85, -180], [85, 180]]}
-          maxBoundsViscosity={1.0}
-          scrollWheelZoom={true}
-          className="w-full h-full grayscale-[0.3] contrast-[1.1]"
-          zoomControl={false}
-          worldCopyJump={false}
-        >
-          <TileLayer
-            className="grayscale-[0.8] contrast-[1.1]"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_BASEMAP_API_KEY}`}
-          />
-
-          {geoData && (
-            <GeoJSON
-              key={`geojson-${[...visitedCountries.entries()].sort().join(',')}`}
-              data={geoData}
-              style={geoStyle}
-              onEachFeature={onEachCountry}
-            />
-          )}
-
-          <MapResizer />
-          <FitBounds points={points} />
-          <ZoomControl position="bottomright" />
-
-          {markerLayer}
-        </MapContainer>
+        <LeafletMap
+          points={points}
+          geoData={geoData}
+          visitedCountries={visitedCountries}
+          locale={locale}
+          onCountryClick={(country, countryEn) => {
+            setSelectedCountry(country);
+            setSelectedCountryEn(countryEn);
+          }}
+        />
         </div>{/* end map/list area */}
 
         {/* ── Mobile Bottom Panel ── */}

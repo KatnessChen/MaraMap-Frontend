@@ -59,15 +59,17 @@ export const categories = [
 
 export const raceStats = { fm_count: 2 };
 export const visitStats = { total_human: 100 };
+// `/categories` + `/stats?participant=Davis` were merged into one backend
+// endpoint (see FbPostsController.getHomeSummary) — this is its response shape.
+export const homeSummary = { categories, totalFM: raceStats.fm_count };
 
 // Registers mocked responses for every backend call MapView makes on mount.
 // getApiBase() resolves to the page's own hostname on port 3016 in a real
 // browser (see src/utils/apiBase.ts), which is what these routes match —
-// /countries.geojson is left unmocked since it's a real static asset served
+// /countries.topo.json is left unmocked since it's a real static asset served
 // by the Next.js dev server itself.
 export async function mockHomeStatsApi(page: import("@playwright/test").Page) {
   await page.route("**://*:3016/api/v1/locations*", (route) => route.fulfill({ json: locations }));
-  await page.route("**://*:3016/api/v1/categories", (route) => route.fulfill({ json: categories }));
-  await page.route("**://*:3016/api/v1/stats?participant=Davis", (route) => route.fulfill({ json: raceStats }));
+  await page.route("**://*:3016/api/v1/home-summary", (route) => route.fulfill({ json: homeSummary }));
   await page.route("**://*:3016/api/v1/stats/visits", (route) => route.fulfill({ json: visitStats }));
 }
