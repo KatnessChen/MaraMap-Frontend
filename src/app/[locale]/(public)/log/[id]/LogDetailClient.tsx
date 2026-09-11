@@ -13,6 +13,7 @@ import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
 import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 import { getCountryFlag } from "@/utils/countryFlag";
+import { isBotUserAgent } from "@/utils/isBotUserAgent";
 import type { Post as PostBase } from "@/utils/postHelpers";
 
 
@@ -640,10 +641,20 @@ export default function LogDetailClient({
         // SEPARATE request chain the browser awaits itself (never blocking
         // the page's own load, and safe on Cloud Run precisely because it's
         // the browser — not a detached server-side task — holding this
-        // open). First-ever view of a post pays this cost paragraph by
-        // paragraph; every later view (this reader's refresh, anyone else's,
-        // a crawler) reads the cache this fills in and returns instantly.
-        if (locale === "en" && data.content_status !== "done" && pollingPostIdRef.current !== data.id) {
+        // open). First-ever (human) view of a post pays this cost paragraph
+        // by paragraph; every later view (this reader's refresh, anyone
+        // else's) reads the cache this fills in and returns instantly. A
+        // JS-executing crawler (e.g. Google's "GoogleOther") is excluded
+        // here so it never starts this chain at all — the backend also
+        // refuses to do new work for one either way (see
+        // TranslationsService.triggerContentTranslation's isCrawler check),
+        // but skipping client-side means it never even sends the request.
+        if (
+          locale === "en" &&
+          data.content_status !== "done" &&
+          pollingPostIdRef.current !== data.id &&
+          !isBotUserAgent(navigator.userAgent)
+        ) {
           pollingPostIdRef.current = data.id;
           pollTranslation(apiUrl, data.id);
         }
