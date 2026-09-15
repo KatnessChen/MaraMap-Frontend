@@ -8,6 +8,7 @@ import { ArrowRight } from "lucide-react";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { Link } from "@/i18n/navigation";
 import { getCountryGeoStyle } from "@/utils/mapStyle";
+import { getThumbnailUrl } from "@/utils/imageResize";
 import { translateTaxonomyLabel, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 import type { GeoPoint } from "./leafletHelpers";
 import { FitBounds, createEventIcon, createClusterCustomIcon, MapResizer } from "./leafletHelpers";
@@ -72,7 +73,16 @@ export default function LeafletMap({ points, geoData, visitedCountries, locale, 
           <h3 className="font-serif font-bold text-sm leading-tight mb-2 line-clamp-2 group-hover:text-brand transition-colors">{translatePairedName(pt.title, pt.title_en, locale)}</h3>
           {pt.uri && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={pt.uri} alt="Moment" className="w-full h-24 object-cover mb-2 border border-line" />
+            <img
+              src={getThumbnailUrl(pt.uri, 400, 200)}
+              alt="Moment"
+              loading="lazy"
+              className="w-full h-24 object-cover mb-2 border border-line"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = pt.uri;
+              }}
+            />
           )}
           <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-ink group-hover:text-brand transition-colors">
             VIEW LOG <ArrowRight size={12} />
