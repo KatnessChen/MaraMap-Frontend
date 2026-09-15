@@ -148,11 +148,17 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
                     )}
                   </div>
 
-                  {/* Title — clickable */}
+                  {/* Title — clickable. prefetch={false}: this opens in a new
+                      tab (target="_blank"), which does a fresh top-level
+                      navigation and can't use the current tab's Next.js
+                      router prefetch cache at all — prefetching here was
+                      pure wasted requests against /log/[id]'s real backend
+                      render, competing with this modal's own data fetch. */}
                   <Link
                     href={`/log/${race.postId}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    prefetch={false}
                     className="block font-serif font-bold text-xl text-ink mb-3 leading-snug hover:text-brand transition-colors cursor-pointer"
                   >
                     {race.raceName
@@ -186,11 +192,12 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
                     </div>
                   )}
 
-                  {/* Log link */}
+                  {/* Log link — same prefetch={false} reasoning as the title link above. */}
                   <Link
                     href={`/log/${race.postId}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    prefetch={false}
                     className="inline-flex items-center gap-1 text-sm font-mono text-ink/60 hover:text-brand transition-colors cursor-pointer"
                   >
                     {t("readFullRecord")} <ArrowRight size={13} />
