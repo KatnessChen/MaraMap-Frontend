@@ -14,6 +14,7 @@ import { formatCityName } from "@/utils/formatLocation";
 import { translateTaxonomyLabel, translateDistanceType, translatePairedName, type Locale } from "@/utils/taxonomyTranslations";
 import { getCountryFlag } from "@/utils/countryFlag";
 import { isBotUserAgent } from "@/utils/isBotUserAgent";
+import { getThumbnailUrl, getResizedImageUrl } from "@/utils/imageResize";
 import type { Post as PostBase } from "@/utils/postHelpers";
 
 
@@ -212,13 +213,35 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
         onTouchMove={drag.onTouchMove}
         onTouchEnd={drag.onTouchEnd}
       >
-        {/* Sliding strip */}
+        {/* Sliding strip — every slide's <div> always renders (the width math
+            and translateX offset both depend on the full item count), but
+            the actual <video>/<Image> only mounts for the current slide ± 1.
+            All slides used to render real media unconditionally: <img> has
+            native lazy-loading but <video> has no equivalent, so every
+            <video preload="metadata"> in the strip fired its own fetch the
+            instant the carousel mounted, regardless of which slide was
+            visible — a post with N photos/videos paid for all N on open.
+            Every mounted <Image> needs an explicit loading mode: next/image's
+            default loading="lazy" — meant for offscreen content — never
+            resolved true here, because these slides sit inside an
+            `overflow-hidden`, `transform`-translated parent; even the
+            *currently shown* slide silently never loaded (naturalWidth
+            stayed 0) without this. Only the truly-current slide gets
+            `priority` (eager + fetchPriority=high + a <head> preload) — the
+            ±1 neighbors just get plain eager loading, not the elevated
+            priority, so they don't compete with the current slide (or the
+            cover image below, also `priority`) for bandwidth on a
+            throttled connection. */}
         <div className="flex h-full" style={drag.stripStyle}>
           {items.map((item, i) => (
             <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 relative">
-              {item.type === 'video'
-                ? <video src={item.uri} playsInline muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
-                : <Image src={item.uri} alt={`Media ${i + 1}`} fill className="object-cover pointer-events-none" />}
+              {Math.abs(i - idx) <= 1 && (
+                item.type === 'video'
+                  ? <video src={item.uri} playsInline muted preload="metadata" className="w-full h-full object-cover pointer-events-none" />
+                  : i === idx
+                    ? <Image src={item.uri} alt={`Media ${i + 1}`} fill priority className="object-cover pointer-events-none" />
+                    : <Image src={item.uri} alt={`Media ${i + 1}`} fill loading="eager" className="object-cover pointer-events-none" />
+              )}
             </div>
           ))}
         </div>
@@ -270,12 +293,57 @@ function MediaCarousel({ items, onOpen }: { items: Media[]; onOpen: (i: number) 
                     <Play size={18} className="text-white" fill="white" />
                   </div>
                 )
-                : <Image src={m.uri} alt="" fill className="object-cover" />}
+                : (
+                  // Plain <img> + Cloudflare-resized `src` rather than
+                  // next/image: at 56px display size, next/image bought
+                  // nothing here (images.unoptimized is set — see
+                  // next.config.ts — so it was already just an
+                  // uncompressed pass-through of the full-resolution
+                  // original), and every thumbnail downloading its post's
+                  // full-size photo just to show a 56px square was real,
+                  // unnecessary weight. onError falls back to the original
+                  // if Image Resizing isn't enabled on the asset zone yet.
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={getThumbnailUrl(m.uri, 112, 112)}
+                    alt=""
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = m.uri;
+                    }}
+                  />
+                )}
             </button>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+// This is the LCP element on every post page (45-60vh, always the first
+// thing shown) — `priority` (see the caller) already fixed *when* it loads,
+// but it was still shipping the same full-resolution original used
+// elsewhere in the post, `unoptimized` next.config.ts means no compression
+// happens on the way. Cloudflare-resized to the actual rendered width
+// instead, with a local-state fallback to the untouched original on error
+// (a plain onError DOM mutation isn't safe here — next/image's `fill`
+// re-applies its own inline styles on every render and would fight a direct
+// `currentTarget.src` write, unlike the plain <img> thumbnails elsewhere in
+// this file).
+function CoverImage({ src }: { src: string }) {
+  const [imgSrc, setImgSrc] = useState(() => getResizedImageUrl(src, 1600));
+  return (
+    <Image
+      src={imgSrc}
+      alt="Cover"
+      fill
+      priority
+      className="object-cover animate-in fade-in duration-1000"
+      onError={() => setImgSrc(src)}
+    />
   );
 }
 
@@ -510,13 +578,21 @@ function Lightbox({ items, initialIdx, onClose }: { items: Media[]; initialIdx: 
                 : undefined;
             return (
               <div key={i} style={{ width: `${100 / items.length}%` }} className="h-full shrink-0 flex items-center justify-center overflow-hidden">
-                {item.type === 'video'
+                {item.type === 'video' ? (
                   // Every slide in the strip is rendered, so without preload="none"
                   // opening the lightbox fetches metadata for all N videos at once.
                   // There is no autoplay — the viewer presses play either way.
-                  ? <video src={item.uri} controls preload="none" className="w-full h-full outline-none" />
-                  : /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" style={zoomStyle} draggable={false} />}
+                  <video src={item.uri} controls preload="none" className="w-full h-full outline-none" />
+                ) : (
+                  // Same "every slide is always in the DOM" issue as above, but for
+                  // full-resolution photos instead of video metadata: only give the
+                  // current slide ± 1 a real `src` so opening the lightbox doesn't
+                  // eagerly download every original-size image in the post at once.
+                  Math.abs(i - idx) <= 1 && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={item.uri} alt={`Media ${i + 1}`} className="w-full h-full object-contain select-none" style={zoomStyle} draggable={false} />
+                  )
+                )}
               </div>
             );
           })}
@@ -625,10 +701,59 @@ export default function LogDetailClient({
       if (!cancelled) setTranslationGaveUp(true);
     };
 
+    const apiUrl = getApiBase();
+
+    // English readers only: kick off the lazy first-view translation as a
+    // SEPARATE request chain the browser awaits itself (never blocking the
+    // page's own load, and safe on Cloud Run precisely because it's the
+    // browser — not a detached server-side task — holding this open).
+    // First-ever (human) view of a post pays this cost paragraph by
+    // paragraph; every later view (this reader's refresh, anyone else's)
+    // reads the cache this fills in and returns instantly. A JS-executing
+    // crawler (e.g. Google's "GoogleOther") is excluded here so it never
+    // starts this chain at all — the backend also refuses to do new work
+    // for one either way (see TranslationsService.triggerContentTranslation's
+    // isCrawler check), but skipping client-side means it never even sends
+    // the request.
+    const maybeStartTranslation = (targetPost: Post) => {
+      if (
+        locale === "en" &&
+        targetPost.content_status !== "done" &&
+        pollingPostIdRef.current !== targetPost.id &&
+        !isBotUserAgent(navigator.userAgent)
+      ) {
+        pollingPostIdRef.current = targetPost.id;
+        pollTranslation(apiUrl, targetPost.id);
+      }
+    };
+
+    const fetchTripPosts = async (tripId: string, ownPostId: string) => {
+      const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${tripId}`);
+      if (tripRes.ok) {
+        const all: TripPost[] = await tripRes.json();
+        if (!cancelled) setTripPosts(all.filter(p => p.postId !== ownPostId));
+      }
+    };
+
+    // page.tsx already fetched this exact post server-side (`initialPost`) —
+    // re-fetching it here too, unconditionally, used to cost every real
+    // visit a second identical request to /api/v1/posts/:id (once from the
+    // server, cached; once from the browser, cross-origin, cache:'no-store').
+    // Only the preview-mode case still needs the fetch below: page.tsx never
+    // fetches an unpublished draft, so `initialPost` is null there.
+    if (initialPost && !previewMode) {
+      maybeStartTranslation(initialPost);
+      if (initialPost.trip_id) {
+        fetchTripPosts(initialPost.trip_id, initialPost.id).catch((error) =>
+          console.error("Failed to fetch trip posts:", error),
+        );
+      }
+      return () => { cancelled = true; };
+    }
+
     const fetchPostAndNav = async () => {
       try {
         const { id } = await params;
-        const apiUrl = getApiBase();
         const url = new URL(`${apiUrl}/api/v1/posts/${id}`);
         if (previewMode) {
           url.searchParams.set('preview', 'true');
@@ -636,34 +761,11 @@ export default function LogDetailClient({
         const res = await fetch(url.toString(), { cache: 'no-store' });
         if (!res.ok) { setIsLoading(false); return; }
         const data: Post = await res.json();
+        if (cancelled) return;
         setPost(data);
-        // English readers only: kick off the lazy first-view translation as a
-        // SEPARATE request chain the browser awaits itself (never blocking
-        // the page's own load, and safe on Cloud Run precisely because it's
-        // the browser — not a detached server-side task — holding this
-        // open). First-ever (human) view of a post pays this cost paragraph
-        // by paragraph; every later view (this reader's refresh, anyone
-        // else's) reads the cache this fills in and returns instantly. A
-        // JS-executing crawler (e.g. Google's "GoogleOther") is excluded
-        // here so it never starts this chain at all — the backend also
-        // refuses to do new work for one either way (see
-        // TranslationsService.triggerContentTranslation's isCrawler check),
-        // but skipping client-side means it never even sends the request.
-        if (
-          locale === "en" &&
-          data.content_status !== "done" &&
-          pollingPostIdRef.current !== data.id &&
-          !isBotUserAgent(navigator.userAgent)
-        ) {
-          pollingPostIdRef.current = data.id;
-          pollTranslation(apiUrl, data.id);
-        }
+        maybeStartTranslation(data);
         if (data.trip_id) {
-          const tripRes = await fetch(`${apiUrl}/api/v1/posts/trip/${data.trip_id}`);
-          if (tripRes.ok) {
-            const all: TripPost[] = await tripRes.json();
-            setTripPosts(all.filter(p => p.postId !== data.id));
-          }
+          await fetchTripPosts(data.trip_id, data.id);
         }
       } catch (error) {
         console.error("Failed to fetch post detail or navigation:", error);
@@ -676,7 +778,7 @@ export default function LogDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [params, previewMode, locale]);
+  }, [params, previewMode, locale, initialPost]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -716,7 +818,7 @@ export default function LogDetailClient({
       
       <div className="w-full h-[45vh] md:h-[60vh] bg-paper-dark border-b-[6px] border-brand relative overflow-hidden flex items-center justify-center">
         {post.cover_image ? (
-          <Image src={post.cover_image} alt="Cover" fill className="object-cover animate-in fade-in duration-1000" />
+          <CoverImage src={post.cover_image} />
         ) : (
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%231a1a1a' stroke-width='0.5' stroke-opacity='0.2'%3E%3Cpath d='M0 100h400M0 200h400M0 300h400M100 0v400M200 0v400M300 0v400'/%3E%3C/g%3E%3Cpath d='M80 320 Q 150 200 200 150 T 320 80' stroke='%23E63946' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='80' cy='320' r='6' fill='%231a1a1a'/%3E%3Ccircle cx='320' cy='80' r='6' fill='%23E63946'/%3E%3C/svg%3E")`, backgroundSize: 'cover' }} />
         )}
@@ -892,7 +994,16 @@ export default function LogDetailClient({
                     <div className="w-20 min-h-20 shrink-0 overflow-hidden bg-paper-dark">
                       {tp.coverImage
                         ? /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={tp.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img
+                            src={getThumbnailUrl(tp.coverImage, 160, 160)}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = tp.coverImage as string;
+                            }}
+                          />
                         : <div className="w-full h-full flex items-center justify-center text-ink/50 font-mono text-xs">{translateTaxonomyLabel(tp.category, locale)}</div>
                       }
                     </div>
