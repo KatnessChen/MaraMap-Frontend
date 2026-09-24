@@ -39,11 +39,9 @@
     "oldestFirst": "由舊到新"
   },
   "CountryModal": {
-    "eyebrow": "MaraMap 足跡",
-    "recordCount": "共 {count} 筆紀錄",
+    "recordCount": "共 {count} 篇文章",
     "loading": "載入中...",
-    "noRaces": "查無賽事資料",
-    "readFullRecord": "閱讀完整紀錄"
+    "noRaces": "查無賽事資料"
   },
   "PersonalBest": {
     "backHome": "回到首頁",

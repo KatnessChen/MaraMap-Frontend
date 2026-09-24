@@ -39,11 +39,9 @@
     "oldestFirst": "Oldest first"
   },
   "CountryModal": {
-    "eyebrow": "MaraMap Footprints",
-    "recordCount": "{count} records",
+    "recordCount": "{count} articles",
     "loading": "Loading...",
-    "noRaces": "No race records found",
-    "readFullRecord": "Read full record"
+    "noRaces": "No race records found"
   },
   "PersonalBest": {
     "backHome": "Back to home",
