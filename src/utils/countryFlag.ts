@@ -18,7 +18,7 @@ const COUNTRY_ISO2: Record<string, string> = {
   "克羅埃西亞": "HR", "斯洛維尼亞": "SI", "立陶宛": "LT", "拉脫維亞": "LV",
   "愛沙尼亞": "EE", "羅馬尼亞": "RO", "保加利亞": "BG", "塞爾維亞": "RS",
   "哥倫比亞": "CO", "厄瓜多": "EC", "斐濟": "FJ", "埃及": "EG", "肯亞": "KE",
-  "衣索比亞": "ET", "坦尚尼亞": "TZ",
+  "衣索比亞": "ET", "坦尚尼亞": "TZ", "約旦": "JO",
 };
 
 function flagEmojiFromIso2(code: string): string {

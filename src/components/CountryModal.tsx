@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { X, ArrowRight } from "lucide-react";
+import { X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { getApiBase } from "@/utils/apiBase";
 import { formatCityName } from "@/utils/formatLocation";
@@ -95,9 +95,6 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-6 border-b-2 border-line shadow-[0_4px_24px_rgba(0,0,0,0.08)]">
           <div>
-            <p className="font-mono text-xs text-brand uppercase tracking-[0.3em] mb-2">
-              {t("eyebrow")}
-            </p>
             <h2 className="font-serif font-black text-3xl text-ink drop-shadow-sm">
               {flag && <span className="mr-[10px]">{flag}</span>}
               {translatePairedName(country, countryEn, locale)}
@@ -192,16 +189,6 @@ export default function CountryModal({ country, countryEn, onClose }: CountryMod
                     </div>
                   )}
 
-                  {/* Log link — same prefetch={false} reasoning as the title link above. */}
-                  <Link
-                    href={`/log/${race.postId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    prefetch={false}
-                    className="inline-flex items-center gap-1 text-sm font-mono text-ink/60 hover:text-brand transition-colors cursor-pointer"
-                  >
-                    {t("readFullRecord")} <ArrowRight size={13} />
-                  </Link>
                 </li>
               ))}
             </ul>
