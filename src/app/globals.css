@@ -24,6 +24,12 @@
   --font-mono: "Space Grotesk", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Admin pages show full English names in font-mono slots, where a code-editor
+   face is hard to read, so they match the Traditional Chinese text instead. */
+[data-admin] {
+  --font-mono: var(--font-sans);
+}
+
 /* 強制取消任何系統預設的深色模式影響 */
 :root {
   color-scheme: light;
