@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { fixtureCountries, fixtureCities, seedAdminToken } from './fixtures/adminLocations';
 
-const LOCATIONS_PATH = '/admin/locations';
+const LOCATIONS_PATH = '/admin/glossary?tab=cities';
+const GLOSSARY_API_PATTERN = '**://*:3016/api/v1/admin/translations/**';
 const COUNTRIES_API_PATTERN = '**://*:3016/api/v1/admin/location-translations/countries*';
 const CITIES_API_PATTERN = '**://*:3016/api/v1/admin/location-translations/cities*';
 
@@ -11,6 +12,7 @@ const CITIES_API_PATTERN = '**://*:3016/api/v1/admin/location-translations/citie
 // level; see docs/I18N_PLAN.md's "國家名稱鎖定編輯".
 
 async function mockLists(page: import('@playwright/test').Page) {
+  await page.route(GLOSSARY_API_PATTERN, (route) => route.fulfill({ json: [] }));
   await page.route(COUNTRIES_API_PATTERN, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ json: fixtureCountries });
@@ -28,8 +30,17 @@ async function mockLists(page: import('@playwright/test').Page) {
 test.describe('Admin locations page — auth guard', () => {
   test('redirects to login with the current path when no token is stored', async ({ page }) => {
     await page.goto(LOCATIONS_PATH);
-    await page.waitForURL(`**/admin/login?redirect=${encodeURIComponent(LOCATIONS_PATH)}`);
+    await page.waitForURL(`**/admin/login?redirect=${encodeURIComponent('/admin/glossary')}`);
   });
+});
+
+test('the old city translation URL goes to the name review page', async ({ page }) => {
+  await seedAdminToken(page);
+  await mockLists(page);
+  await page.goto('/admin/locations');
+  await expect(page).toHaveURL(/\/admin\/glossary\?tab=cities$/);
+  await expect(page.getByRole('heading', { name: '譯名管理' })).toBeVisible();
+  await expect(page.locator('tr', { hasText: '台北' }).first()).toBeVisible();
 });
 
 test.describe('Admin locations page — loaded with a valid session', () => {
@@ -47,7 +58,7 @@ test.describe('Admin locations page — loaded with a valid session', () => {
     // No standalone country table — country names only surface as options in
     // the "所屬國家" combobox's dropdown once it's focused (it's a searchable
     // text input + button list, not a native <select> — see CountryCombobox
-    // in admin/locations/page.tsx).
+    // in CityTranslationsSection.tsx).
     await page.getByPlaceholder('所屬國家').click();
     for (const c of fixtureCountries) {
       await expect(page.getByRole('button', { name: c.zh, exact: true })).toBeVisible();
@@ -71,8 +82,8 @@ test.describe('Admin locations page — loaded with a valid session', () => {
     await page.getByPlaceholder('所屬國家').click();
     await page.getByRole('button', { name: '日本', exact: true }).click();
     await page.getByPlaceholder('中文城市名').fill('大阪');
-    await page.getByPlaceholder('English name').fill('Osaka');
-    await page.getByRole('button', { name: '新增' }).click();
+    await page.getByPlaceholder('English name').last().fill('Osaka');
+    await page.getByRole('button', { name: '新增' }).last().click();
 
     await expect(page.getByText('已新增「大阪」')).toBeVisible();
     expect(postBody).toEqual({ countryZh: '日本', zh: '大阪', en: 'Osaka' });
@@ -127,6 +138,7 @@ test.describe('Admin locations page — loaded with a valid session', () => {
 test.describe('Admin locations page — session expires mid-visit', () => {
   test('a 401 while loading clears the token and redirects to login', async ({ page }) => {
     await seedAdminToken(page);
+    await page.route(GLOSSARY_API_PATTERN, (route) => route.fulfill({ json: [] }));
     await page.route(COUNTRIES_API_PATTERN, (route) =>
       route.fulfill({ status: 401, json: { message: 'Unauthorized' } }),
     );
