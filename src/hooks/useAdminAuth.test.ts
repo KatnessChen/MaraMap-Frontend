@@ -33,6 +33,14 @@ describe("isTokenExpired", () => {
     expect(isTokenExpired(makeToken(-3600))).toBe(true);
   });
 
+  it("reads a payload with non-ASCII text, whose encoding uses the URL-safe alphabet", () => {
+    const payload = Buffer.from(
+      JSON.stringify({ nickname: "小明？>>>", exp: Math.floor(Date.now() / 1000) + 3600 }),
+    ).toString("base64url");
+    expect(payload).toMatch(/[-_]/);
+    expect(isTokenExpired(`header.${payload}.signature`)).toBe(false);
+  });
+
   it("returns true for a malformed token", () => {
     expect(isTokenExpired("not-a-jwt")).toBe(true);
   });
