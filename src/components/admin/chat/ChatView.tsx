@@ -74,6 +74,7 @@ function errorText(error: Error): string {
 
 interface ChatViewProps {
   token: string;
+  apiPath: string;
   viewKey: string;
   isActive: boolean;
   initialSessionId?: string;
@@ -86,6 +87,7 @@ interface ChatViewProps {
 
 export default function ChatView({
   token,
+  apiPath,
   viewKey,
   isActive,
   initialSessionId,
@@ -95,7 +97,7 @@ export default function ChatView({
   onMarkRead,
   onUnauthorized,
 }: ChatViewProps) {
-  const api = getApiBase();
+  const api = `${getApiBase()}${apiPath}`;
   // A conversation started here gets its id while still on screen; only the id
   // this view opened with has history to load.
   const [historySessionId] = useState(initialSessionId);
@@ -110,7 +112,7 @@ export default function ChatView({
   const transport = useMemo(
     () =>
       new DefaultChatTransport<ChatMessage>({
-        api: `${api}/api/v1/admin/chat`,
+        api,
         headers: () => authHeaders(token),
         // The backend reads history from the DB and rejects unknown fields, so
         // only the new question goes over the wire.
@@ -146,7 +148,7 @@ export default function ChatView({
     if (!historySessionId) return;
     let cancelled = false;
     (async () => {
-      const res = await authFetch(`${api}/api/v1/admin/chat/sessions/${historySessionId}`, token);
+      const res = await authFetch(`${api}/sessions/${historySessionId}`, token);
       if (cancelled) return;
       if (res.status === 401) return onUnauthorized();
       if (!res.ok) {
