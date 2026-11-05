@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Save, Loader2, Search, AlertTriangle } from "lucide-react";
+import { KeyboardEvent, Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, Trash2, Save, Loader2, Search, AlertTriangle } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, clearStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch } from "@/utils/authFetch";
+import AdminPage from "@/components/admin/AdminPage";
+import CityTranslationsSection from "@/components/admin/CityTranslationsSection";
+import { SOURCE_LABELS } from "@/components/admin/glossaryLabels";
 
 interface GlossaryRow {
   zh: string;
@@ -18,12 +20,21 @@ interface GlossaryRow {
 type Feedback = { type: "success" | "error"; msg: string } | null;
 type Kind = "races" | "mountains";
 
+const TABS = [
+  { id: "races", label: "賽事" },
+  { id: "mountains", label: "山岳" },
+  { id: "cities", label: "城市" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
 function GlossaryEditRow({
+  index,
   row,
   onSave,
   onDelete,
   busy,
 }: {
+  index: number;
   row: GlossaryRow;
   onSave: (zh: string, en: string) => Promise<void>;
   onDelete: (zh: string) => void;
@@ -37,6 +48,7 @@ function GlossaryEditRow({
 
   return (
     <tr className="border-b border-line/40">
+      <td className="py-2 pr-4 font-mono text-sm text-ink/50 text-right whitespace-nowrap">{index}</td>
       <td className="py-2 pr-4 font-mono text-sm text-ink/80 whitespace-nowrap max-w-[16rem] truncate" title={row.zh}>
         {row.zh}
       </td>
@@ -44,16 +56,17 @@ function GlossaryEditRow({
         <input
           value={en}
           onChange={(e) => setEn(e.target.value)}
-          className="w-full font-mono text-sm px-2 py-1 border border-line/60 bg-paper focus:outline-none focus:border-brand/60"
+          className="w-full min-w-[14rem] font-mono text-sm px-2 py-1 border border-line/60 bg-paper focus:outline-none focus:border-brand/60"
         />
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap font-sans text-xs text-ink/50">{SOURCE_LABELS[row.source] ?? row.source}</td>
       <td className="py-2 pr-4 whitespace-nowrap">
         {row.needs_review ? (
-          <span className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5">
+          <span className="inline-flex items-center gap-1 font-sans text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5">
             <AlertTriangle size={11} /> 待審核
           </span>
         ) : (
-          <span className="font-mono text-[11px] uppercase tracking-widest text-ink/30">{row.source}</span>
+          <span className="font-sans text-xs text-ink/50">已審核</span>
         )}
       </td>
       <td className="py-2 pr-2 text-right whitespace-nowrap">
@@ -81,14 +94,12 @@ function GlossaryEditRow({
 function GlossarySection({
   kind,
   title,
-  hint,
   api,
   token,
   onUnauthorized,
 }: {
   kind: Kind;
   title: string;
-  hint: string;
   api: string;
   token: string;
   onUnauthorized: () => void;
@@ -187,7 +198,7 @@ function GlossarySection({
 
   return (
     <section className="mb-16">
-      <div className="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+      <div className="flex items-baseline justify-between flex-wrap gap-2 mb-4">
         <h2 className="font-serif font-black text-xl text-ink">
           {title} <span className="font-mono text-sm text-ink/40">({rows.length})</span>
         </h2>
@@ -200,7 +211,6 @@ function GlossarySection({
           </button>
         )}
       </div>
-      <p className="font-sans text-sm text-ink/60 mb-4">{hint}</p>
 
       <div className="flex flex-wrap gap-2 mb-4">
         <input
@@ -253,13 +263,23 @@ function GlossarySection({
       ) : (
         <div className="bg-white border border-line max-h-[28rem] overflow-y-auto">
           <table className="w-full">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b border-line font-sans text-xs font-bold text-ink/60 text-left [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
+                <th scope="col" className="text-right">編號</th>
+                <th scope="col">中文名稱</th>
+                <th scope="col">英文名稱</th>
+                <th scope="col">來源</th>
+                <th scope="col">審核狀態</th>
+                <th scope="col" className="text-right">操作</th>
+              </tr>
+            </thead>
             <tbody className="[&>tr>td]:px-4">
-              {filtered.map((r) => (
-                <GlossaryEditRow key={r.zh} row={r} onSave={save} onDelete={remove} busy={busy} />
+              {filtered.map((r, i) => (
+                <GlossaryEditRow key={r.zh} index={i + 1} row={r} onSave={save} onDelete={remove} busy={busy} />
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-4 py-8 text-center font-mono text-sm text-ink/40" colSpan={4}>
+                  <td className="px-4 py-8 text-center font-mono text-sm text-ink/40" colSpan={6}>
                     查無符合的項目
                   </td>
                 </tr>
@@ -273,6 +293,23 @@ function GlossarySection({
 }
 
 export default function AdminGlossaryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-24 text-ink/40">
+          <Loader2 size={28} className="animate-spin" />
+        </div>
+      }
+    >
+      <GlossaryTabs />
+    </Suspense>
+  );
+}
+
+function GlossaryTabs() {
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tab: TabId = TABS.find(({ id }) => id === requestedTab)?.id ?? "races";
   const router = useRouter();
   const { token } = useAdminAuth();
   const api = getApiBase();
@@ -281,6 +318,18 @@ export default function AdminGlossaryPage() {
     clearStoredToken();
     router.push("/admin/login");
   }, [router]);
+
+  const selectTab = (id: TabId) => {
+    router.replace(`/admin/glossary?tab=${id}`, { scroll: false });
+  };
+
+  const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    const step = event.key === "ArrowRight" ? 1 : TABS.length - 1;
+    const next = TABS[(TABS.findIndex(({ id }) => id === tab) + step) % TABS.length].id;
+    selectTab(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  };
 
   if (!token) {
     return (
@@ -291,41 +340,43 @@ export default function AdminGlossaryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper p-4 sm:p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
-        <header className="mb-8 border-b-2 border-ink pb-6">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm font-bold transition-colors mb-4"
-          >
-            <ArrowLeft size={16} /> 回文章管理
-          </Link>
-          <h1 className="font-serif font-black text-3xl sm:text-4xl text-ink tracking-tight mb-2">
-            賽事 / 山岳<span className="text-brand">名稱審核</span>
-          </h1>
-          <p className="font-sans text-sm text-ink/60">
-            AI 翻譯猜不到官方英文名稱時會先存一筆「待審核」的猜測，讓同一場賽事之後的文章維持名稱一致；
-            這裡review、修正這些猜測。修正後的名稱立刻套用到既有的所有文章。
-          </p>
-        </header>
+    <AdminPage
+      title="譯名"
+      accent="管理"
+      description="管理賽事、山岳和城市的英文名稱，會用在英文版網站。AI 翻譯的名稱會先標成「待審核」，修正後立刻套用到既有的所有文章。"
+    >
 
-        <GlossarySection
-          kind="races"
-          title="賽事名稱"
-          hint="鍵值須與文章 metadata.race_name 完全一致（去除年份前綴、臺/台變體後）才會套用。"
-          api={api}
-          token={token}
-          onUnauthorized={handleUnauthorized}
-        />
-        <GlossarySection
-          kind="mountains"
-          title="山岳名稱"
-          hint="鍵值須與文章 metadata.mountain_name 完全一致（去除臺/台變體後）才會套用。"
-          api={api}
-          token={token}
-          onUnauthorized={handleUnauthorized}
-        />
-      </div>
-    </div>
+        <div role="tablist" aria-label="譯名類別" className="flex gap-2 mb-8 border-b border-line">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              id={`tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
+              tabIndex={tab === id ? 0 : -1}
+              onClick={() => selectTab(id)}
+              onKeyDown={handleTabKey}
+              className={`min-h-11 px-5 -mb-px border-b-2 font-sans text-base font-bold transition-colors ${
+                tab === id ? "border-brand text-brand" : "border-transparent text-ink/50 hover:text-ink"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* All three stay mounted so switching tabs keeps searches and unsaved edits. */}
+        <div id="panel-races" role="tabpanel" aria-labelledby="tab-races" hidden={tab !== "races"}>
+          <GlossarySection kind="races" title="賽事名稱" api={api} token={token} onUnauthorized={handleUnauthorized} />
+        </div>
+        <div id="panel-mountains" role="tabpanel" aria-labelledby="tab-mountains" hidden={tab !== "mountains"}>
+          <GlossarySection kind="mountains" title="山岳名稱" api={api} token={token} onUnauthorized={handleUnauthorized} />
+        </div>
+        <div id="panel-cities" role="tabpanel" aria-labelledby="tab-cities" hidden={tab !== "cities"}>
+          <CityTranslationsSection api={api} token={token} onUnauthorized={handleUnauthorized} />
+        </div>
+    </AdminPage>
   );
 }

@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, UploadCloud, Loader2, RotateCcw, Trash2, ChevronDown, ChevronUp, Info, Check } from "lucide-react";
+import { UploadCloud, Loader2, RotateCcw, Trash2, ChevronDown, ChevronUp, Info, Check } from "lucide-react";
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch, authHeaders } from "@/utils/authFetch";
+import AdminPage from "@/components/admin/AdminPage";
 
 interface ReviewMedia {
   url: string;
@@ -418,14 +418,7 @@ export default function AdminImportPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-paper p-6 md:p-12">
-      <div className="max-w-4xl mx-auto">
-        <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm font-bold mb-6 transition-colors">
-          <ArrowLeft size={16} /> 返回後台首頁
-        </Link>
-        <h1 className="font-serif font-black text-4xl text-ink tracking-tight mb-8">
-          匯入 <span className="text-brand">Facebook</span> 資料
-        </h1>
+    <AdminPage title="匯入 " accent="Facebook 資料" description="上傳 Facebook 匯出檔，審核後新增為文章。">
 
         {hasPending && (
           <div className="bg-amber-50 border border-amber-200 p-6 mb-4 rounded">
@@ -656,7 +649,6 @@ export default function AdminImportPage() {
             lines.join("\n")
           )}
         </div>
-      </div>
-    </div>
+    </AdminPage>
   );
 }

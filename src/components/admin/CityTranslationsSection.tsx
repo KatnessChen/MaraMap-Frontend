@@ -1,0 +1,476 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Save, Loader2, Search, AlertTriangle, Sparkles } from "lucide-react";
+import { authFetch } from "@/utils/authFetch";
+import { SOURCE_LABELS } from "./glossaryLabels";
+
+interface CountryRow {
+  zh: string;
+  en: string;
+}
+
+interface CityRow {
+  country_zh: string;
+  zh: string;
+  en: string;
+  source: string;
+  needs_review: boolean;
+}
+
+type Feedback = { type: "success" | "error"; msg: string } | null;
+
+function CountryCombobox({
+  countries,
+  value,
+  onChange,
+}: {
+  countries: CountryRow[];
+  value: string;
+  onChange: (countryZh: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+
+  // Keeps the input's display text in sync when the parent resets the
+  // selection (e.g. after a successful "新增") — adjusted during render
+  // rather than in an effect (React's recommended pattern for "reset local
+  // state when a prop changes": https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes),
+  // since setState-in-an-effect causes an extra render pass for no benefit here.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setQuery(value);
+  }
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return countries;
+    return countries.filter(
+      (c) => c.zh.includes(q) || c.en.toLowerCase().includes(q),
+    );
+  }, [countries, query]);
+
+  return (
+    <div className="relative w-32">
+      <input
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          // Typing invalidates the previous selection — addCity stays
+          // disabled until a real option is picked from the list below.
+          if (value) onChange("");
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          // Delay so a click on an option (onMouseDown, below) fires first.
+          setTimeout(() => {
+            setOpen(false);
+            setQuery(value);
+          }, 100);
+        }}
+        placeholder="所屬國家"
+        className="w-full font-mono text-sm px-2 py-2 border border-line bg-white focus:outline-none focus:border-brand/60"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-20 mt-1 max-h-56 w-40 overflow-y-auto border border-line bg-white shadow-lg">
+          {filtered.map((c) => (
+            <li key={c.zh}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(c.zh);
+                  setQuery(c.zh);
+                  setOpen(false);
+                }}
+                className={`block w-full text-left px-3 py-1.5 font-mono text-sm hover:bg-brand/10 ${
+                  c.zh === value ? "bg-brand/10 text-brand" : "text-ink/80"
+                }`}
+              >
+                {c.zh}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CityEditRow({
+  index,
+  row,
+  onSave,
+  onDelete,
+  busy,
+}: {
+  index: number;
+  row: CityRow;
+  onSave: (countryZh: string, zh: string, en: string) => Promise<void>;
+  onDelete: (countryZh: string, zh: string) => void;
+  busy: boolean;
+}) {
+  const [en, setEn] = useState(row.en);
+  const dirty = en.trim() !== row.en && en.trim() !== "";
+  // A needs_review row can be saved as-is (no edit required) to confirm the
+  // AI's guess was already correct — saving always clears the flag either way.
+  const canSave = en.trim() !== "" && (dirty || row.needs_review);
+
+  return (
+    <tr className="border-b border-line/40">
+      <td className="py-2 pr-4 font-mono text-sm text-ink/50 text-right whitespace-nowrap">{index}</td>
+      <td className="py-2 pr-4 font-mono text-xs text-ink/50 whitespace-nowrap">{row.country_zh}</td>
+      <td className="py-2 pr-4 font-mono text-sm text-ink/80 whitespace-nowrap">{row.zh}</td>
+      <td className="py-2 pr-4">
+        <input
+          value={en}
+          onChange={(e) => setEn(e.target.value)}
+          className="w-full min-w-[14rem] font-mono text-sm px-2 py-1 border border-line/60 bg-paper focus:outline-none focus:border-brand/60"
+        />
+      </td>
+      <td className="py-2 pr-4 whitespace-nowrap font-sans text-xs text-ink/50">{SOURCE_LABELS[row.source] ?? row.source}</td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        {row.needs_review ? (
+          <span className="inline-flex items-center gap-1 font-sans text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5">
+            <AlertTriangle size={11} /> 待審核
+          </span>
+        ) : (
+          <span className="font-sans text-xs text-ink/50">已審核</span>
+        )}
+      </td>
+      <td className="py-2 pr-2 text-right whitespace-nowrap">
+        <button
+          onClick={() => onSave(row.country_zh, row.zh, en.trim())}
+          disabled={!canSave || busy}
+          className="p-1.5 text-ink/50 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="儲存（會標記為已審核）"
+        >
+          <Save size={15} />
+        </button>
+        <button
+          onClick={() => onDelete(row.country_zh, row.zh)}
+          disabled={busy}
+          className="p-1.5 text-ink/50 hover:text-red-600 disabled:opacity-30 transition-colors"
+          title="刪除"
+        >
+          <Trash2 size={15} />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+export default function CityTranslationsSection({
+  api,
+  token,
+  onUnauthorized,
+}: {
+  api: string;
+  token: string;
+  onUnauthorized: () => void;
+}) {
+  // Countries are fetched only to populate the city form's "所屬國家"
+  // dropdown below — there's no country management UI on this page.
+  // Country names are locked (create-only, GeoJSON-constrained) at the API
+  // level; see docs/I18N_PLAN.md's "國家名稱鎖定編輯".
+  const [countries, setCountries] = useState<CountryRow[]>([]);
+  const [cities, setCities] = useState<CityRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+
+  const [citySearch, setCitySearch] = useState("");
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [resolvingMissing, setResolvingMissing] = useState(false);
+
+  const [newCityCountry, setNewCityCountry] = useState("");
+  const [newCityZh, setNewCityZh] = useState("");
+  const [newCityEn, setNewCityEn] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    const loadAll = async () => {
+      setIsLoading(true);
+      try {
+        const [cRes, tRes] = await Promise.all([
+          authFetch(`${api}/api/v1/admin/location-translations/countries`, token),
+          authFetch(`${api}/api/v1/admin/location-translations/cities`, token),
+        ]);
+        if (cRes.status === 401 || tRes.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        if (!cRes.ok || !tRes.ok) throw new Error("load failed");
+        setCountries(await cRes.json());
+        setCities(await tRes.json());
+      } catch {
+        setFeedback({ type: "error", msg: "載入失敗，請重新整理頁面再試一次" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadAll();
+  }, [token, api, onUnauthorized]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 3000);
+    return () => clearTimeout(t);
+  }, [feedback]);
+
+  const needsReviewCount = useMemo(() => cities.filter((c) => c.needs_review).length, [cities]);
+
+  const filteredCities = useMemo(() => {
+    const q = citySearch.trim().toLowerCase();
+    let base = !q
+      ? cities
+      : cities.filter(
+          (c) => c.zh.includes(q) || c.en.toLowerCase().includes(q) || c.country_zh.includes(q),
+        );
+    if (needsReviewOnly) base = base.filter((c) => c.needs_review);
+    // Taiwan cities surface first (most-edited group day to day); everything
+    // else keeps its original relative order — .filter() preserves order,
+    // so this is a stable partition, not a re-sort.
+    const taiwan = base.filter((c) => c.country_zh === "台灣");
+    const rest = base.filter((c) => c.country_zh !== "台灣");
+    return [...taiwan, ...rest];
+  }, [cities, citySearch, needsReviewOnly]);
+
+  const saveCity = async (countryZh: string, zh: string, en: string) => {
+    if (!token || !en) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(`${api}/api/v1/admin/location-translations/cities`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ countryZh, zh, en }),
+      });
+      if (res.status === 401) return onUnauthorized();
+      if (!res.ok) throw new Error();
+      // A human save always clears needs_review server-side — reflect that
+      // immediately rather than waiting for a reload.
+      setCities((prev) =>
+        prev.map((c) =>
+          c.country_zh === countryZh && c.zh === zh ? { ...c, en, source: "human", needs_review: false } : c,
+        ),
+      );
+      setFeedback({ type: "success", msg: `已更新「${zh}」` });
+    } catch {
+      setFeedback({ type: "error", msg: "儲存失敗" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteCity = async (countryZh: string, zh: string) => {
+    if (!token) return;
+    if (!window.confirm(`確定要刪除「${zh}」嗎？`)) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(
+        `${api}/api/v1/admin/location-translations/cities?country=${encodeURIComponent(countryZh)}&zh=${encodeURIComponent(zh)}`,
+        token,
+        { method: "DELETE" },
+      );
+      if (res.status === 401) return onUnauthorized();
+      if (!res.ok) throw new Error();
+      setCities((prev) => prev.filter((c) => !(c.country_zh === countryZh && c.zh === zh)));
+      setFeedback({ type: "success", msg: `已刪除「${zh}」` });
+    } catch {
+      setFeedback({ type: "error", msg: "刪除失敗" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addCity = async () => {
+    const countryZh = newCityCountry.trim();
+    const zh = newCityZh.trim();
+    const en = newCityEn.trim();
+    if (!token || !countryZh || !zh || !en) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(`${api}/api/v1/admin/location-translations/cities`, token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ countryZh, zh, en }),
+      });
+      if (res.status === 401) return onUnauthorized();
+      if (!res.ok) throw new Error();
+      const newRow: CityRow = { country_zh: countryZh, zh, en, source: "human", needs_review: false };
+      setCities((prev) =>
+        prev.some((c) => c.country_zh === countryZh && c.zh === zh)
+          ? prev.map((c) => (c.country_zh === countryZh && c.zh === zh ? newRow : c))
+          : [...prev, newRow].sort((a, b) =>
+              a.country_zh === b.country_zh ? a.zh.localeCompare(b.zh) : a.country_zh.localeCompare(b.country_zh),
+            ),
+      );
+      setNewCityZh("");
+      setNewCityEn("");
+      setFeedback({ type: "success", msg: `已新增「${zh}」` });
+    } catch {
+      setFeedback({ type: "error", msg: "新增失敗" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Finds every (country, city) pair actually used in posts but missing
+  // from city_translations, and asks Gemini to fill in an English name for
+  // each (flagged needs_review — see AlertTriangle badge above). Re-fetches
+  // the full city list afterward rather than patching state locally, since
+  // the endpoint doesn't return which rows it touched.
+  const resolveMissingCities = async () => {
+    if (!token) return;
+    setResolvingMissing(true);
+    try {
+      const res = await authFetch(
+        `${api}/api/v1/admin/location-translations/cities/resolve-missing`,
+        token,
+        { method: "POST" },
+      );
+      if (res.status === 401) return onUnauthorized();
+      if (!res.ok) throw new Error();
+      const { count } = (await res.json()) as { count: number };
+      if (count === 0) {
+        setFeedback({ type: "success", msg: "沒有找到缺少英文的城市" });
+      } else {
+        const citiesRes = await authFetch(`${api}/api/v1/admin/location-translations/cities`, token);
+        if (citiesRes.ok) setCities(await citiesRes.json());
+        setNeedsReviewOnly(true);
+        setFeedback({ type: "success", msg: `已用 AI 補上 ${count} 個城市的英文，請確認待審核清單` });
+      }
+    } catch {
+      setFeedback({ type: "error", msg: "批次翻譯失敗" });
+    } finally {
+      setResolvingMissing(false);
+    }
+  };
+
+  return (
+    <div className="mb-16">
+        {feedback && (
+          <div
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full font-sans text-sm font-bold shadow-lg ${
+              feedback.type === "success" ? "bg-ink text-white" : "bg-red-600 text-white"
+            }`}
+          >
+            {feedback.msg}
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-24 text-ink/40">
+            <Loader2 size={28} className="animate-spin" />
+          </div>
+        ) : (
+          <section>
+            <div className="flex items-baseline justify-between flex-wrap gap-2 mb-4">
+              <h2 className="font-serif font-black text-xl text-ink">
+                城市名稱 <span className="font-mono text-sm text-ink/40">({cities.length})</span>
+              </h2>
+              {needsReviewCount > 0 && !needsReviewOnly && (
+                <button
+                  onClick={() => setNeedsReviewOnly(true)}
+                  className="font-mono text-xs text-amber-700 hover:underline"
+                >
+                  {needsReviewCount} 筆待審核
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={resolveMissingCities}
+              disabled={resolvingMissing || busy}
+              className="inline-flex items-center gap-1.5 mb-4 px-4 py-2 border-2 border-brand text-brand hover:bg-brand hover:text-white disabled:opacity-30 disabled:cursor-not-allowed font-sans text-sm font-bold transition-colors"
+              title="找出文章裡實際用到、但還沒有英文對照的城市，用 AI 批次補上（會標記為待審核）"
+            >
+              {resolvingMissing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              找出並批次翻譯缺少英文的城市
+            </button>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              <CountryCombobox countries={countries} value={newCityCountry} onChange={setNewCityCountry} />
+              <input
+                value={newCityZh}
+                onChange={(e) => setNewCityZh(e.target.value)}
+                placeholder="中文城市名"
+                className="w-28 font-mono text-sm px-3 py-2 border border-line bg-white focus:outline-none focus:border-brand/60"
+              />
+              <input
+                value={newCityEn}
+                onChange={(e) => setNewCityEn(e.target.value)}
+                placeholder="English name"
+                className="flex-1 min-w-[8rem] font-mono text-sm px-3 py-2 border border-line bg-white focus:outline-none focus:border-brand/60"
+              />
+              <button
+                onClick={addCity}
+                disabled={busy || !newCityCountry || !newCityZh.trim() || !newCityEn.trim()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-ink text-white hover:bg-ink/80 disabled:opacity-30 disabled:cursor-not-allowed font-sans text-sm font-bold transition-colors"
+              >
+                <Plus size={16} /> 新增
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="relative flex-1 min-w-[10rem]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" />
+                <input
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
+                  placeholder="搜尋城市或國家…"
+                  className="w-full font-mono text-sm pl-9 pr-3 py-2 border border-line/60 bg-white focus:outline-none focus:border-brand/60"
+                />
+              </div>
+              <label className="inline-flex items-center gap-2 font-sans text-sm text-ink/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={needsReviewOnly}
+                  onChange={(e) => setNeedsReviewOnly(e.target.checked)}
+                  className="accent-brand"
+                />
+                只顯示待審核
+              </label>
+            </div>
+
+            <div className="bg-white border border-line max-h-[32rem] overflow-y-auto">
+              <table className="w-full">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="border-b border-line font-sans text-xs font-bold text-ink/60 text-left [&>th]:px-4 [&>th]:py-2 [&>th]:whitespace-nowrap">
+                    <th scope="col" className="text-right">編號</th>
+                    <th scope="col">國家</th>
+                    <th scope="col">中文名稱</th>
+                    <th scope="col">英文名稱</th>
+                    <th scope="col">來源</th>
+                    <th scope="col">審核狀態</th>
+                    <th scope="col" className="text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="[&>tr>td]:px-4">
+                  {filteredCities.map((c, i) => (
+                    <CityEditRow
+                      key={`${c.country_zh}::${c.zh}`}
+                      index={i + 1}
+                      row={c}
+                      onSave={saveCity}
+                      onDelete={deleteCity}
+                      busy={busy}
+                    />
+                  ))}
+                  {filteredCities.length === 0 && (
+                    <tr>
+                      <td className="px-4 py-8 text-center font-mono text-sm text-ink/40" colSpan={7}>
+                        查無符合的城市
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+    </div>
+  );
+}

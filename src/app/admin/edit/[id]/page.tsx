@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Languages } from "lucide-react";
+import { Save, Loader2, Check, Image as ImageIcon, AlertCircle, XCircle, Trash2, PlusCircle, Activity, Type, FileText, LayoutGrid, Tags, Eye, EyeOff, Calendar, List, MapPin, AlertTriangle, Languages } from "lucide-react";
 import Combobox from "@/components/admin/Combobox";
 import MediaManager from "@/components/admin/MediaManager";
 import { getApiBase } from "@/utils/apiBase";
@@ -13,6 +13,7 @@ import {
 } from "@/utils/locationData";
 import { useAdminAuth, getStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch } from "@/utils/authFetch";
+import AdminPage from "@/components/admin/AdminPage";
 import TripPanel from "./TripPanel";
 import type { Participant, ParticipantStats, Media, TripPost, Post, FormData, FieldErrors } from "./types";
 
@@ -392,7 +393,38 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
   const hasWarnings = warnings.length > 0;
 
   return (
-    <div className="min-h-screen bg-paper pb-24 text-ink">
+    <AdminPage
+      title="編輯"
+      accent="文章"
+      description="修改文章內容，儲存後更新到網站。"
+      actions={
+        <>
+            <Link
+              href={`/log/${post.id}?preview=true`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full cursor-pointer"
+              title="新分頁預覽文章"
+            >
+              <Eye size={18} /> <span className="hidden sm:inline">預覽文章</span>
+            </Link>
+            {post && (
+              <button
+                onClick={handleDelete}
+                disabled={isSaving}
+                title="刪除此文章"
+                className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full disabled:opacity-40 cursor-pointer"
+              >
+                <Trash2 size={18} /> <span className="hidden sm:inline">刪除文章</span>
+              </button>
+            )}
+            <button onClick={() => handleSave()} disabled={isSaving} className="bg-ink text-paper px-6 py-2.5 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
+              {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}
+              {isSaving ? "儲存中..." : "儲存變更"}
+            </button>
+        </>
+      }
+    >
       {/* Toast feedback */}
       {feedback.type && (
         <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[2000] px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border-2 animate-in fade-in slide-in-from-top-4 duration-300 ${feedback.type === "success" ? "bg-green-50 border-green-500 text-green-800" : "bg-red-50 border-brand text-brand"}`}>
@@ -425,42 +457,8 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
-      <header className="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b-2 border-ink">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 md:px-12 py-3 md:py-6">
-          <div className="flex items-center gap-3 md:gap-5">
-            <Link href="/admin" className="inline-flex items-center gap-2 text-ink/40 hover:text-brand font-sans text-sm md:text-base font-black transition-colors">
-              <ArrowLeft size={18} /> 回文章列表
-            </Link>
-          </div>
-          <div className="flex items-center gap-3 md:gap-5">
-            <Link
-              href={`/log/${post.id}?preview=true`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full cursor-pointer"
-              title="新分頁預覽文章"
-            >
-              <Eye size={18} /> <span className="hidden sm:inline">預覽文章</span>
-            </Link>
-            {post && (
-              <button
-                onClick={handleDelete}
-                disabled={isSaving}
-                title="刪除此文章"
-                className="inline-flex items-center gap-2 px-4 py-2 border-2 border-ink/40 hover:border-brand hover:text-brand text-ink/40 font-sans text-sm md:text-base font-black transition-all rounded-full disabled:opacity-40 cursor-pointer"
-              >
-                <Trash2 size={18} /> <span className="hidden sm:inline">刪除文章</span>
-              </button>
-            )}
-            <button onClick={() => handleSave()} disabled={isSaving} className="bg-ink text-paper px-4 py-2 md:px-12 md:py-4 rounded-full font-sans text-sm md:text-xl font-black tracking-widest hover:bg-brand transition-all flex items-center gap-2 md:gap-3 disabled:opacity-50 shadow-2xl">
-              {isSaving ? <Loader2 className="animate-spin" size={18} /> : feedback.type === "success" ? <Check size={18} /> : <Save size={18} />}
-              {isSaving ? "儲存中..." : "儲存變更"}
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto p-6 md:p-12">
+      <div className="pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           {/* ── Left column ── */}
           <div className="lg:col-span-8 space-y-16">
@@ -795,6 +793,6 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
           </div>
         </div>
       </div>
-    </div>
+    </AdminPage>
   );
 }

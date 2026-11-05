@@ -17,9 +17,11 @@
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.166",
     "@next/third-parties": "^16.3.4",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "ai": "^7.0.162",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.2",
     "leaflet": "^1.9.4",

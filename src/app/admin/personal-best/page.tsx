@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
   RefreshCw,
   Loader2,
   CheckCircle2,
@@ -13,6 +11,7 @@ import {
 import { getApiBase } from "@/utils/apiBase";
 import { useAdminAuth, getStoredToken, clearStoredToken } from "@/hooks/useAdminAuth";
 import { authFetch } from "@/utils/authFetch";
+import AdminPage from "@/components/admin/AdminPage";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -47,21 +46,11 @@ export default function AdminPersonalBestPage() {
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-paper">
-      <main className="max-w-2xl mx-auto px-6 py-10">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-2 text-ink/50 hover:text-brand font-sans text-base font-bold mb-10 transition-colors"
-        >
-          <ArrowLeft size={18} /> 回文章管理
-        </Link>
-
-        <h1 className="font-serif font-black text-3xl text-ink tracking-tight mb-2">
-          個人<span className="text-brand">最佳成績</span>
-        </h1>
-        <p className="font-sans text-base text-ink/60 mb-8">
-          個人最佳成績為即時計算並暫存。匯入資料或在系統外異動後，可在此手動重新計算，讓前台立即反映。
-        </p>
+    <AdminPage
+      title="個人"
+      accent="最佳成績"
+      description="個人最佳成績為即時計算並暫存。匯入資料或在系統外異動後，可在此手動重新計算，讓前台立即反映。"
+    >
 
         <div className="bg-white border border-line p-6 sm:p-8">
           <button
@@ -88,7 +77,6 @@ export default function AdminPersonalBestPage() {
             </p>
           )}
         </div>
-      </main>
-    </div>
+    </AdminPage>
   );
 }
