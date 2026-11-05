@@ -13,7 +13,8 @@ const TOKEN_KEY = "maramap_admin_token";
 // so this check has to happen client-side to catch it.
 export function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
+    // JWTs use the URL-safe alphabet, which atob rejects.
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
     return typeof payload.exp === "number" && payload.exp * 1000 < Date.now();
   } catch {
     return true;
